@@ -38,6 +38,9 @@ python scoring.py
 
 # Step 4: run the sanity-check backtest against known cycle extremes
 python backtest.py
+
+# Step 5: proper out-of-sample check (tune on early history, test blind on later history)
+python walkforward.py
 ```
 
 ## What to look at first
@@ -123,14 +126,50 @@ Practical takeaways:
   cycle actually turns, versus a frequency picked before seeing real
   backtest data.
 
+## Walk-forward validation (`walkforward.py`)
+
+The backtests above all tune and evaluate on the full history at once,
+which risks hindsight bias — you can always find a threshold that
+looks great on data you've already seen. `walkforward.py` fixes that:
+
+1. Splits history chronologically: **train** = 2018-02 to 2023-08
+   (covers a full cycle: 2018 bottom, 2021 top, 2022 bottom), **test**
+   = 2023-08 to 2026-08 (the 2023-2025 bull run and current pullback —
+   genuinely different market structure the config never saw).
+2. Sweeps threshold/confirmation configs on TRAIN ONLY, scored by a
+   real predictive-value metric: average 90-day forward return
+   following confirmed buy-zone days minus the same following
+   sell-zone days. A working contrarian signal should show buy > sell.
+3. Freezes the best TRAIN config and applies it to TEST with **no
+   further tuning** — the actual blind, out-of-sample check.
+
+**Result:** best TRAIN config (sell=60, buy=40, confirm=5d) showed a
++10.3pp spread (buy-zone days: +22.4% fwd return; sell-zone: +12.1%).
+Applied unchanged to TEST, the spread held up at +9.3pp (buy-zone:
++4.6%; sell-zone: -4.7%) — the buy/sell direction is genuinely
+out-of-sample, not an artifact of fitting to one period.
+
+**Important caveat found in the same run:** in the TEST window,
+"neutral" days averaged +24.8% forward return — better than buy-zone,
+sell-zone, *and* the all-days baseline (+10.8%, roughly buy-and-hold
+for that horizon). A lot of the 2023-2025 bull run sat in the neutral
+40-60 band rather than registering as extreme greed, so simply holding
+through neutral periods outperformed acting on this system's sell
+signals in that specific window. Treat this less as "sell fully at
+sell-zone, sit in cash otherwise" and more as a risk-reduction/trim
+signal at genuine extremes — not a return-maximizer on its own. Also
+worth noting the 90-day forward-return horizon is a specific choice;
+re-running with 30d/180d horizons could tell a different story and is
+worth trying before trusting this further.
+
 ## Next steps
 
 1. Run this, look at the output, see if it's sane.
-2. Decide on final weights/thresholds using the confirmed-signal
-   counts above, not raw ones.
-3. Build proper walk-forward / out-of-sample backtesting — everything
-   so far has been tuned by looking at the whole history at once,
-   which risks hindsight bias.
-4. Only after walk-forward validation looks sound: consider paying for
-   an on-chain data source (Glassnode, CoinMetrics) to add MVRV
-   Z-Score, Puell Multiple, or BTC dominance.
+2. Try other forward-return horizons in `walkforward.py` (30d, 180d)
+   to see how sensitive the train/test result is to that choice.
+3. Decide how the system should actually be used given the neutral-
+   period finding above — full position sizing on zone, or a trim/add
+   overlay on top of a base long-term hold.
+4. Only after that: consider paying for an on-chain data source
+   (Glassnode, CoinMetrics) to add MVRV Z-Score, Puell Multiple, or
+   BTC dominance.
