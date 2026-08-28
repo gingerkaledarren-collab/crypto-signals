@@ -23,11 +23,13 @@ FNG_CACHE = DATA_DIR / "fear_greed_history.csv"
 
 def fetch_btc_price_history(days: int = "max", force_refresh: bool = False) -> pd.DataFrame:
     """
-    Fetch BTC daily price history from CoinGecko.
+    Fetch BTC daily price history from blockchain.info's charts API.
 
-    Note: CoinGecko's free tier limits how much history you get per call
-    and how granular it is. For a proper 200-week MA we need ~4+ years of
-    daily data, which the free /market_chart endpoint supports.
+    NOTE: CoinGecko's free tier now caps historical queries at 365 days
+    (their /market_chart endpoint returns a 401/10012 error beyond that),
+    which isn't enough for a 200-week MA. blockchain.info's market-price
+    chart has no such cap and goes back to 2009, so we use that instead.
+    `days` is kept as a parameter for API compatibility but is unused.
 
     Returns a DataFrame with columns: date, price
     """
@@ -35,17 +37,18 @@ def fetch_btc_price_history(days: int = "max", force_refresh: bool = False) -> p
         df = pd.read_csv(PRICE_CACHE, parse_dates=["date"])
         return df
 
-    url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
-    params = {"vs_currency": "usd", "days": days, "interval": "daily"}
+    url = "https://api.blockchain.info/charts/market-price"
+    params = {"timespan": "all", "format": "json", "sampled": "false"}
 
     resp = requests.get(url, params=params, timeout=30)
     resp.raise_for_status()
     raw = resp.json()
 
-    prices = raw["prices"]  # list of [timestamp_ms, price]
-    df = pd.DataFrame(prices, columns=["timestamp_ms", "price"])
-    df["date"] = pd.to_datetime(df["timestamp_ms"], unit="ms").dt.normalize()
+    values = raw["values"]  # list of {"x": timestamp_s, "y": price}
+    df = pd.DataFrame(values).rename(columns={"x": "timestamp_s", "y": "price"})
+    df["date"] = pd.to_datetime(df["timestamp_s"], unit="s").dt.normalize()
     df = df[["date", "price"]].drop_duplicates(subset="date").reset_index(drop=True)
+    df = df[df["price"] > 0].reset_index(drop=True)  # drop pre-exchange zero-price rows
 
     df.to_csv(PRICE_CACHE, index=False)
     return df
@@ -70,7 +73,7 @@ def fetch_fear_greed_history(force_refresh: bool = False) -> pd.DataFrame:
 
     records = raw["data"]
     df = pd.DataFrame(records)
-    df["date"] = pd.to_datetime(df["timestamp"], unit="s").dt.normalize()
+    df["date"] = pd.to_datetime(df["timestamp"].astype(int), unit="s").dt.normalize()
     df["fng_value"] = df["value"].astype(int)
     df = df[["date", "fng_value", "value_classification"]].rename(
         columns={"value_classification": "fng_classification"}
