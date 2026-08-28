@@ -41,6 +41,9 @@ python backtest.py
 
 # Step 5: proper out-of-sample check (tune on early history, test blind on later history)
 python walkforward.py
+
+# Step 6: check where things stand TODAY (the one to actually run periodically)
+python current_status.py --refresh
 ```
 
 ## What to look at first
@@ -125,6 +128,22 @@ Practical takeaways:
   band above) looks like a more realistic cadence for how often BTC's
   cycle actually turns, versus a frequency picked before seeing real
   backtest data.
+
+## Checking today's signal (`current_status.py`)
+
+Everything above answers "does this work on history." `current_status.py`
+answers the question you actually check periodically: what does the
+system say RIGHT NOW. It prints today's price, each indicator's score,
+the composite, whether you're in a confirmed buy/sell zone (and how many
+days into that run), and the last 3 confirmed signals for context.
+
+```bash
+python current_status.py --refresh   # --refresh pulls fresh data instead of using the cache
+```
+
+Defaults to the walk-forward-selected config (sell=60, buy=40, confirm
+after 5 days) since that's the most rigorously chosen starting point so
+far — override with `--sell`, `--buy`, `--confirm-days` to try others.
 
 ## Walk-forward validation (`walkforward.py`)
 
