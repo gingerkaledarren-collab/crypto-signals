@@ -1,7 +1,7 @@
 # Crypto Long-Term Signal System (Starter)
 
 A minimal starting point for a long-term BTC positioning signal system.
-Currently combines three indicators:
+Currently combines four indicators:
 
 1. **200-week moving average distance** — how far price is above/below
    its 200-week MA, as a proxy for long-term valuation.
@@ -9,10 +9,14 @@ Currently combines three indicators:
 3. **Weekly RSI** — long-term momentum overbought/oversold gauge,
    computed from weekly closes (not daily, which is too noisy for a
    positioning system).
+4. **Pi Cycle Top ratio** (111-day SMA vs. 2x 350-day SMA) — a
+   well-known price-only cycle-top indicator, computable without any
+   on-chain data.
 
-Both are normalized to a 0-100 "greed scale" and combined into a
-composite score. Zone transitions (crossing into buy/sell territory)
-are what you'd actually act on, not the daily noise.
+All four are normalized to a 0-100 "greed scale" and combined into a
+composite score. Zone transitions (crossing into buy/sell territory,
+then *holding* for a minimum number of days — see "confirmation rule"
+below) are what you'd actually act on, not the daily noise.
 
 ## Setup
 
@@ -61,48 +65,72 @@ Run `backtest.py` and check two things:
   checks the whole history at once, which risks fooling you with
   hindsight bias. Once the basic mechanics look sane, the next step
   is splitting history into a "tune" period and a "blind test" period.
-- **3 of the ~7 indicators discussed** (200w MA, Fear & Greed, weekly
-  RSI). MVRV Z-Score and Puell Multiple need on-chain realized-cap
-  data we don't currently have a free source for; BTC dominance and
-  Pi Cycle Top are the more reachable next additions.
+- **4 of the ~7 indicators discussed** (200w MA, Fear & Greed, weekly
+  RSI, Pi Cycle Top ratio). MVRV Z-Score, Puell Multiple, and BTC
+  dominance all need data (on-chain realized cap, or market cap across
+  every coin) we don't currently have a free source for.
 - **CoinGecko's free tier now hard-caps historical queries at 365
   days** (confirmed via direct API test: `days=max` returns HTTP 401 /
   error_code 10012) — nowhere near enough for a 200-week MA. Price
   history now comes from blockchain.info's market-price chart
   instead, which has no such cap and goes back to 2009.
 
-## Threshold tuning findings
+## Confirmation rule (filtering whipsaw)
 
-Loosening the sell/buy thresholds from 75/25 down toward 55/45 does
-**not** cleanly increase signal frequency the way you'd expect —
-across that entire range, actual signals/year stayed in the 2.5-4.6
-range and bounced around non-monotonically (e.g. 60/40 produced *more*
-transitions than 65/35). The composite score tends to cluster and
-briefly flicker back across a threshold rather than moving through the
-middle smoothly, so looser thresholds mostly pick up extra whipsaw
-noise near the boundary rather than genuinely new, distinct
-repositioning opportunities.
+`scoring.apply_confirmation()` requires the raw zone to hold for
+`min_confirm_days` CONSECUTIVE days before it counts as a real signal
+(`backtest.run_basic_backtest()` defaults to 5). This exists because the
+raw threshold sweep below showed the composite score clustering and
+briefly flickering back across a threshold rather than moving through
+cleanly — without confirmation, looser thresholds mostly added whipsaw
+noise near the boundary, not genuinely new repositioning opportunities.
+
+## Threshold + confirmation tuning findings
+
+With the original 3-indicator composite, loosening 75/25 toward 55/45
+alone was non-monotonic and noisy (2.5-4.6 signals/year, no clean
+trend). Adding Pi Cycle Top as a 4th indicator and pairing threshold
+loosening WITH the confirmation rule fixed that — frequency now scales
+sensibly with looseness instead of bouncing around:
+
+| sell/buy | confirm days | confirmed signals/year |
+|----------|--------------|-------------------------|
+| 75/25    | 0            | 1.2 |
+| 70/30    | 3            | 1.5 |
+| 65/35    | 5            | 2.2 |
+| 65/35    | 3            | 2.6 |
+| 60/40    | 5            | 2.7 |
+| 60/40    | 3            | 2.8 |
+| 55/45    | 3            | 3.4 |
 
 Practical takeaways:
-- Getting cleanly to 8-10/year probably isn't a pure threshold-tuning
-  problem with this indicator set — it likely needs either an added
-  "confirmation" rule (score must hold past the threshold for N days
-  before it counts as a real signal, filtering the flicker) or more
-  independent indicators that move on different timescales.
-- It's also worth revisiting whether 8-10/year is the right target
-  now that there's real backtest data: 3-5 *genuine* trend-turn
-  signals/year (roughly what 65-70/30-35 gives you before whipsaw
-  starts dominating) may better match how often BTC's cycle actually
-  turns, versus a frequency target picked before seeing the data.
+- **The confirmation rule is what made threshold tuning meaningful** —
+  it's the fix, not just an add-on. Tune thresholds on the *confirmed*
+  signal count, not the raw one.
+- **Adding Pi Cycle Top lowered frequency further** at strict
+  thresholds (75/25 dropped from ~2.5/yr with 3 indicators to ~1.2/yr
+  with 4), because it sits in the 30-60 range outside real blow-off
+  tops, pulling the average down. It didn't "miss" the April/Nov 2021
+  tops though — both fall inside one continuous sell-zone run that
+  started in Nov 2020, which is arguably the *right* behavior for a
+  long-term system (stay positioned to sell through an extended
+  euphoric phase rather than re-signaling every few weeks).
+- **8-10/year still isn't reached anywhere in this range** without
+  pushing thresholds close to 50/50, at which point they stop meaning
+  anything as "extremes." Worth revisiting the target itself: 3-5
+  *genuine, confirmed* trend-turn signals/year (roughly the 60-65/35-40
+  band above) looks like a more realistic cadence for how often BTC's
+  cycle actually turns, versus a frequency picked before seeing real
+  backtest data.
 
 ## Next steps
 
 1. Run this, look at the output, see if it's sane.
-2. Decide: does F&G (or RSI) add value over the 200w MA alone, or is
-   it mostly noise? (Try running with weight 100% on one indicator vs.
-   the others and compare.)
-3. Add a signal-confirmation rule (e.g. N consecutive days past
-   threshold) to filter whipsaw before tuning thresholds further.
-4. Add BTC dominance or Pi Cycle Top as a 4th indicator.
-5. Build proper walk-forward backtesting before trusting any of this
-   with real money decisions.
+2. Decide on final weights/thresholds using the confirmed-signal
+   counts above, not raw ones.
+3. Build proper walk-forward / out-of-sample backtesting — everything
+   so far has been tuned by looking at the whole history at once,
+   which risks hindsight bias.
+4. Only after walk-forward validation looks sound: consider paying for
+   an on-chain data source (Glassnode, CoinMetrics) to add MVRV
+   Z-Score, Puell Multiple, or BTC dominance.

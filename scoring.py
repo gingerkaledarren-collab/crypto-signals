@@ -13,9 +13,10 @@ import pandas as pd
 
 
 DEFAULT_WEIGHTS = {
-    "ma_200w_score": 1 / 3,
-    "fng_score": 1 / 3,
-    "rsi_score": 1 / 3,
+    "ma_200w_score": 0.25,
+    "fng_score": 0.25,
+    "rsi_score": 0.25,
+    "pi_cycle_score": 0.25,
 }
 
 
@@ -58,19 +59,48 @@ def flag_zones(df: pd.DataFrame, sell_threshold: float = 75, buy_threshold: floa
     return df
 
 
-def extract_zone_transitions(df: pd.DataFrame) -> pd.DataFrame:
+def apply_confirmation(df: pd.DataFrame, min_days: int = 5) -> pd.DataFrame:
+    """
+    Requires the raw zone to hold for `min_days` CONSECUTIVE days before
+    treating it as a real signal. The threshold sweep in the backtest
+    showed loosening thresholds mostly added whipsaw (the score flickering
+    back across the boundary within a few days) rather than genuinely new
+    signals -- this filters that out without touching the thresholds.
+
+    Days that haven't held long enough are downgraded to 'neutral' in the
+    new 'confirmed_zone' column; once a run reaches min_days it stays
+    confirmed for the rest of that run.
+
+    Returns the input df with an added 'confirmed_zone' column.
+    """
+    df = df.copy().sort_values("date").reset_index(drop=True)
+    zone = df["zone"]
+
+    run_id = (zone != zone.shift(1)).cumsum()
+    run_length = zone.groupby(run_id).cumcount() + 1
+
+    confirmed = zone.copy()
+    confirmed[(zone != "neutral") & (run_length < min_days)] = "neutral"
+    df["confirmed_zone"] = confirmed
+    return df
+
+
+def extract_zone_transitions(df: pd.DataFrame, zone_col: str = "zone") -> pd.DataFrame:
     """
     Reduces the daily zone series down to just the transition POINTS
     (i.e. the moment a zone starts), which is what you'd actually act on --
     not every day you're sitting inside a zone.
 
+    Pass zone_col="confirmed_zone" (after apply_confirmation) to count only
+    signals that held for the required number of days, filtering whipsaw.
+
     Returns a df of just the rows where the zone changed from the
     previous day, which is the realistic count of "signals per year".
     """
     df = df.copy().sort_values("date").reset_index(drop=True)
-    df["zone_changed"] = df["zone"] != df["zone"].shift(1)
-    transitions = df[df["zone_changed"] & (df["zone"] != "neutral")]
-    return transitions[["date", "price", "composite_score", "zone"]]
+    changed = df[zone_col] != df[zone_col].shift(1)
+    transitions = df[changed & (df[zone_col] != "neutral")]
+    return transitions[["date", "price", "composite_score", zone_col]].rename(columns={zone_col: "zone"})
 
 
 if __name__ == "__main__":

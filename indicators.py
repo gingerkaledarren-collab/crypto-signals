@@ -63,6 +63,40 @@ def smooth_fear_greed(fng_df: pd.DataFrame, window: int = 30) -> pd.DataFrame:
     return df[["date", "fng_value", "fng_smoothed"]]
 
 
+def compute_pi_cycle_ratio(price_df: pd.DataFrame, short_window: int = 111, long_window: int = 350) -> pd.DataFrame:
+    """
+    Computes the Pi Cycle Top ratio: 111-day SMA / (2 x 350-day SMA).
+
+    This is a well-known price-only cycle-top indicator -- historically,
+    the 111-day SMA crossing above 2x the 350-day SMA (ratio crossing 1.0)
+    has closely marked BTC cycle tops. It needs only price data, unlike
+    MVRV Z-Score/Puell Multiple which need on-chain realized-cap data we
+    don't have a free source for.
+
+    Returns df with columns: date, sma_111, sma_350x2, pi_cycle_ratio
+    """
+    df = price_df.copy().sort_values("date").reset_index(drop=True)
+    df["sma_111"] = df["price"].rolling(window=short_window, min_periods=short_window).mean()
+    df["sma_350x2"] = df["price"].rolling(window=long_window, min_periods=long_window).mean() * 2
+    df["pi_cycle_ratio"] = df["sma_111"] / df["sma_350x2"]
+    return df[["date", "sma_111", "sma_350x2", "pi_cycle_ratio"]]
+
+
+def normalize_pi_cycle_ratio(ratio: pd.Series, clip_range: tuple = (0.35, 1.05)) -> pd.Series:
+    """
+    Maps the Pi Cycle ratio to a 0-100 greed scale.
+
+    Calibration note: historically (2011-present) this ratio has run from
+    ~0.30 (deep capitulation) up to ~1.47 (2013 blow-off top), with the
+    classic "top signal" cross at ratio=1.0. Clip bounds are set from the
+    ~5th/95th percentiles of that history, so ratio=1.0 lands around a
+    score of ~90 (strong but not maximal greed) rather than pinning to 100.
+    """
+    lo, hi = clip_range
+    clipped = ratio.clip(lower=lo, upper=hi)
+    return (clipped - lo) / (hi - lo) * 100
+
+
 def compute_weekly_rsi(price_df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
     """
     Computes RSI on WEEKLY closes (not daily) -- daily RSI is a momentum
@@ -97,7 +131,8 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.Da
 
     Returns df with columns:
       date, price, ma_200w, pct_distance, ma_200w_score,
-      fng_value, fng_smoothed, fng_score, weekly_rsi, rsi_score
+      fng_value, fng_smoothed, fng_score, weekly_rsi, rsi_score,
+      sma_111, sma_350x2, pi_cycle_ratio, pi_cycle_score
     """
     ma_df = compute_200w_ma_distance(price_df)
     ma_df["ma_200w_score"] = normalize_200w_distance(ma_df["pct_distance"])
@@ -115,6 +150,11 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.Da
         merged.sort_values("date"), rsi_df.sort_values("date"), on="date", direction="backward"
     )
     merged["rsi_score"] = merged["weekly_rsi"]  # already 0-100, same convention
+
+    pi_df = compute_pi_cycle_ratio(price_df)
+    pi_df["pi_cycle_score"] = normalize_pi_cycle_ratio(pi_df["pi_cycle_ratio"])
+    merged = pd.merge(merged, pi_df[["date", "sma_111", "sma_350x2", "pi_cycle_ratio", "pi_cycle_score"]],
+                       on="date", how="inner")
 
     return merged
 
