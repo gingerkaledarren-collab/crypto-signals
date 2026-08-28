@@ -63,14 +63,41 @@ def smooth_fear_greed(fng_df: pd.DataFrame, window: int = 30) -> pd.DataFrame:
     return df[["date", "fng_value", "fng_smoothed"]]
 
 
+def compute_weekly_rsi(price_df: pd.DataFrame, period: int = 14) -> pd.DataFrame:
+    """
+    Computes RSI on WEEKLY closes (not daily) -- daily RSI is a momentum
+    indicator too noisy for a positioning system, but the weekly version
+    is a standard long-term overbought/oversold gauge and needs only the
+    price series we already have (no on-chain data required).
+
+    Uses Wilder's smoothing (the standard RSI method) via an EWM with
+    alpha=1/period.
+
+    Returns df with columns: date, weekly_rsi
+    Note: 'date' here is the week-ending date each weekly bar is labeled with.
+    """
+    weekly = price_df.copy().set_index("date")["price"].resample("W").last().dropna()
+    delta = weekly.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+
+    avg_gain = gain.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+
+    return rsi.rename("weekly_rsi").reset_index()
+
+
 def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Joins both indicators into a single date-aligned table, with each
+    Joins all indicators into a single date-aligned table, with each
     indicator normalized to the 0-100 greed scale.
 
     Returns df with columns:
       date, price, ma_200w, pct_distance, ma_200w_score,
-      fng_value, fng_smoothed, fng_score
+      fng_value, fng_smoothed, fng_score, weekly_rsi, rsi_score
     """
     ma_df = compute_200w_ma_distance(price_df)
     ma_df["ma_200w_score"] = normalize_200w_distance(ma_df["pct_distance"])
@@ -79,6 +106,16 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.Da
     fng_smooth_df["fng_score"] = fng_smooth_df["fng_smoothed"]  # already 0-100
 
     merged = pd.merge(ma_df, fng_smooth_df, on="date", how="inner")
+
+    rsi_df = compute_weekly_rsi(price_df)
+    # merge_asof(direction="backward") attaches each daily row the most
+    # recently COMPLETED weekly RSI bar -- never a bar that hasn't closed
+    # yet as of that date, so this doesn't leak future data into the past.
+    merged = pd.merge_asof(
+        merged.sort_values("date"), rsi_df.sort_values("date"), on="date", direction="backward"
+    )
+    merged["rsi_score"] = merged["weekly_rsi"]  # already 0-100, same convention
+
     return merged
 
 

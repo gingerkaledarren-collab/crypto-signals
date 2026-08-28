@@ -13,8 +13,9 @@ import pandas as pd
 
 
 DEFAULT_WEIGHTS = {
-    "ma_200w_score": 0.5,
-    "fng_score": 0.5,
+    "ma_200w_score": 1 / 3,
+    "fng_score": 1 / 3,
+    "rsi_score": 1 / 3,
 }
 
 
