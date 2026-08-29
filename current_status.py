@@ -14,7 +14,9 @@ import argparse
 import pandas as pd
 from fetch_data import fetch_btc_price_history, fetch_fear_greed_history
 from indicators import build_indicator_table
-from scoring import compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions
+from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
+                     flag_extreme_zones, extract_extreme_periods,
+                     EXTREME_FEAR_THRESHOLD, EXTREME_GREED_THRESHOLD)
 
 # Walk-forward-selected config (see walkforward.py / README) -- the most
 # validated starting point so far, not a guarantee it's optimal going forward.
@@ -43,16 +45,18 @@ def get_current_status(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_thres
     scored = compute_composite_score(table)
     zoned = flag_zones(scored, sell_threshold=sell_threshold, buy_threshold=buy_threshold)
     zoned = apply_confirmation(zoned, min_days=confirm_days)
+    zoned = flag_extreme_zones(zoned)
 
     latest = zoned.iloc[-1]
     history = extract_zone_transitions(zoned, zone_col="confirmed_zone")
+    extreme_periods = extract_extreme_periods(zoned)
 
-    return latest, zoned, history
+    return latest, zoned, history, extreme_periods
 
 
 def print_report(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = DEFAULT_BUY_THRESHOLD,
                   confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False):
-    latest, zoned, history = get_current_status(sell_threshold, buy_threshold, confirm_days, force_refresh)
+    latest, zoned, history, extreme_periods = get_current_status(sell_threshold, buy_threshold, confirm_days, force_refresh)
 
     # How many consecutive days the CURRENT raw zone has held, to show
     # progress toward (or past) the confirm_days requirement.
@@ -89,6 +93,14 @@ def print_report(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: 
         print(history.tail(3).to_string(index=False))
     else:
         print("No confirmed signals in this history yet.")
+    print()
+
+    extreme_status = "not currently in one" if latest["extreme_zone"] == "normal" else latest["extreme_zone"]
+    print(f"Extreme zone (score <= {EXTREME_FEAR_THRESHOLD} or >= {EXTREME_GREED_THRESHOLD}, "
+          f"~10% rarest readings historically): {extreme_status}")
+    if len(extreme_periods) > 0:
+        print(f"{len(extreme_periods)} such episodes since {zoned['date'].min().date()}. Last 3:")
+        print(extreme_periods.tail(3).to_string(index=False))
     print()
     print("NOTE: per the walk-forward test (see README), treat this as a")
     print("risk-reduction/trim signal at genuine extremes, not a standalone")

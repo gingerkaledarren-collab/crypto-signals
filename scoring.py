@@ -93,6 +93,68 @@ def apply_confirmation(df: pd.DataFrame, min_days: int = 5) -> pd.DataFrame:
     return df
 
 
+EXTREME_FEAR_THRESHOLD = 20
+EXTREME_GREED_THRESHOLD = 70
+# Derived from the actual historical distribution of composite_score
+# (2018-present), not guessed: those scores sit almost exactly at the
+# 10th and 90th percentiles of the full history (~22 and ~69), rounded
+# to clean numbers. This is deliberately a stricter, rarer band than the
+# 40/60 buy_zone/sell_zone thresholds used elsewhere (those were chosen
+# for walk-forward predictive value, not for marking rarity) -- "extreme"
+# here means "in the most unusual ~10% of readings," a plain historical
+# fact about the score rather than a claim about what to do next.
+
+
+def flag_extreme_zones(df: pd.DataFrame, extreme_fear_threshold: float = EXTREME_FEAR_THRESHOLD,
+                        extreme_greed_threshold: float = EXTREME_GREED_THRESHOLD) -> pd.DataFrame:
+    """
+    Flags each row 'extreme_fear', 'extreme_greed', or 'normal' based on
+    how rare that composite_score reading has historically been -- see
+    EXTREME_FEAR_THRESHOLD/EXTREME_GREED_THRESHOLD above for how these
+    were derived. Independent of flag_zones()/apply_confirmation(): no
+    confirmation delay is applied here, since sitting in the most extreme
+    ~10% of readings is itself a rare, meaningful event.
+
+    Returns the input df with an added 'extreme_zone' column.
+    """
+    df = df.copy()
+    df["extreme_zone"] = "normal"
+    df.loc[df["composite_score"] <= extreme_fear_threshold, "extreme_zone"] = "extreme_fear"
+    df.loc[df["composite_score"] >= extreme_greed_threshold, "extreme_zone"] = "extreme_greed"
+    return df
+
+
+def extract_extreme_periods(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Groups consecutive days in the same extreme_zone into date ranges --
+    "every day the signal was in an extreme zone" is more useful read as
+    contiguous episodes (when did it start, how long did it last, what
+    did price do) than as a list of hundreds of individual daily rows.
+
+    Returns a df with columns: zone, start_date, end_date, days,
+    min_composite, max_composite, start_price, end_price
+    """
+    df = df.copy().sort_values("date").reset_index(drop=True)
+    run_id = (df["extreme_zone"] != df["extreme_zone"].shift(1)).cumsum()
+
+    periods = []
+    for _, group in df.groupby(run_id):
+        zone = group["extreme_zone"].iloc[0]
+        if zone == "normal":
+            continue
+        periods.append({
+            "zone": zone,
+            "start_date": group["date"].iloc[0],
+            "end_date": group["date"].iloc[-1],
+            "days": len(group),
+            "min_composite": group["composite_score"].min(),
+            "max_composite": group["composite_score"].max(),
+            "start_price": group["price"].iloc[0],
+            "end_price": group["price"].iloc[-1],
+        })
+    return pd.DataFrame(periods)
+
+
 def extract_zone_transitions(df: pd.DataFrame, zone_col: str = "zone") -> pd.DataFrame:
     """
     Reduces the daily zone series down to just the transition POINTS

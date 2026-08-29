@@ -150,6 +150,37 @@ Defaults to the walk-forward-selected config (sell=60, buy=40, confirm
 after 5 days) since that's the most rigorously chosen starting point so
 far — override with `--sell`, `--buy`, `--confirm-days` to try others.
 
+It also reports **extreme zone** status — see the next section.
+
+## Extreme zone history (separate from buy_zone/sell_zone)
+
+The 40/60 buy_zone/sell_zone thresholds (`flag_zones()`) were chosen for
+walk-forward *predictive* value, not for marking rarity — the composite
+crosses 40/60 fairly often (that's what let it hit ~3-4 confirmed
+signals/year). Sometimes what you actually want to know is simpler: has
+this reading historically been unusual at all?
+
+`scoring.flag_extreme_zones()` answers that directly from the data: it
+computes `extreme_fear`/`extreme_greed` from `EXTREME_FEAR_THRESHOLD` (20)
+and `EXTREME_GREED_THRESHOLD` (70) — thresholds set from the actual
+historical distribution of `composite_score` (2018-present), where they
+land almost exactly on the 10th and 90th percentiles. So "extreme" here
+means "in the rarest ~10% of readings, historically" — a plain fact about
+the score's distribution, not a claim about predictive value like the
+buy/sell thresholds. No confirmation delay is applied (unlike
+buy_zone/sell_zone) since sitting in the most extreme decile is already a
+rare, meaningful event on its own.
+
+`scoring.extract_extreme_periods()` groups consecutive extreme days into
+date ranges rather than a raw day-by-day list — 22 episodes since 2018,
+from single-day spikes to the 188-day extreme-greed stretch spanning the
+Nov 2020-May 2021 blow-off run. Both `current_status.py` (a text summary)
+and the dashboard artifact (a dedicated "Extreme zone history" table) show
+this. On the dashboard it's deliberately styled as outlined pills, not the
+filled pills used for buy_zone/sell_zone, so it doesn't visually read as
+"another kind of trading signal" — it's historical context, not a call to
+action.
+
 ## Walk-forward validation (`walkforward.py`)
 
 The backtests above all tune and evaluate on the full history at once,
