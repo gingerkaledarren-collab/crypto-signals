@@ -93,8 +93,8 @@ def apply_confirmation(df: pd.DataFrame, min_days: int = 5) -> pd.DataFrame:
     return df
 
 
-EXTREME_FEAR_THRESHOLD = 20
-EXTREME_GREED_THRESHOLD = 70
+EXTREME_LOW_THRESHOLD = 20
+EXTREME_HIGH_THRESHOLD = 70
 # Derived from the actual historical distribution of composite_score
 # (2018-present), not guessed: those scores sit almost exactly at the
 # 10th and 90th percentiles of the full history (~22 and ~69), rounded
@@ -103,24 +103,33 @@ EXTREME_GREED_THRESHOLD = 70
 # for walk-forward predictive value, not for marking rarity) -- "extreme"
 # here means "in the most unusual ~10% of readings," a plain historical
 # fact about the score rather than a claim about what to do next.
+#
+# Deliberately NOT called "extreme_fear"/"extreme_greed": the composite
+# blends 200w MA distance (valuation), Fear & Greed (sentiment), weekly
+# RSI (momentum), and Pi Cycle Top ratio (a price-ratio cycle-top signal)
+# -- only one of those four is literally sentiment. Labeling the whole
+# composite's tails "fear"/"greed" would borrow an emotional claim that's
+# only true for a quarter of what feeds it. "extreme_low"/"extreme_high"
+# describes what this actually is: a percentile fact about the score.
 
 
-def flag_extreme_zones(df: pd.DataFrame, extreme_fear_threshold: float = EXTREME_FEAR_THRESHOLD,
-                        extreme_greed_threshold: float = EXTREME_GREED_THRESHOLD) -> pd.DataFrame:
+def flag_extreme_zones(df: pd.DataFrame, extreme_low_threshold: float = EXTREME_LOW_THRESHOLD,
+                        extreme_high_threshold: float = EXTREME_HIGH_THRESHOLD) -> pd.DataFrame:
     """
-    Flags each row 'extreme_fear', 'extreme_greed', or 'normal' based on
+    Flags each row 'extreme_low', 'extreme_high', or 'normal' based on
     how rare that composite_score reading has historically been -- see
-    EXTREME_FEAR_THRESHOLD/EXTREME_GREED_THRESHOLD above for how these
-    were derived. Independent of flag_zones()/apply_confirmation(): no
-    confirmation delay is applied here, since sitting in the most extreme
-    ~10% of readings is itself a rare, meaningful event.
+    EXTREME_LOW_THRESHOLD/EXTREME_HIGH_THRESHOLD above for how these
+    were derived, and why they're not named after fear/greed. Independent
+    of flag_zones()/apply_confirmation(): no confirmation delay is applied
+    here, since sitting in the most extreme ~10% of readings is itself a
+    rare, meaningful event.
 
     Returns the input df with an added 'extreme_zone' column.
     """
     df = df.copy()
     df["extreme_zone"] = "normal"
-    df.loc[df["composite_score"] <= extreme_fear_threshold, "extreme_zone"] = "extreme_fear"
-    df.loc[df["composite_score"] >= extreme_greed_threshold, "extreme_zone"] = "extreme_greed"
+    df.loc[df["composite_score"] <= extreme_low_threshold, "extreme_zone"] = "extreme_low"
+    df.loc[df["composite_score"] >= extreme_high_threshold, "extreme_zone"] = "extreme_high"
     return df
 
 

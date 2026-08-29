@@ -16,7 +16,7 @@ from fetch_data import fetch_btc_price_history, fetch_fear_greed_history
 from indicators import build_indicator_table
 from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
                      flag_extreme_zones, extract_extreme_periods,
-                     EXTREME_FEAR_THRESHOLD, EXTREME_GREED_THRESHOLD)
+                     EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
 
 # Walk-forward-selected config (see walkforward.py / README) -- the most
 # validated starting point so far, not a guarantee it's optimal going forward.
@@ -95,9 +95,11 @@ def print_report(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: 
         print("No confirmed signals in this history yet.")
     print()
 
-    extreme_status = "not currently in one" if latest["extreme_zone"] == "normal" else latest["extreme_zone"]
-    print(f"Extreme zone (score <= {EXTREME_FEAR_THRESHOLD} or >= {EXTREME_GREED_THRESHOLD}, "
-          f"~10% rarest readings historically): {extreme_status}")
+    extreme_labels = {"extreme_low": "extreme low (bottom decile)", "extreme_high": "extreme high (top decile)"}
+    extreme_status = extreme_labels.get(latest["extreme_zone"], "not currently in one")
+    print(f"Extreme reading (score <= {EXTREME_LOW_THRESHOLD} or >= {EXTREME_HIGH_THRESHOLD}, "
+          f"~10% rarest readings historically -- a statistical fact about the composite, not a")
+    print(f"fear/greed sentiment claim): {extreme_status}")
     if len(extreme_periods) > 0:
         print(f"{len(extreme_periods)} such episodes since {zoned['date'].min().date()}. Last 3:")
         print(extreme_periods.tail(3).to_string(index=False))

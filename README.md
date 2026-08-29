@@ -161,8 +161,8 @@ signals/year). Sometimes what you actually want to know is simpler: has
 this reading historically been unusual at all?
 
 `scoring.flag_extreme_zones()` answers that directly from the data: it
-computes `extreme_fear`/`extreme_greed` from `EXTREME_FEAR_THRESHOLD` (20)
-and `EXTREME_GREED_THRESHOLD` (70) — thresholds set from the actual
+computes `extreme_low`/`extreme_high` from `EXTREME_LOW_THRESHOLD` (20)
+and `EXTREME_HIGH_THRESHOLD` (70) — thresholds set from the actual
 historical distribution of `composite_score` (2018-present), where they
 land almost exactly on the 10th and 90th percentiles. So "extreme" here
 means "in the rarest ~10% of readings, historically" — a plain fact about
@@ -171,9 +171,21 @@ buy/sell thresholds. No confirmation delay is applied (unlike
 buy_zone/sell_zone) since sitting in the most extreme decile is already a
 rare, meaningful event on its own.
 
+**Deliberately not called "extreme fear"/"extreme greed."** The composite
+blends four things — 200w MA distance (valuation), the actual Fear & Greed
+Index (sentiment), weekly RSI (momentum), and Pi Cycle Top ratio (a
+price-ratio cycle-top signal) — and only one of those four is literally
+sentiment. Labeling the composite's tails "fear"/"greed" would borrow an
+emotional claim that's only true for a quarter of what feeds it. (The
+0-100 "greed scale" *convention* used for each individual indicator's
+own normalization, inherited from the Fear & Greed Index's own scale, is
+a separate, pre-existing choice documented in `indicators.py` — this
+extreme-zone feature is the one place that convention would have been
+actively misleading if carried through literally, so it isn't here.)
+
 `scoring.extract_extreme_periods()` groups consecutive extreme days into
 date ranges rather than a raw day-by-day list — 22 episodes since 2018,
-from single-day spikes to the 188-day extreme-greed stretch spanning the
+from single-day spikes to the 188-day extreme-high stretch spanning the
 Nov 2020-May 2021 blow-off run. Both `current_status.py` (a text summary)
 and the dashboard artifact (a dedicated "Extreme zone history" table) show
 this. On the dashboard it's deliberately styled as outlined pills, not the
