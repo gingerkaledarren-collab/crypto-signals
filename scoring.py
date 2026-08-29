@@ -182,6 +182,37 @@ def extract_zone_transitions(df: pd.DataFrame, zone_col: str = "zone") -> pd.Dat
     return transitions[["date", "price", "composite_score", zone_col]].rename(columns={zone_col: "zone"})
 
 
+def apply_signal_cooldown(transitions: pd.DataFrame, min_gap_days: int = 21) -> pd.DataFrame:
+    """
+    Collapses same-zone signals that re-trigger within `min_gap_days` of
+    the last KEPT signal of that same zone into a single episode --
+    without this, a signal that dips out of confirmation for a few days
+    (e.g. a brief pullback within an otherwise sustained sell-off) and
+    then re-confirms gets counted as a second, independent repositioning
+    decision, inflating the signals/year headline. A flip to the OPPOSITE
+    zone is always kept regardless of gap -- that's a genuine pivot, not
+    a re-trigger of the same call.
+
+    Apply this to the output of extract_zone_transitions(). Generic over
+    any zone labels (buy_zone/sell_zone, or others), not specific to
+    either the long-term or short-term indicator sets.
+
+    Returns a filtered copy of the transitions df.
+    """
+    transitions = transitions.copy().sort_values("date").reset_index(drop=True)
+    keep = []
+    last_kept_date = {}
+    for _, row in transitions.iterrows():
+        zone = row["zone"]
+        prev_date = last_kept_date.get(zone)
+        if prev_date is None or (row["date"] - prev_date).days >= min_gap_days:
+            keep.append(True)
+            last_kept_date[zone] = row["date"]
+        else:
+            keep.append(False)
+    return transitions[keep].reset_index(drop=True)
+
+
 if __name__ == "__main__":
     from fetch_data import fetch_btc_price_history, fetch_fear_greed_history
     from indicators import build_indicator_table
