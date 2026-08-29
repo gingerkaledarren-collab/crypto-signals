@@ -124,6 +124,49 @@ def compute_weekly_rsi(price_df: pd.DataFrame, period: int = 14) -> pd.DataFrame
     return rsi.rename("weekly_rsi").reset_index()
 
 
+def compute_ema_structure(price_df: pd.DataFrame, fast_window: int = 21, slow_window: int = 34) -> pd.DataFrame:
+    """
+    Computes the 21-week / 34-week EMA support structure popularized by
+    trader Alessio Rastani for reading BTC's weekly trend: holding above
+    the 21w EMA is read as bullish support, losing it but holding the 34w
+    EMA is a caution zone, and losing the 34w EMA too confirms a deeper
+    bearish structure. Fibonacci-sequence periods, consistent with his
+    Elliott Wave-based approach. Computed on WEEKLY closes, not daily.
+
+    Returns df with columns: date, ema_21w, ema_34w, pct_distance_21w
+    ('date' is the week-ending date, like compute_weekly_rsi.)
+    """
+    weekly = price_df.copy().set_index("date")["price"].resample("W").last().dropna()
+    ema_fast = weekly.ewm(span=fast_window, adjust=False).mean()
+    ema_slow = weekly.ewm(span=slow_window, adjust=False).mean()
+    pct_distance_21w = (weekly - ema_fast) / ema_fast * 100
+
+    return pd.DataFrame({
+        "date": weekly.index,
+        "ema_21w": ema_fast.values,
+        "ema_34w": ema_slow.values,
+        "pct_distance_21w": pct_distance_21w.values,
+    })
+
+
+def normalize_ema_structure(pct_distance_21w: pd.Series, clip_range: tuple = (-25, 45)) -> pd.Series:
+    """
+    Maps price's % distance from the 21w EMA to a 0-100 greed scale.
+
+    Calibration note: within our 2018-present analysis window, this
+    distance has run from about -40% (deep weekly-trend breakdowns) to
+    +75%+ (blow-off extensions), with the 5th/95th percentiles landing
+    around -26%/+46%. Clip bounds are set from that, same approach as
+    the 200w MA and Pi Cycle normalizers. The 34w EMA isn't separately
+    weighted in the composite -- it's highly correlated with the 21w EMA
+    (only 13 weeks apart), so it's tracked and surfaced as a secondary
+    reference level (see current_status.py) rather than double-counted.
+    """
+    lo, hi = clip_range
+    clipped = pct_distance_21w.clip(lower=lo, upper=hi)
+    return (clipped - lo) / (hi - lo) * 100
+
+
 def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.DataFrame:
     """
     Joins all indicators into a single date-aligned table, with each
@@ -132,7 +175,8 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.Da
     Returns df with columns:
       date, price, ma_200w, pct_distance, ma_200w_score,
       fng_value, fng_smoothed, fng_score, weekly_rsi, rsi_score,
-      sma_111, sma_350x2, pi_cycle_ratio, pi_cycle_score
+      sma_111, sma_350x2, pi_cycle_ratio, pi_cycle_score,
+      ema_21w, ema_34w, pct_distance_21w, ema_structure_score
     """
     ma_df = compute_200w_ma_distance(price_df)
     ma_df["ma_200w_score"] = normalize_200w_distance(ma_df["pct_distance"])
@@ -142,10 +186,10 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.Da
 
     merged = pd.merge(ma_df, fng_smooth_df, on="date", how="inner")
 
-    rsi_df = compute_weekly_rsi(price_df)
     # merge_asof(direction="backward") attaches each daily row the most
-    # recently COMPLETED weekly RSI bar -- never a bar that hasn't closed
+    # recently COMPLETED weekly bar -- never a bar that hasn't closed
     # yet as of that date, so this doesn't leak future data into the past.
+    rsi_df = compute_weekly_rsi(price_df)
     merged = pd.merge_asof(
         merged.sort_values("date"), rsi_df.sort_values("date"), on="date", direction="backward"
     )
@@ -155,6 +199,12 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.Da
     pi_df["pi_cycle_score"] = normalize_pi_cycle_ratio(pi_df["pi_cycle_ratio"])
     merged = pd.merge(merged, pi_df[["date", "sma_111", "sma_350x2", "pi_cycle_ratio", "pi_cycle_score"]],
                        on="date", how="inner")
+
+    ema_df = compute_ema_structure(price_df)
+    ema_df["ema_structure_score"] = normalize_ema_structure(ema_df["pct_distance_21w"])
+    merged = pd.merge_asof(
+        merged.sort_values("date"), ema_df.sort_values("date"), on="date", direction="backward"
+    )
 
     return merged
 

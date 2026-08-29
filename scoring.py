@@ -18,6 +18,14 @@ DEFAULT_WEIGHTS = {
     "rsi_score": 0.25,
     "pi_cycle_score": 0.25,
 }
+# ema_structure_score (21w/34w EMA, see indicators.py) is deliberately NOT
+# in the default weighting -- the walk-forward re-test with it included
+# dropped the buy/sell forward-return spread from +10.3pp to +0.9pp on
+# TRAIN and flipped buy-zone out-of-sample returns negative. It's a
+# trend-FOLLOWING signal (reads high mid-trend), which conflicts with the
+# other four, all extremes/mean-reversion flavored. Computed and exposed
+# for experimentation (pass a custom weights dict to try it), but not
+# part of the validated default. See README.
 
 
 def compute_composite_score(table: pd.DataFrame, weights: dict = None) -> pd.DataFrame:

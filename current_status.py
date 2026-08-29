@@ -29,6 +29,10 @@ INDICATOR_LABELS = {
     "pi_cycle_score": "Pi Cycle Top ratio",
 }
 
+# Not in the default composite (see scoring.py) -- shown separately as
+# context, Rastani-style: is price currently holding its 21w/34w EMA
+# support structure. Informational only, doesn't feed the zone call.
+
 
 def get_current_status(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = DEFAULT_BUY_THRESHOLD,
                         confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False):
@@ -72,6 +76,12 @@ def print_report(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: 
     print(f"Confirmed zone: {latest['confirmed_zone']}"
           + ("" if latest['confirmed_zone'] == "neutral" or current_run_length >= confirm_days
              else f"  (needs {confirm_days - current_run_length} more day(s) to confirm)"))
+    print()
+
+    ema_side = "above" if latest["price"] >= latest["ema_21w"] else "below"
+    slow_side = "above" if latest["price"] >= latest["ema_34w"] else "below"
+    print(f"EMA structure (context only, not in composite): price is {ema_side} the 21w EMA "
+          f"(${latest['ema_21w']:,.0f}) and {slow_side} the 34w EMA (${latest['ema_34w']:,.0f})")
     print()
 
     if len(history) > 0:

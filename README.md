@@ -18,6 +18,11 @@ composite score. Zone transitions (crossing into buy/sell territory,
 then *holding* for a minimum number of days — see "confirmation rule"
 below) are what you'd actually act on, not the daily noise.
 
+A 5th indicator, **21w/34w EMA structure** (`indicators.compute_ema_structure`),
+is also computed but deliberately left OUT of the default composite —
+see "Why the EMA structure indicator isn't in the default weighting"
+below for why.
+
 ## Setup
 
 ```bash
@@ -180,6 +185,43 @@ signal at genuine extremes — not a return-maximizer on its own. Also
 worth noting the 90-day forward-return horizon is a specific choice;
 re-running with 30d/180d horizons could tell a different story and is
 worth trying before trusting this further.
+
+## Why the EMA structure indicator isn't in the default weighting
+
+`indicators.compute_ema_structure()` adds the 21-week / 34-week EMA
+support structure popularized by trader Alessio Rastani: holding above
+the 21w EMA reads as bullish support, losing it but holding the 34w EMA
+is a caution zone, losing the 34w EMA too confirms a deeper bearish
+structure (Fibonacci-sequence periods, consistent with his Elliott Wave
+approach). It's fully computed and available as `ema_structure_score`.
+
+It was added to `DEFAULT_WEIGHTS` at equal weight (5-way, 20% each) and
+re-run through `walkforward.py` as a real test, per this project's own
+rule of deciding weights from backtest evidence, not assumption. The
+result was worse, not better:
+
+| | 4 indicators (current default) | 5 indicators (+ EMA structure) |
+|---|---|---|
+| Best TRAIN spread | +10.3pp | +0.9pp |
+| TEST (out-of-sample) buy-zone fwd return | +4.6% | **-4.1%** |
+| TEST spread | +9.3pp | +3.7pp |
+
+Adding it nearly erased the TRAIN signal and flipped the TEST buy-zone
+forward return negative. The likely reason: EMA structure is a trend-
+**following** signal (it reads high while price rides comfortably above
+a rising fast EMA, i.e. mid-trend) whereas the other four are all
+extremes/mean-reversion flavored (how far price has stretched from a
+slow anchor, sentiment extremes, momentum extremes, a cycle-top cross).
+Blending a "we're trending" signal into an "is this an extreme"
+composite dilutes exactly what the composite is for.
+
+It's kept out of `DEFAULT_WEIGHTS` as a result, but still computed and
+shown as **context** in `current_status.py` (whether price currently
+holds its 21w/34w EMA support) since that's a genuinely useful,
+independent read even when it doesn't belong in the composite. If you
+want to experiment with it anyway, pass a custom weights dict to
+`compute_composite_score()` — that's exactly what the adjustable-weights
+design in `scoring.py` is for.
 
 ## Next steps
 
