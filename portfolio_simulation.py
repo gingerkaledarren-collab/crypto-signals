@@ -82,8 +82,10 @@ def build_weekly_table():
     return weekly
 
 
-def run_simulation():
+def run_simulation(start_date=None):
     weekly = build_weekly_table()
+    if start_date is not None:
+        weekly = weekly[weekly["date"] >= pd.Timestamp(start_date)].reset_index(drop=True)
 
     start_price = weekly.iloc[0]["price"]
     btc_qty = STARTING_BTC_USD / start_price
