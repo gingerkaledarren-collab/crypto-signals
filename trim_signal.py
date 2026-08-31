@@ -1,10 +1,19 @@
 """
 trim_signal.py
 
-The SECOND signal system -- a validated, ONE-DIRECTIONAL trim/de-risk
-overlay combining the long-term composite (indicators.py/scoring.py,
-unchanged -- dashboard 1 stays exactly as it was) with a Fear &
-Greed-heavy short-term composite (st_indicators.py).
+SUPERSEDED as dashboard 2's active driver by st_backtest.py's simpler,
+symmetric buy/sell-zone concept (by request -- an explicit choice to
+prioritize a practical, ~8-10x/year technicals-based tool over this
+module's narrower, statistically-validated-but-rare one-directional
+signal). Kept in the repo because it's real, out-of-sample-tested
+research and the one rigorously validated construction found for this
+timeframe -- see the README for the full comparison.
+
+The original description, still accurate for what this module IS:
+a validated, ONE-DIRECTIONAL trim/de-risk overlay combining the
+long-term composite (indicators.py/scoring.py, unchanged -- dashboard 1
+stays exactly as it was) with a Fear & Greed-heavy short-term composite
+(st_indicators.py).
 
 GENESIS -- what was tried and rejected before this:
   1. A standalone short-term momentum composite (50d MA distance, daily

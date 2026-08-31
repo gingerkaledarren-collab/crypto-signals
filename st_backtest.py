@@ -1,15 +1,22 @@
 """
 st_backtest.py
 
-Sanity-check backtest for the SHORT-TERM signal system (st_indicators.py),
-mirroring backtest.py's approach but for the faster indicator set. Reuses
-scoring.py's flag_zones/apply_confirmation/extract_zone_transitions
-directly -- those are generic over any 'composite_score' column, no
-short-term-specific logic needed there.
+The SHORT-TERM signal system (st_indicators.py): a symmetric buy/sell-zone
+composite tuned for a faster, ~8-10x/year repositioning cadence -- a
+technicals-based tool (moving average distance, RSI, Bollinger %B, MACD,
+Fear & Greed), not a separately statistically validated one like the
+long-term system in indicators.py/scoring.py. Reuses scoring.py's
+flag_zones/apply_confirmation/extract_zone_transitions/apply_signal_cooldown
+directly -- those are generic over any 'composite_score' column.
 
-Goal here is the same honesty standard as the long-term system: find out
-what this composite ACTUALLY produces historically, not tune thresholds
-until a target number appears.
+Note on the momentum indicators (MA distance, RSI, Bollinger %B, MACD):
+earlier testing in this project (see README) found that at this
+short lookback, they behave as trend-CONFIRMING signals in BTC's history
+rather than reversal-predicting ones -- "overbought" tended to precede
+further gains, not drops. This system is built anyway, by request, as a
+practical/technicals-based tool rather than a claim that it's been shown
+to beat the market; the frequency and thresholds below are chosen to hit
+the requested cadence, not to maximize a validated edge.
 """
 
 import pandas as pd
@@ -19,15 +26,16 @@ from scoring import (compute_composite_score, flag_zones, apply_confirmation, ex
                      apply_signal_cooldown)
 
 ST_DEFAULT_WEIGHTS = {
-    "ma50_score": 0.25,
-    "fng_st_score": 0.25,
-    "rsi_st_score": 0.25,
-    "bb_score": 0.25,
+    "ma50_score": 0.175,
+    "fng_st_score": 0.30,
+    "rsi_st_score": 0.175,
+    "bb_score": 0.175,
+    "macd_score": 0.175,
 }
 
 
 def run_st_backtest(weights: dict = None, sell_threshold: float = 70, buy_threshold: float = 30,
-                     min_confirm_days: int = 3, cooldown_days: int = 21):
+                     min_confirm_days: int = 3, cooldown_days: int = 14):
     if weights is None:
         weights = ST_DEFAULT_WEIGHTS
 

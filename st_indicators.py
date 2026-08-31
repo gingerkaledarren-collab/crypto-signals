@@ -115,6 +115,44 @@ def normalize_pct_b(pct_b: pd.Series, clip_range: tuple = (-15, 115)) -> pd.Seri
     return (clipped - lo) / (hi - lo) * 100
 
 
+def compute_macd(price_df: pd.DataFrame, fast: int = 12, slow: int = 26, signal: int = 9) -> pd.DataFrame:
+    """
+    Daily MACD histogram (12/26/9, the standard parameters), expressed as
+    a % of price so it's comparable across BTC's price history rather
+    than a raw USD figure.
+
+    Note: like RSI/Bollinger/MA-distance in this file, this measures
+    short-term trend/momentum -- in earlier testing (see README and the
+    project conversation) that made it and its siblings trend-CONFIRMING
+    rather than reversal-predicting in BTC's history at this timeframe.
+    Included here as a technicals-based input by request, not as a
+    separately validated signal.
+
+    Returns df with columns: date, macd_line, macd_signal, macd_hist_pct
+    """
+    df = price_df.copy().sort_values("date").reset_index(drop=True)
+    ema_fast = df["price"].ewm(span=fast, adjust=False).mean()
+    ema_slow = df["price"].ewm(span=slow, adjust=False).mean()
+    macd_line = ema_fast - ema_slow
+    macd_signal = macd_line.ewm(span=signal, adjust=False).mean()
+    histogram = macd_line - macd_signal
+
+    df["macd_line"] = macd_line
+    df["macd_signal"] = macd_signal
+    df["macd_hist_pct"] = histogram / df["price"] * 100
+    return df[["date", "macd_line", "macd_signal", "macd_hist_pct"]]
+
+
+def normalize_macd(macd_hist_pct: pd.Series, clip_range: tuple = (-1.9, 1.83)) -> pd.Series:
+    """
+    Maps the MACD histogram (as % of price) to a 0-100 scale. Clip bounds
+    from the 2018-present ~5th/95th percentiles.
+    """
+    lo, hi = clip_range
+    clipped = macd_hist_pct.clip(lower=lo, upper=hi)
+    return (clipped - lo) / (hi - lo) * 100
+
+
 def build_st_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.DataFrame:
     """
     Joins the short-term indicator set into one date-aligned table, each
@@ -124,7 +162,8 @@ def build_st_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd
       date, price, ma50, pct_distance_50, ma50_score,
       fng_value, fng_short_smoothed, fng_st_score,
       daily_rsi, rsi_st_score,
-      bb_mid, bb_upper, bb_lower, pct_b, bb_score
+      bb_mid, bb_upper, bb_lower, pct_b, bb_score,
+      macd_line, macd_signal, macd_hist_pct, macd_score
     """
     ma_df = compute_ma50_distance(price_df)
     ma_df["ma50_score"] = normalize_ma50_distance(ma_df["pct_distance_50"])
@@ -142,6 +181,10 @@ def build_st_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd
     bb_df["bb_score"] = normalize_pct_b(bb_df["pct_b"])
     merged = pd.merge(merged, bb_df[["date", "bb_mid", "bb_upper", "bb_lower", "pct_b", "bb_score"]],
                        on="date", how="inner")
+
+    macd_df = compute_macd(price_df)
+    macd_df["macd_score"] = normalize_macd(macd_df["macd_hist_pct"])
+    merged = pd.merge(merged, macd_df, on="date", how="inner")
 
     return merged
 

@@ -270,64 +270,51 @@ want to experiment with it anyway, pass a custom weights dict to
 `compute_composite_score()` — that's exactly what the adjustable-weights
 design in `scoring.py` is for.
 
-## The second system: a faster trim signal (`trim_signal.py`)
+## The second system: short-term signal (`st_backtest.py`)
 
-Everything above is one system (~3-5 signals/year, symmetric buy/sell).
-This is a genuinely separate, second system built for a faster cadence,
-with its own dashboard artifact. It went through three iterations before
-one actually validated -- worth knowing the failures, not just the
-result that shipped:
+Everything above is one system (~3-5 signals/year, symmetric buy/sell,
+statistically validated). This is a genuinely separate, second system
+built for a faster, ~8-10x/year cadence, with its own dashboard artifact.
+It went through several iterations -- worth knowing what was tried and
+rejected before the current version, and being clear about what changed
+between "validated" and "current":
 
 1. **A standalone short-term momentum composite** (`st_indicators.py`:
    50-day MA distance, daily RSI, Bollinger %B, 5-day-smoothed Fear &
-   Greed) was tested first, aimed at 8-10 signals/year. It failed
-   BACKWARDS: "overbought" readings preceded LARGER subsequent gains
-   than "oversold" readings, at every forward horizon from 7 to 120
-   days, confirmed out-of-sample (`st_walkforward.py`). Short-lookback
-   technicals measure trend strength in BTC's history, not exhaustion --
-   the classic trap of treating RSI/Bollinger "overbought" as a sell
-   trigger in a trending market.
-2. **Gating that short-term composite by the long-term composite's
-   state** was tried next, on the hypothesis that short-term euphoria
-   *within a long-term downtrend* (a bear-market rally) would predict
-   reversals better than short-term euphoria alone. Backwards again:
-   that exact combination was one of the *better*-performing quadrants
-   historically. The quadrant that actually showed a real, replicable
-   negative forward return was the opposite one: long-term expensive
-   AND short-term momentum gone quiet.
-3. **A mirrored buy-side rule** (long-term cheap AND short-term not
-   capitulating) looked strong on TRAIN (+30.9pp spread) and completely
-   INVERTED out-of-sample (-25.5pp, on a small n=57) -- a textbook
-   overfitting signature. There is **no validated buy-side counterpart**
-   to this system; it is deliberately one-directional.
+   Greed) was tested first as a CONTRARIAN signal. It failed BACKWARDS:
+   "overbought" readings preceded LARGER subsequent gains than
+   "oversold" readings, at every forward horizon from 7 to 120 days,
+   confirmed out-of-sample (`st_walkforward.py`). Short-lookback
+   technicals measure trend strength in BTC's history, not exhaustion.
+2. **Gating that composite by the long-term composite's state** found
+   one construction that DID validate out-of-sample: long-term expensive
+   (>=50) AND short-term momentum gone quiet (<70) preceded genuinely
+   weaker forward returns (TRAIN +20.7pp, TEST +8.6pp spread, 90-day
+   horizon). But it was one-directional (trim only -- a mirrored buy-side
+   rule inverted out-of-sample) and rare (~4/year at these thresholds,
+   ~2/year at a stricter, more strongly-validated version). This
+   construction still exists in `trim_signal.py`/`trim_walkforward.py`/
+   `trim_current_status.py` and is real, tested research -- just no
+   longer what the second dashboard shows.
+3. **A portfolio simulation** (`portfolio_simulation.py`) layering small
+   partial trims/adds from this construction onto a $50K BTC / $20K cash
+   plan found, on ablation, that the short-term layer actively HURT
+   results over the most recent 2-year window versus the long-term
+   signal alone ($89,224 vs $95,652) -- a third independent confirmation
+   that this specific short-lookback construction doesn't add reversal-
+   predicting value in BTC's history, however it's combined.
 
-**The rule that shipped:** flag a `trim_zone` day when the long-term
-composite >= 50 (`TRIM_LT_THRESHOLD`) AND the short-term composite < 70
-(`TRIM_ST_THRESHOLD`) -- an expensive market whose short-term momentum
-has gone quiet, not "catch the spike as it happens." Short-term
-composite here uses Fear & Greed weighted at 50% (`ST_WEIGHTS` in
-`trim_signal.py`) per request; tested against equal-weight and 40%-F&G
-versions, it makes no material difference -- the long-term side is the
-binding constraint in the current reading either way.
-
-**Validation** (`trim_walkforward.py`, same train/test split as
-`walkforward.py`, 90-day forward return): at 50/70, TRAIN spread
-(rest return - trim-zone return) = +20.7pp, TEST spread = +8.6pp -- same
-direction, confirmed blind. A stricter rule (lt>=65) validates roughly
-twice as strongly (TRAIN +33.8pp, TEST +23.0pp) but fires only
-~1.6-2.0x/year; 50/70 was chosen specifically to land in a requested
-4-6x/year range, trading roughly half the effect size for the extra
-frequency. That's a real, deliberate tradeoff, not a free improvement.
-
-**Signal count:** 34 signals over 8.6 years (~4.0/year) with
-`TRIM_CONFIRM_DAYS=3` and `TRIM_COOLDOWN_DAYS=14` (same cooldown
-mechanism as `scoring.apply_signal_cooldown()`, needed here for the same
-reason as the long-term system -- without it, whipsaw re-triggers within
-one episode get counted as separate signals).
-
-Run `python trim_current_status.py` for today's status, or see the
-second dashboard artifact for the full picture (both composites over
-time, signal history, and the threshold tradeoff table).
+**Current version, by explicit request:** rather than continue requiring
+the same statistical bar as the long-term system, the second dashboard
+now uses `st_backtest.py`'s symmetric buy/sell-zone composite --
+50-day MA distance, daily RSI(14), Bollinger %B(20), MACD histogram
+(12/26/9), and Fear & Greed (5d smoothed, 30% weight, `ST_DEFAULT_WEIGHTS`),
+at sell>=70/buy<=30/confirm=3d/cooldown=14d, tuned to land at ~9
+signals/year. This is a **technicals-based practical tool, not a
+separately validated signal** -- the same momentum indicators that
+failed as a contrarian signal in points 1-3 above are its core inputs,
+used here by deliberate choice rather than as a claim they predict
+reversals. Run `python st_current_status.py` for today's reading.
 
 ## Next steps
 
