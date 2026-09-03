@@ -1,0 +1,106 @@
+"""
+build_dashboard1_data.py
+
+Produces the JSON blob the "Signal Dashboard" artifact embeds as its
+`DATA` object. Split out from current_status.py's print_report() so the
+same numbers that print_report shows on the CLI can also drive the
+Artifact, without hand-copying values between the two.
+
+Run standalone to print the JSON to stdout, or import build_data() and
+call it from build_dashboards.py.
+"""
+
+import json
+import argparse
+import pandas as pd
+from fetch_data import fetch_btc_price_history, fetch_fear_greed_history
+from indicators import build_indicator_table
+from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
+                     flag_extreme_zones, extract_extreme_periods,
+                     EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
+from current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEFAULT_CONFIRM_DAYS, INDICATOR_LABELS
+
+
+def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = DEFAULT_BUY_THRESHOLD,
+               confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False) -> dict:
+    price_df = fetch_btc_price_history(force_refresh=force_refresh)
+    fng_df = fetch_fear_greed_history(force_refresh=force_refresh)
+    table = build_indicator_table(price_df, fng_df)
+
+    scored = compute_composite_score(table)
+    zoned = flag_zones(scored, sell_threshold=sell_threshold, buy_threshold=buy_threshold)
+    zoned = apply_confirmation(zoned, min_days=confirm_days)
+    zoned = flag_extreme_zones(zoned)
+
+    latest = zoned.iloc[-1]
+    zone = zoned["zone"]
+    run_id = (zone != zone.shift(1)).cumsum()
+    current_run_length = int((run_id == run_id.iloc[-1]).sum())
+
+    signals = extract_zone_transitions(zoned, zone_col="confirmed_zone")
+    extreme_periods = extract_extreme_periods(zoned)
+
+    data = {
+        "as_of": latest["date"].strftime("%Y-%m-%d"),
+        "price": round(float(latest["price"]), 2),
+        "composite": round(float(latest["composite_score"]), 1),
+        "zone": latest["zone"],
+        "confirmed_zone": latest["confirmed_zone"],
+        "run_length": current_run_length,
+        "sell_threshold": sell_threshold,
+        "buy_threshold": buy_threshold,
+        "confirm_days": confirm_days,
+        "extreme_low_threshold": EXTREME_LOW_THRESHOLD,
+        "extreme_high_threshold": EXTREME_HIGH_THRESHOLD,
+        "current_extreme_zone": latest["extreme_zone"],
+        "data_start": zoned["date"].min().strftime("%Y-%m-%d"),
+        "indicators": {key: round(float(latest[key]), 1) for key in INDICATOR_LABELS},
+        "ema_context": {
+            "ema_21w": round(float(latest["ema_21w"]), 2),
+            "ema_34w": round(float(latest["ema_34w"]), 2),
+            "above_21w": bool(latest["price"] >= latest["ema_21w"]),
+            "above_34w": bool(latest["price"] >= latest["ema_34w"]),
+        },
+        "signals": [
+            {
+                "date": pd.Timestamp(row["date"]).strftime("%Y-%m-%d"),
+                "price": round(float(row["price"]), 2),
+                "composite": round(float(row["composite_score"]), 1),
+                "zone": row["zone"],
+            }
+            for _, row in signals.iterrows()
+        ],
+        "extreme_periods": [
+            {
+                "zone": row["zone"],
+                "start_date": pd.Timestamp(row["start_date"]).strftime("%Y-%m-%d"),
+                "end_date": pd.Timestamp(row["end_date"]).strftime("%Y-%m-%d"),
+                "days": int(row["days"]),
+                "min_composite": round(float(row["min_composite"]), 1),
+                "max_composite": round(float(row["max_composite"]), 1),
+                "start_price": round(float(row["start_price"]), 2),
+                "end_price": round(float(row["end_price"]), 2),
+            }
+            for _, row in extreme_periods.iterrows()
+        ],
+        "series": [
+            {
+                "date": row["date"].strftime("%Y-%m-%d"),
+                "price": round(float(row["price"]), 2),
+                "composite": round(float(row["composite_score"]), 1),
+                "zone": row["zone"],
+                "ema21": round(float(row["ema_21w"]), 2) if pd.notna(row["ema_21w"]) else None,
+                "ema34": round(float(row["ema_34w"]), 2) if pd.notna(row["ema_34w"]) else None,
+            }
+            for _, row in zoned.iterrows()
+        ],
+    }
+    return data
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--refresh", action="store_true", help="force-refresh cached price/F&G data")
+    args = parser.parse_args()
+
+    print(json.dumps(build_data(force_refresh=args.refresh)))

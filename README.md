@@ -316,6 +316,30 @@ failed as a contrarian signal in points 1-3 above are its core inputs,
 used here by deliberate choice rather than as a claim they predict
 reversals. Run `python st_current_status.py` for today's reading.
 
+## Keeping the dashboards current
+
+The two published Artifacts ("Signal Dashboard" and "Short-Term Signal")
+are static HTML snapshots with the data baked in at publish time -- they
+don't fetch anything live in the viewer's browser, so they stay frozen
+on whatever date they were last generated.
+
+To refresh both with today's data:
+
+```
+python build_dashboards.py --refresh
+```
+
+This force-refreshes the cached price/Fear & Greed data, recomputes
+both composites via `build_dashboard1_data.py` / `build_dashboard2_data.py`,
+and writes `dashboard_output/dashboard1.html` and
+`dashboard_output/dashboard2.html` from `dashboard1_template.html` /
+`dashboard2_template.html`. A Claude session then needs to publish those
+two files to the existing Artifact URLs (the Artifact tool isn't callable
+from plain Python) -- that's the step a daily Routine automates: it fires
+into a fresh session once a day, runs the command above, and republishes
+each output file to its fixed URL so the link stays the same and just
+shows fresher numbers.
+
 ## Next steps
 
 1. Run this, look at the output, see if it's sane.
