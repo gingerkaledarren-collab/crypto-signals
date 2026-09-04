@@ -1,12 +1,14 @@
 """
 fetch_data.py
 
-Pulls the two raw data series we need:
+Pulls the raw data series we need:
   1. BTC daily price history (blockchain.info - free, no API key needed)
   2. Fear & Greed Index history (blended: alternative.me + CoinMarketCap,
      see fetch_fear_greed_history() docstring)
+  3. Bitcoin Supply in Profit/Loss (%) (BGeometrics, see
+     fetch_supply_in_profit_history() docstring)
 
-Both are cached to local CSV files so we don't hammer the APIs on every run.
+All are cached to local CSV files so we don't hammer the APIs on every run.
 Re-run with force_refresh=True to pull fresh data.
 """
 
@@ -20,6 +22,7 @@ DATA_DIR.mkdir(exist_ok=True)
 
 PRICE_CACHE = DATA_DIR / "btc_price_history.csv"
 FNG_CACHE = DATA_DIR / "fear_greed_history.csv"
+SUPPLY_PROFIT_CACHE = DATA_DIR / "supply_in_profit_history.csv"
 
 
 def fetch_btc_price_history(days: int = "max", force_refresh: bool = False) -> pd.DataFrame:
@@ -151,6 +154,45 @@ def fetch_fear_greed_history(force_refresh: bool = False) -> pd.DataFrame:
     return df
 
 
+def fetch_supply_in_profit_history(force_refresh: bool = False) -> pd.DataFrame:
+    """
+    Fetch Bitcoin's daily "% of supply in profit" history from BGeometrics.
+
+    BGeometrics' documented API (api.bgeometrics.com) requires a paid key
+    for this metric. This instead calls the static JSON file their own
+    free chart page (charts.bgeometrics.com/supply_in_profit.html) fetches
+    for anonymous viewers -- an unofficial, undocumented dependency that
+    could change or get blocked without notice, same caveat as the
+    CoinMarketCap Fear & Greed endpoint. Unlike that one, though, this has
+    a long history (2014-present, ~1 day lag), so no blending is needed.
+
+    The series is "% of supply in PROFIT" (confirmed against known dates:
+    96.9% at the Nov 2021 ATH, 44.9% at the Nov 2022 capitulation low --
+    consistent with profit%, not loss%). Supply-in-LOSS %, the metric
+    actually asked for, is 100 minus this value -- computed in
+    indicators.py, not here, so this function's column name stays
+    accurate to what it actually fetched.
+
+    Returns a DataFrame with columns: date, supply_in_profit_pct
+    """
+    if SUPPLY_PROFIT_CACHE.exists() and not force_refresh:
+        df = pd.read_csv(SUPPLY_PROFIT_CACHE, parse_dates=["date"])
+        return df
+
+    url = "https://charts.bgeometrics.com/files/profit_loss.json"
+    resp = requests.get(url, timeout=30)
+    resp.raise_for_status()
+    records = resp.json()  # list of [timestamp_ms, profit_pct]
+
+    df = pd.DataFrame(records, columns=["timestamp_ms", "supply_in_profit_pct"])
+    df["date"] = pd.to_datetime(df["timestamp_ms"], unit="ms").dt.normalize()
+    df = df[["date", "supply_in_profit_pct"]].dropna()
+    df = df.sort_values("date").reset_index(drop=True)
+
+    df.to_csv(SUPPLY_PROFIT_CACHE, index=False)
+    return df
+
+
 if __name__ == "__main__":
     print("Fetching BTC price history...")
     price_df = fetch_btc_price_history(force_refresh=True)
@@ -159,5 +201,9 @@ if __name__ == "__main__":
     print("Fetching Fear & Greed Index history...")
     fng_df = fetch_fear_greed_history(force_refresh=True)
     print(f"  Got {len(fng_df)} days of F&G data, from {fng_df['date'].min().date()} to {fng_df['date'].max().date()}")
+
+    print("Fetching Bitcoin Supply in Profit/Loss history...")
+    supply_df = fetch_supply_in_profit_history(force_refresh=True)
+    print(f"  Got {len(supply_df)} days of supply-in-profit data, from {supply_df['date'].min().date()} to {supply_df['date'].max().date()}")
 
     print(f"\nCached to {DATA_DIR}/")

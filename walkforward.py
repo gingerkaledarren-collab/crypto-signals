@@ -25,7 +25,7 @@ over-engineering away given how little history we have to split.
 """
 
 import pandas as pd
-from fetch_data import fetch_btc_price_history, fetch_fear_greed_history
+from fetch_data import fetch_btc_price_history, fetch_fear_greed_history, fetch_supply_in_profit_history
 from indicators import build_indicator_table
 from scoring import compute_composite_score, flag_zones, apply_confirmation
 
@@ -70,10 +70,13 @@ def fmt_pct(x):
 
 
 def run_walkforward(weights: dict = None, configs: list = None, split_frac: float = 0.65,
-                     horizon_days: int = FORWARD_HORIZON_DAYS, fng_window: int = 30):
+                     horizon_days: int = FORWARD_HORIZON_DAYS, fng_window: int = 30,
+                     include_supply_loss: bool = False):
     price_df = fetch_btc_price_history()
     fng_df = fetch_fear_greed_history()
-    table = build_indicator_table(price_df, fng_df, fng_window=fng_window).sort_values("date").reset_index(drop=True)
+    supply_df = fetch_supply_in_profit_history() if include_supply_loss else None
+    table = build_indicator_table(price_df, fng_df, fng_window=fng_window,
+                                   supply_profit_df=supply_df).sort_values("date").reset_index(drop=True)
 
     split_idx = int(len(table) * split_frac)
     split_date = table.iloc[split_idx]["date"]

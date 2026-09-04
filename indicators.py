@@ -167,7 +167,43 @@ def normalize_ema_structure(pct_distance_21w: pd.Series, clip_range: tuple = (-2
     return (clipped - lo) / (hi - lo) * 100
 
 
-def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_window: int = 30) -> pd.DataFrame:
+def compute_supply_in_loss(supply_profit_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Bitcoin's % of circulating supply currently underwater relative to
+    its last-moved (realized) price -- an on-chain capitulation/euphoria
+    gauge, distinct from the price-only/sentiment indicators above.
+
+    supply_profit_df comes from fetch_supply_in_profit_history(), which
+    fetches "% of supply in PROFIT" (see that function's docstring for
+    why); this just flips it to loss%, which is the metric actually
+    wanted here.
+
+    Returns df with columns: date, supply_in_loss_pct
+    """
+    df = supply_profit_df.copy().sort_values("date").reset_index(drop=True)
+    df["supply_in_loss_pct"] = 100 - df["supply_in_profit_pct"]
+    return df[["date", "supply_in_loss_pct"]]
+
+
+def normalize_supply_in_loss(supply_in_loss_pct: pd.Series, clip_range: tuple = (1.5, 54.7)) -> pd.Series:
+    """
+    Maps supply-in-loss % to the 0-100 greed scale. Since HIGH loss% means
+    capitulation (fear/undervalued) and LOW loss% means euphoria (greed/
+    overvalued), this is an inverted rescale relative to the other
+    normalizers here -- high input -> low score, not high -> high.
+
+    Clip bounds are the ~5th/95th percentiles of the full 2014-present
+    history (0.2 to 64.2 actual min/max): at loss%<=1.5 score saturates
+    at 100 (as euphoric as this metric gets), at loss%>=54.7 it saturates
+    at 0 (as capitulated as this metric gets historically).
+    """
+    lo, hi = clip_range
+    clipped = supply_in_loss_pct.clip(lower=lo, upper=hi)
+    return (hi - clipped) / (hi - lo) * 100
+
+
+def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_window: int = 30,
+                           supply_profit_df: pd.DataFrame = None) -> pd.DataFrame:
     """
     Joins all indicators into a single date-aligned table, with each
     indicator normalized to the 0-100 greed scale.
@@ -179,11 +215,19 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_wind
     second code path -- fng_window=1 is exactly "no smoothing" since
     smooth_fear_greed()'s rolling(window=1) is a no-op.
 
+    supply_profit_df: optional, from fetch_supply_in_profit_history(). If
+    given, adds supply_loss_score (see compute_supply_in_loss()) to the
+    table -- a candidate 5th indicator being walk-forward tested (see
+    README's "Testing Bitcoin Supply in Loss %"), not yet in
+    scoring.DEFAULT_WEIGHTS. Omitted by default so existing callers are
+    unaffected.
+
     Returns df with columns:
       date, price, ma_200w, pct_distance, ma_200w_score,
       fng_value, fng_smoothed, fng_score, weekly_rsi, rsi_score,
       sma_111, sma_350x2, pi_cycle_ratio, pi_cycle_score,
-      ema_21w, ema_34w, pct_distance_21w, ema_structure_score
+      ema_21w, ema_34w, pct_distance_21w, ema_structure_score,
+      [supply_in_profit_pct, supply_in_loss_pct, supply_loss_score if supply_profit_df given]
     """
     ma_df = compute_200w_ma_distance(price_df)
     ma_df["ma_200w_score"] = normalize_200w_distance(ma_df["pct_distance"])
@@ -212,6 +256,17 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_wind
     merged = pd.merge_asof(
         merged.sort_values("date"), ema_df.sort_values("date"), on="date", direction="backward"
     )
+
+    if supply_profit_df is not None:
+        # backward merge_asof, not an inner join: the supply-in-loss source
+        # lags ~1 day behind price/F&G, and an inner join would silently
+        # drop today's row entirely rather than just leaving today's
+        # supply_loss_score one day stale.
+        loss_df = compute_supply_in_loss(supply_profit_df)
+        loss_df["supply_loss_score"] = normalize_supply_in_loss(loss_df["supply_in_loss_pct"])
+        merged = pd.merge_asof(
+            merged.sort_values("date"), loss_df.sort_values("date"), on="date", direction="backward"
+        )
 
     return merged
 
