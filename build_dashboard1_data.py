@@ -15,7 +15,7 @@ import argparse
 import pandas as pd
 from fetch_data import (fetch_btc_price_history, fetch_fear_greed_history,
                         fetch_supply_in_profit_history, fetch_mvrv_history)
-from indicators import build_indicator_table, SUPPLY_LOSS_CLIP_RANGE, MVRV_CLIP_RANGE
+from indicators import build_indicator_table, SUPPLY_LOSS_CLIP_RANGE, MVRV_CLIP_RANGE, compute_cycle_context
 from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
                      flag_extreme_zones, extract_extreme_periods,
                      EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
@@ -59,6 +59,7 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
         "data_start": zoned["date"].min().strftime("%Y-%m-%d"),
         "supply_loss_clip_range": list(SUPPLY_LOSS_CLIP_RANGE),
         "mvrv_clip_range": list(MVRV_CLIP_RANGE),
+        "cycle_context": compute_cycle_context(latest["date"].date()),
         "indicators": {key: round(float(latest[key]), 1) for key in INDICATOR_LABELS},
         "ema_context": {
             "ema_21w": round(float(latest["ema_21w"]), 2),

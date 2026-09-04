@@ -9,6 +9,7 @@ Normalized scale convention (matches Fear & Greed's own convention):
   100 = extreme greed / extremely overvalued -> historically a sell zone
 """
 
+import datetime as dt
 import pandas as pd
 import numpy as np
 
@@ -17,6 +18,53 @@ import numpy as np
 # each indicator's own chart) without hardcoding the calibration twice.
 SUPPLY_LOSS_CLIP_RANGE = (1.5, 54.7)
 MVRV_CLIP_RANGE = (0.9, 2.5)
+
+# Bitcoin reward-halving dates -- the anchor points for the ~4-year cycle
+# phase label. This needs no external data source, just the calendar.
+HALVING_DATES = [
+    dt.date(2012, 11, 28),
+    dt.date(2016, 7, 9),
+    dt.date(2020, 5, 11),
+    dt.date(2024, 4, 20),
+]
+
+
+def compute_cycle_context(as_of: dt.date) -> dict:
+    """
+    Labels roughly where `as_of` sits in the ~4-year halving cycle, based on
+    when the three completed cycles (2012/2016/2020 halvings) topped and
+    bottomed relative to their halving date: tops landed ~12-19 months
+    (365-580 days) post-halving, bottoms landed ~24-32 months (730-970
+    days) post-halving.
+
+    This is CONTEXT ONLY. It does not feed the composite score or any
+    buy/sell zone, and it is not walk-forward tested -- with only 3
+    completed cycles to draw the phase boundaries from, there isn't enough
+    history to validate this the way the other indicators were. Treat the
+    phase label as a rough historical-pattern marker, not a signal.
+    """
+    past_halvings = [h for h in HALVING_DATES if h <= as_of]
+    last_halving = max(past_halvings) if past_halvings else HALVING_DATES[0]
+    days_since = (as_of - last_halving).days
+
+    if days_since < 365:
+        phase = "Early post-halving (historically accumulation)"
+    elif days_since < 580:
+        phase = "Historical cycle-top window (~12-19mo post-halving)"
+    elif days_since < 730:
+        phase = "Post-top distribution (historically)"
+    elif days_since < 970:
+        phase = "Historical cycle-bottom window (~24-32mo post-halving)"
+    elif days_since < 1460:
+        phase = "Late-cycle re-accumulation (historically)"
+    else:
+        phase = "Approaching next halving"
+
+    return {
+        "last_halving": last_halving.isoformat(),
+        "days_since_halving": days_since,
+        "phase": phase,
+    }
 
 
 def compute_200w_ma_distance(price_df: pd.DataFrame) -> pd.DataFrame:

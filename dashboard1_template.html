@@ -442,6 +442,7 @@
         See the repo README for the full methodology and caveats.
       </div>
       <div class="ema-context" id="ema-context"></div>
+      <div class="ema-context" id="cycle-context"></div>
     </div>
   </section>
 
@@ -705,6 +706,13 @@
     `<span class="dash-swatch"></span><span>21w/34w EMA (context, not in composite): price is ` +
     `<b>${emaC.above_21w ? "above" : "below"}</b> the 21w EMA (${fmtUSD(emaC.ema_21w)}) and ` +
     `<b>${emaC.above_34w ? "above" : "below"}</b> the 34w EMA (${fmtUSD(emaC.ema_34w)})</span>`;
+
+  const cycleC = DATA.cycle_context;
+  const cycleMonths = (cycleC.days_since_halving / 30.44).toFixed(1);
+  document.getElementById("cycle-context").innerHTML =
+    `<span class="dash-swatch"></span><span>4-year cycle (context only, not walk-forward tested, not in composite): ` +
+    `<b>${cycleC.phase}</b> — ${cycleC.days_since_halving} days (~${cycleMonths} months) since the last halving ` +
+    `(${cycleC.last_halving}). Based on only 3 completed cycles; not a validated signal.</span>`;
 
   const indicatorMeta = [
     { key: "ma_200w_score", label: "200-week MA distance" },
