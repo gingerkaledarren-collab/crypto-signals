@@ -489,6 +489,8 @@
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--buy)"></span>200-week MA</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Sell zone</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-ma200w">
@@ -502,6 +504,8 @@
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Weekly RSI</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Sell zone</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-rsi">
@@ -515,6 +519,8 @@
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Supply in Loss (%)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Sell zone</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-supplyloss">
@@ -529,6 +535,8 @@
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>MVRV Ratio</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Sell zone</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-mvrv">
@@ -589,6 +597,38 @@
 <script>
 (function () {
   const fmtUSD = (n) => "$" + Math.round(n).toLocaleString("en-US");
+
+  // Per-indicator buy/sell zone, using this indicator's OWN 0-100 score
+  // against the same buy/sell thresholds the live composite uses -- not
+  // a claim any single indicator is separately validated at these
+  // cutoffs, just "what would this one signal say, on the same call bar
+  // as everything else here."
+  function zoneForScore(score) {
+    if (score == null) return null;
+    if (score <= DATA.buy_threshold) return "buy_zone";
+    if (score >= DATA.sell_threshold) return "sell_zone";
+    return "neutral";
+  }
+
+  // Draws buy/sell zone bands within one panel's vertical bounds (panelY
+  // to panelY+panelH), using scoreFn(point) to classify each date. Mirrors
+  // the composite chart's own zone-band pattern (same colors, same
+  // contiguous-run merging) so all charts on this page read consistently.
+  function drawZoneBands(svg, el, xScale, dates, series, scoreFn, panelY, panelH) {
+    let i = 0;
+    while (i < series.length) {
+      const zone = zoneForScore(scoreFn(series[i]));
+      let j = i;
+      while (j + 1 < series.length && zoneForScore(scoreFn(series[j + 1])) === zone) j++;
+      if (zone === "buy_zone" || zone === "sell_zone") {
+        const xA = xScale(dates[i]);
+        const xB = j + 1 < series.length ? xScale(dates[j + 1]) : xScale(dates[j]) + (xScale(dates[1]) - xScale(dates[0]) || 1);
+        const color = zone === "buy_zone" ? "var(--buy-band)" : "var(--sell-band)";
+        svg.appendChild(el("rect", { x: xA, y: panelY, width: Math.max(1, xB - xA), height: panelH, fill: color }));
+      }
+      i = j + 1;
+    }
+  }
   const zoneLabel = (z) => ({
     buy_zone: "Buy zone", sell_zone: "Sell zone", neutral: "Neutral",
     extreme_low: "Extreme low (bottom decile)", extreme_high: "Extreme high (top decile)",
@@ -860,6 +900,8 @@
       return e;
     }
 
+    drawZoneBands(svg, el, xScale, dates, series, (d) => d.ma_200w_score, 0, H);
+
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price vs 200-week MA (log scale)";
     [Math.min(...allValues), Math.max(...allValues)].forEach((v) => {
@@ -976,6 +1018,8 @@
       for (const k in attrs) e.setAttribute(k, attrs[k]);
       return e;
     }
+
+    drawZoneBands(svg, el, xScale, dates, series, (d) => d.weekly_rsi, PAD_TOP * 0.4 + rsiTop, RSI_H - PAD_TOP * 0.4 - 12);
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
@@ -1112,6 +1156,8 @@
       return e;
     }
 
+    drawZoneBands(svg, el, xScale, dates, series, (d) => d.supply_loss_score, PAD_TOP * 0.4 + lossTop, LOSS_H - PAD_TOP * 0.4 - 12);
+
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
     [Math.min(...prices), Math.max(...prices)].forEach((p) => {
@@ -1239,6 +1285,8 @@
       for (const k in attrs) e.setAttribute(k, attrs[k]);
       return e;
     }
+
+    drawZoneBands(svg, el, xScale, dates, series, (d) => d.mvrv_score, PAD_TOP * 0.4 + mvrvTop, MVRV_H - PAD_TOP * 0.4 - 12);
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";

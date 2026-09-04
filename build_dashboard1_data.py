@@ -114,9 +114,12 @@ def _build_weekly_series(zoned: pd.DataFrame) -> list:
             "ema21": _val(row, "ema_21w"),
             "ema34": _val(row, "ema_34w"),
             "ma_200w": _val(row, "ma_200w"),
+            "ma_200w_score": _val(row, "ma_200w_score"),
             "weekly_rsi": _val(row, "weekly_rsi"),
             "supply_in_loss_pct": _val(row, "supply_in_loss_pct"),
+            "supply_loss_score": _val(row, "supply_loss_score"),
             "mvrv_ratio": _val(row, "mvrv_ratio"),
+            "mvrv_score": _val(row, "mvrv_score"),
         }
         for _, row in weekly.iterrows()
     ]
