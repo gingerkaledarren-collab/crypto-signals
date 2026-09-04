@@ -504,8 +504,10 @@
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Weekly RSI</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Sell zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Extremely oversold (≤30)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-tint)"></span>Oversold (&lt;50)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-tint)"></span>Overbought (≥50)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Extremely overbought (≥70)</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-rsi">
@@ -609,21 +611,44 @@
     if (score >= DATA.sell_threshold) return "sell_zone";
     return "neutral";
   }
+  function zoneColor(zone) {
+    if (zone === "buy_zone") return "var(--buy-band)";
+    if (zone === "sell_zone") return "var(--sell-band)";
+    return null;
+  }
 
-  // Draws buy/sell zone bands within one panel's vertical bounds (panelY
-  // to panelY+panelH), using scoreFn(point) to classify each date. Mirrors
-  // the composite chart's own zone-band pattern (same colors, same
-  // contiguous-run merging) so all charts on this page read consistently.
-  function drawZoneBands(svg, el, xScale, dates, series, scoreFn, panelY, panelH) {
+  // Weekly RSI's own 4-tier scheme (by request): a mild lean either side
+  // of the 50 midpoint, an extreme lean beyond the classic 70/30 RSI
+  // overbought/oversold levels. Every non-null score falls into exactly
+  // one tier -- there's no "neutral" gap here, since 50 is RSI's own
+  // pivot, not a dead zone.
+  function rsiTier(score) {
+    if (score == null) return null;
+    if (score >= 70) return "extreme_sell";
+    if (score >= 50) return "sell";
+    if (score <= 30) return "extreme_buy";
+    return "buy";
+  }
+  function rsiTierColor(tier) {
+    return { extreme_sell: "var(--sell-band)", sell: "var(--sell-tint)", buy: "var(--buy-tint)", extreme_buy: "var(--buy-band)" }[tier] || null;
+  }
+
+  // Draws zone bands within one panel's vertical bounds (panelY to
+  // panelY+panelH). tierFn(point) classifies each date into a tier key;
+  // colorFn(tier) maps that key to a fill (or null to skip shading that
+  // stretch). Contiguous same-tier runs merge into one rect, mirroring
+  // the composite chart's own zone-band pattern so every chart on this
+  // page reads consistently.
+  function drawZoneBands(svg, el, xScale, dates, series, tierFn, colorFn, panelY, panelH) {
     let i = 0;
     while (i < series.length) {
-      const zone = zoneForScore(scoreFn(series[i]));
+      const tier = tierFn(series[i]);
       let j = i;
-      while (j + 1 < series.length && zoneForScore(scoreFn(series[j + 1])) === zone) j++;
-      if (zone === "buy_zone" || zone === "sell_zone") {
+      while (j + 1 < series.length && tierFn(series[j + 1]) === tier) j++;
+      const color = colorFn(tier);
+      if (color) {
         const xA = xScale(dates[i]);
         const xB = j + 1 < series.length ? xScale(dates[j + 1]) : xScale(dates[j]) + (xScale(dates[1]) - xScale(dates[0]) || 1);
-        const color = zone === "buy_zone" ? "var(--buy-band)" : "var(--sell-band)";
         svg.appendChild(el("rect", { x: xA, y: panelY, width: Math.max(1, xB - xA), height: panelH, fill: color }));
       }
       i = j + 1;
@@ -900,7 +925,7 @@
       return e;
     }
 
-    drawZoneBands(svg, el, xScale, dates, series, (d) => d.ma_200w_score, 0, H);
+    drawZoneBands(svg, el, xScale, dates, series, (d) => zoneForScore(d.ma_200w_score), zoneColor, 0, H);
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price vs 200-week MA (log scale)";
@@ -1019,7 +1044,7 @@
       return e;
     }
 
-    drawZoneBands(svg, el, xScale, dates, series, (d) => d.weekly_rsi, PAD_TOP * 0.4 + rsiTop, RSI_H - PAD_TOP * 0.4 - 12);
+    drawZoneBands(svg, el, xScale, dates, series, (d) => rsiTier(d.weekly_rsi), rsiTierColor, PAD_TOP * 0.4 + rsiTop, RSI_H - PAD_TOP * 0.4 - 12);
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
@@ -1042,7 +1067,7 @@
       t.textContent = v;
       svg.appendChild(t);
     });
-    [[70, "overbought ≥ 70"], [30, "oversold ≤ 30"]].forEach(([th, label]) => {
+    [[70, "extremely overbought ≥ 70"], [30, "extremely oversold ≤ 30"]].forEach(([th, label]) => {
       const y = yRsi(th);
       svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
       const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
@@ -1156,7 +1181,7 @@
       return e;
     }
 
-    drawZoneBands(svg, el, xScale, dates, series, (d) => d.supply_loss_score, PAD_TOP * 0.4 + lossTop, LOSS_H - PAD_TOP * 0.4 - 12);
+    drawZoneBands(svg, el, xScale, dates, series, (d) => zoneForScore(d.supply_loss_score), zoneColor, PAD_TOP * 0.4 + lossTop, LOSS_H - PAD_TOP * 0.4 - 12);
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
@@ -1286,7 +1311,7 @@
       return e;
     }
 
-    drawZoneBands(svg, el, xScale, dates, series, (d) => d.mvrv_score, PAD_TOP * 0.4 + mvrvTop, MVRV_H - PAD_TOP * 0.4 - 12);
+    drawZoneBands(svg, el, xScale, dates, series, (d) => zoneForScore(d.mvrv_score), zoneColor, PAD_TOP * 0.4 + mvrvTop, MVRV_H - PAD_TOP * 0.4 - 12);
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
