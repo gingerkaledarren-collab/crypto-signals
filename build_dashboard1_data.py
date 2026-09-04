@@ -83,19 +83,38 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
             }
             for _, row in extreme_periods.iterrows()
         ],
-        "series": [
-            {
-                "date": row["date"].strftime("%Y-%m-%d"),
-                "price": round(float(row["price"]), 2),
-                "composite": round(float(row["composite_score"]), 1),
-                "zone": row["zone"],
-                "ema21": round(float(row["ema_21w"]), 2) if pd.notna(row["ema_21w"]) else None,
-                "ema34": round(float(row["ema_34w"]), 2) if pd.notna(row["ema_34w"]) else None,
-            }
-            for _, row in zoned.iterrows()
-        ],
+        "series": _build_weekly_series(zoned),
     }
     return data
+
+
+def _build_weekly_series(zoned: pd.DataFrame) -> list:
+    """
+    The chart series is deliberately down-sampled to one point/week (this
+    is a 200-week-MA-driven system; daily granularity is 7x the points
+    for no visual benefit and quintuples the page's embedded-data size).
+    resample("W").last() takes each week's last available day, matching
+    how compute_weekly_rsi()/compute_ema_structure() already label weekly
+    bars by week-ending (Sunday) date.
+    """
+    weekly = zoned.set_index("date").resample("W").last().reset_index()
+
+    def _val(row, col):
+        return round(float(row[col]), 2) if pd.notna(row[col]) else None
+
+    return [
+        {
+            "date": row["date"].strftime("%Y-%m-%d"),
+            "price": _val(row, "price"),
+            "composite": round(float(row["composite_score"]), 1),
+            "zone": row["zone"],
+            "ema21": _val(row, "ema_21w"),
+            "ema34": _val(row, "ema_34w"),
+            "ma_200w": _val(row, "ma_200w"),
+            "weekly_rsi": _val(row, "weekly_rsi"),
+        }
+        for _, row in weekly.iterrows()
+    ]
 
 
 if __name__ == "__main__":
