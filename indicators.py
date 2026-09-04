@@ -12,6 +12,12 @@ Normalized scale convention (matches Fear & Greed's own convention):
 import pandas as pd
 import numpy as np
 
+# Named so the dashboard's JS can derive the same raw-value buy/sell
+# thresholds these normalizers use (for horizontal reference bands on
+# each indicator's own chart) without hardcoding the calibration twice.
+SUPPLY_LOSS_CLIP_RANGE = (1.5, 54.7)
+MVRV_CLIP_RANGE = (0.9, 2.5)
+
 
 def compute_200w_ma_distance(price_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -185,7 +191,7 @@ def compute_supply_in_loss(supply_profit_df: pd.DataFrame) -> pd.DataFrame:
     return df[["date", "supply_in_loss_pct"]]
 
 
-def normalize_supply_in_loss(supply_in_loss_pct: pd.Series, clip_range: tuple = (1.5, 54.7)) -> pd.Series:
+def normalize_supply_in_loss(supply_in_loss_pct: pd.Series, clip_range: tuple = SUPPLY_LOSS_CLIP_RANGE) -> pd.Series:
     """
     Maps supply-in-loss % to the 0-100 greed scale. Since HIGH loss% means
     capitulation (fear/undervalued) and LOW loss% means euphoria (greed/
@@ -202,7 +208,7 @@ def normalize_supply_in_loss(supply_in_loss_pct: pd.Series, clip_range: tuple = 
     return (hi - clipped) / (hi - lo) * 100
 
 
-def normalize_mvrv(mvrv_ratio: pd.Series, clip_range: tuple = (0.9, 2.5)) -> pd.Series:
+def normalize_mvrv(mvrv_ratio: pd.Series, clip_range: tuple = MVRV_CLIP_RANGE) -> pd.Series:
     """
     Maps the MVRV ratio (market cap / realized cap) to the 0-100 greed
     scale directly -- unlike supply-in-loss, no inversion needed: high

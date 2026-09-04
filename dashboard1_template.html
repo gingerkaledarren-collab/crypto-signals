@@ -633,12 +633,31 @@
     return { extreme_sell: "var(--sell-band)", sell: "var(--sell-tint)", buy: "var(--buy-tint)", extreme_buy: "var(--buy-band)" }[tier] || null;
   }
 
+  // Draws a fixed horizontal reference band across the FULL width of one
+  // panel, covering the value range [valueLo, valueHi] on that panel's
+  // own y-scale (valueToY) -- a CryptoQuant/onchain-style "this whole
+  // horizontal strip is the buy/sell zone" band, not tied to any
+  // particular date the way drawZoneBands() below is. Clamped to the
+  // panel's own vertical bounds so a threshold outside the currently
+  // plotted value range just doesn't show, rather than overflowing into
+  // the panel above/below it.
+  function drawHorizontalBand(svg, el, PAD_L, W, PAD_R, valueToY, valueLo, valueHi, panelTop, panelBottom, color) {
+    const yA = valueToY(valueLo), yB = valueToY(valueHi);
+    const yTop = Math.max(Math.min(yA, yB), panelTop);
+    const yBottom = Math.min(Math.max(yA, yB), panelBottom);
+    if (yBottom <= yTop) return;
+    svg.appendChild(el("rect", { x: PAD_L, y: yTop, width: W - PAD_R - PAD_L, height: yBottom - yTop, fill: color }));
+  }
+
   // Draws zone bands within one panel's vertical bounds (panelY to
   // panelY+panelH). tierFn(point) classifies each date into a tier key;
   // colorFn(tier) maps that key to a fill (or null to skip shading that
   // stretch). Contiguous same-tier runs merge into one rect, mirroring
   // the composite chart's own zone-band pattern so every chart on this
-  // page reads consistently.
+  // page reads consistently. Only used by the 200w MA chart now -- its
+  // "zone" moves with a changing MA line, not a fixed value range, so
+  // it can't use drawHorizontalBand() above the way RSI/Supply Loss/MVRV
+  // do.
   function drawZoneBands(svg, el, xScale, dates, series, tierFn, colorFn, panelY, panelH) {
     let i = 0;
     while (i < series.length) {
@@ -1044,7 +1063,13 @@
       return e;
     }
 
-    drawZoneBands(svg, el, xScale, dates, series, (d) => rsiTier(d.weekly_rsi), rsiTierColor, PAD_TOP * 0.4 + rsiTop, RSI_H - PAD_TOP * 0.4 - 12);
+    {
+      const panelTop = PAD_TOP * 0.4 + rsiTop, panelBottom = panelTop + (RSI_H - PAD_TOP * 0.4 - 12);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 70, 100, panelTop, panelBottom, "var(--sell-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 50, 70, panelTop, panelBottom, "var(--sell-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 30, 50, panelTop, panelBottom, "var(--buy-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 0, 30, panelTop, panelBottom, "var(--buy-band)");
+    }
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
@@ -1181,7 +1206,17 @@
       return e;
     }
 
-    drawZoneBands(svg, el, xScale, dates, series, (d) => zoneForScore(d.supply_loss_score), zoneColor, PAD_TOP * 0.4 + lossTop, LOSS_H - PAD_TOP * 0.4 - 12);
+    {
+      // Supply-in-loss scoring is inverted (high loss% = capitulation = buy
+      // signal), so the buy band sits at the HIGH end of this panel's own
+      // value axis and the sell band at the LOW end -- opposite of RSI/MVRV.
+      const panelTop = PAD_TOP * 0.4 + lossTop, panelBottom = panelTop + (LOSS_H - PAD_TOP * 0.4 - 12);
+      const [clipLo, clipHi] = DATA.supply_loss_clip_range;
+      const buyAt = clipHi - (DATA.buy_threshold / 100) * (clipHi - clipLo);
+      const sellAt = clipHi - (DATA.sell_threshold / 100) * (clipHi - clipLo);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yLoss, buyAt, lossMax, panelTop, panelBottom, "var(--buy-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yLoss, lossMin, sellAt, panelTop, panelBottom, "var(--sell-band)");
+    }
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
@@ -1311,7 +1346,16 @@
       return e;
     }
 
-    drawZoneBands(svg, el, xScale, dates, series, (d) => zoneForScore(d.mvrv_score), zoneColor, PAD_TOP * 0.4 + mvrvTop, MVRV_H - PAD_TOP * 0.4 - 12);
+    {
+      // MVRV is non-inverted like RSI: low ratio = capitulation = buy signal
+      // (bottom of the panel), high ratio = euphoria = sell signal (top).
+      const panelTop = PAD_TOP * 0.4 + mvrvTop, panelBottom = panelTop + (MVRV_H - PAD_TOP * 0.4 - 12);
+      const [clipLo, clipHi] = DATA.mvrv_clip_range;
+      const buyAt = clipLo + (DATA.buy_threshold / 100) * (clipHi - clipLo);
+      const sellAt = clipLo + (DATA.sell_threshold / 100) * (clipHi - clipLo);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yMvrv, mvrvMin, buyAt, panelTop, panelBottom, "var(--buy-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yMvrv, sellAt, mvrvMax, panelTop, panelBottom, "var(--sell-band)");
+    }
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
