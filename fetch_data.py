@@ -2,8 +2,9 @@
 fetch_data.py
 
 Pulls the two raw data series we need:
-  1. BTC daily price history (CoinGecko - free, no API key needed)
-  2. Fear & Greed Index history (alternative.me - free, no API key needed)
+  1. BTC daily price history (blockchain.info - free, no API key needed)
+  2. Fear & Greed Index history (blended: alternative.me + CoinMarketCap,
+     see fetch_fear_greed_history() docstring)
 
 Both are cached to local CSV files so we don't hammer the APIs on every run.
 Re-run with force_refresh=True to pull fresh data.
@@ -12,7 +13,7 @@ Re-run with force_refresh=True to pull fresh data.
 import requests
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 DATA_DIR = Path(__file__).parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -67,9 +68,64 @@ def fetch_btc_price_history(days: int = "max", force_refresh: bool = False) -> p
     return df
 
 
+def _fetch_fear_greed_alternative_me() -> pd.DataFrame:
+    """alternative.me's public Fear & Greed API -- free, keyless, and the
+    only one of the two sources with history back to 2018."""
+    url = "https://api.alternative.me/fng/"
+    params = {"limit": 0, "format": "json"}  # limit=0 means "all history"
+
+    resp = requests.get(url, params=params, timeout=30)
+    resp.raise_for_status()
+    records = resp.json()["data"]
+
+    df = pd.DataFrame(records)
+    df["date"] = pd.to_datetime(df["timestamp"].astype(int), unit="s").dt.normalize()
+    df["fng_value"] = df["value"].astype(int)
+    df = df[["date", "fng_value", "value_classification"]].rename(
+        columns={"value_classification": "fng_classification"}
+    )
+    return df.sort_values("date").reset_index(drop=True)
+
+
+def _fetch_fear_greed_coinmarketcap() -> pd.DataFrame:
+    """
+    CoinMarketCap's Fear & Greed Index. CMC has no free/keyless *official*
+    API for this (it's gated behind a paid Pro API key) -- this instead
+    calls the internal endpoint CMC's own website frontend uses
+    (api.coinmarketcap.com/data-api/v3/fear-greed/chart). That's an
+    unofficial, undocumented dependency that could change or get blocked
+    without notice, and its history only goes back to ~June 2023 (vs.
+    alternative.me's 2018), which is why fetch_fear_greed_history() below
+    blends the two rather than replacing alternative.me outright.
+
+    Returns a DataFrame with columns: date, fng_value, fng_classification
+    (columns match _fetch_fear_greed_alternative_me() for a clean concat).
+    """
+    url = "https://api.coinmarketcap.com/data-api/v3/fear-greed/chart"
+    start = int(datetime(2018, 1, 1, tzinfo=timezone.utc).timestamp())
+    end = int(datetime.now(timezone.utc).timestamp())
+
+    resp = requests.get(url, params={"start": start, "end": end}, timeout=30)
+    resp.raise_for_status()
+    records = resp.json()["data"]["dataList"]
+
+    df = pd.DataFrame(records)
+    df["date"] = pd.to_datetime(df["timestamp"].astype(int), unit="s").dt.normalize()
+    df["fng_value"] = df["score"].astype(int)
+    df["fng_classification"] = df["name"].str.title()  # CMC uses "Extreme fear"; alternative.me uses "Extreme Fear"
+    df = df[["date", "fng_value", "fng_classification"]]
+    # CMC gives an intraday reading for "today" -- collapse to one row/day, keeping the latest.
+    return df.sort_values("date").drop_duplicates(subset="date", keep="last").reset_index(drop=True)
+
+
 def fetch_fear_greed_history(force_refresh: bool = False) -> pd.DataFrame:
     """
-    Fetch the full Fear & Greed Index history from alternative.me.
+    Fetch the Fear & Greed Index history, blended from two sources:
+    alternative.me for everything before CoinMarketCap's index begins,
+    CoinMarketCap's own index from that point forward (by request --
+    considered more accurate day-to-day, but with much shorter history).
+    If CMC's unofficial endpoint fails, falls back to alternative.me's
+    full history alone rather than hard-failing the whole pipeline.
 
     Returns a DataFrame with columns: date, fng_value (0-100), fng_classification
     """
@@ -77,22 +133,20 @@ def fetch_fear_greed_history(force_refresh: bool = False) -> pd.DataFrame:
         df = pd.read_csv(FNG_CACHE, parse_dates=["date"])
         return df
 
-    url = "https://api.alternative.me/fng/"
-    params = {"limit": 0, "format": "json"}  # limit=0 means "all history"
+    alt_df = _fetch_fear_greed_alternative_me()
 
-    resp = requests.get(url, params=params, timeout=30)
-    resp.raise_for_status()
-    raw = resp.json()
+    try:
+        cmc_df = _fetch_fear_greed_coinmarketcap()
+    except Exception:
+        cmc_df = pd.DataFrame(columns=["date", "fng_value", "fng_classification"])
 
-    records = raw["data"]
-    df = pd.DataFrame(records)
-    df["date"] = pd.to_datetime(df["timestamp"].astype(int), unit="s").dt.normalize()
-    df["fng_value"] = df["value"].astype(int)
-    df = df[["date", "fng_value", "value_classification"]].rename(
-        columns={"value_classification": "fng_classification"}
-    )
+    if len(cmc_df) > 0:
+        cutover = cmc_df["date"].min()
+        df = pd.concat([alt_df[alt_df["date"] < cutover], cmc_df], ignore_index=True)
+    else:
+        df = alt_df
+
     df = df.sort_values("date").reset_index(drop=True)
-
     df.to_csv(FNG_CACHE, index=False)
     return df
 

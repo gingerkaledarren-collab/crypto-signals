@@ -23,6 +23,25 @@ is also computed but deliberately left OUT of the default composite —
 see "Why the EMA structure indicator isn't in the default weighting"
 below for why.
 
+## Data sources
+
+BTC price comes from blockchain.info's charts API (free, no key, full
+history back to 2010).
+
+Fear & Greed is blended from two sources, by request: **alternative.me**
+(free, keyless, public API) for all dates before ~June 2023, and
+**CoinMarketCap** from that point forward, considered more accurate
+day-to-day. CMC has no free/keyless *official* API for this index --
+it's gated behind a paid Pro API key -- so `fetch_data.py` instead calls
+the internal endpoint CMC's own website frontend uses. That's an
+unofficial, undocumented dependency that could change or get blocked
+without notice, and its own history only goes back to ~June 2023, which
+is why it's blended onto alternative.me's longer history rather than
+replacing it outright -- a full switch would have left the 2018-2023
+walk-forward training window with no Fear & Greed input at all. If
+CMC's endpoint fails, `fetch_fear_greed_history()` falls back to
+alternative.me's full history alone rather than hard-failing.
+
 ## Setup
 
 ```bash
