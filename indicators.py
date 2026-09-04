@@ -64,7 +64,46 @@ def compute_cycle_context(as_of: dt.date) -> dict:
         "last_halving": last_halving.isoformat(),
         "days_since_halving": days_since,
         "phase": phase,
+        "wyckoff_phase": _wyckoff_phase_for_days(days_since),
     }
+
+
+def _wyckoff_phase_for_days(days_since_halving: int) -> str:
+    """
+    Collapses compute_cycle_context()'s 6-way day-count bucketing into the
+    4 classic Wyckoff market-cycle phases (accumulation/markup/distribution/
+    markdown), by request, for chart shading. "Late-cycle re-accumulation"
+    and the very start of the next cycle share the "accumulation" label --
+    Wyckoff's own cycle wraps accumulation -> markup -> distribution ->
+    markdown -> accumulation, so treating the run-up to a halving and the
+    period just after it as the same phase matches that wraparound rather
+    than resetting mid-phase at the halving date itself.
+    """
+    if days_since_halving < 365:
+        return "accumulation"
+    elif days_since_halving < 580:
+        return "markup"
+    elif days_since_halving < 730:
+        return "distribution"
+    elif days_since_halving < 970:
+        return "markdown"
+    else:
+        return "accumulation"
+
+
+def compute_wyckoff_phases(dates: pd.Series) -> pd.Series:
+    """
+    Vectorized per-date version of compute_cycle_context()'s wyckoff_phase,
+    for shading a whole price history rather than just labeling "today".
+    Same CONTEXT ONLY caveat applies -- see compute_cycle_context().
+    """
+    def _phase(d):
+        as_of = d.date() if hasattr(d, "date") else d
+        past_halvings = [h for h in HALVING_DATES if h <= as_of]
+        last_halving = max(past_halvings) if past_halvings else HALVING_DATES[0]
+        days_since = (as_of - last_halving).days
+        return _wyckoff_phase_for_days(days_since)
+    return dates.apply(_phase)
 
 
 def compute_200w_ma_distance(price_df: pd.DataFrame) -> pd.DataFrame:

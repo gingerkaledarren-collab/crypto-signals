@@ -25,6 +25,14 @@
     --sell-band: rgba(184, 132, 43, 0.16);
     --neutral: #6B7280;
     --neutral-band: rgba(107, 114, 128, 0.08);
+    --phase-accum: rgba(46, 154, 107, 0.16);
+    --phase-accum-strong: #2E9A6B;
+    --phase-markup: rgba(46, 111, 166, 0.16);
+    --phase-markup-strong: #2E6FA6;
+    --phase-distrib: rgba(217, 138, 43, 0.16);
+    --phase-distrib-strong: #D98A2B;
+    --phase-markdown: rgba(192, 57, 43, 0.16);
+    --phase-markdown-strong: #C0392B;
     --shadow: 0 1px 2px rgba(20, 24, 31, 0.04), 0 8px 24px -12px rgba(20, 24, 31, 0.18);
     --grid-line: #DEE2E9;
     color-scheme: light;
@@ -51,6 +59,14 @@
       --sell-band: rgba(224, 169, 74, 0.18);
       --neutral: #8A93A3;
       --neutral-band: rgba(138, 147, 163, 0.10);
+      --phase-accum: rgba(70, 189, 129, 0.18);
+      --phase-accum-strong: #5FCB93;
+      --phase-markup: rgba(74, 147, 212, 0.18);
+      --phase-markup-strong: #7CB3E3;
+      --phase-distrib: rgba(224, 169, 74, 0.18);
+      --phase-distrib-strong: #F0C071;
+      --phase-markdown: rgba(224, 92, 74, 0.18);
+      --phase-markdown-strong: #F08A74;
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -12px rgba(0, 0, 0, 0.5);
       --grid-line: #262D3A;
       color-scheme: dark;
@@ -77,6 +93,14 @@
     --sell-band: rgba(224, 169, 74, 0.18);
     --neutral: #8A93A3;
     --neutral-band: rgba(138, 147, 163, 0.10);
+    --phase-accum: rgba(70, 189, 129, 0.18);
+    --phase-accum-strong: #5FCB93;
+    --phase-markup: rgba(74, 147, 212, 0.18);
+    --phase-markup-strong: #7CB3E3;
+    --phase-distrib: rgba(224, 169, 74, 0.18);
+    --phase-distrib-strong: #F0C071;
+    --phase-markdown: rgba(224, 92, 74, 0.18);
+    --phase-markdown-strong: #F08A74;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -12px rgba(0, 0, 0, 0.5);
     --grid-line: #262D3A;
     color-scheme: dark;
@@ -487,10 +511,14 @@
   <section class="card">
     <div class="section-head">
       <h2>BTC price vs halving cycle</h2>
-      <span class="section-sub">Context only, not in composite — see cycle phase note above</span>
+      <span class="section-sub">Wyckoff-style phase shading, context only, not in composite — see note above</span>
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="dash-swatch" style="border-top:2px dashed var(--accent)"></span>Halving</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--phase-accum)"></span>Accumulation</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--phase-markup)"></span>Markup</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--phase-distrib)"></span>Distribution</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--phase-markdown)"></span>Markdown</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-cycle">
@@ -632,6 +660,18 @@
     return null;
   }
 
+  // Classic 4-phase Wyckoff cycle coloring (by request), computed from
+  // days-since-halving in indicators.py's compute_wyckoff_phases() -- see
+  // that function's docstring for the CONTEXT ONLY caveat.
+  function wyckoffPhaseColor(phase) {
+    return ({
+      accumulation: "var(--phase-accum)",
+      markup: "var(--phase-markup)",
+      distribution: "var(--phase-distrib)",
+      markdown: "var(--phase-markdown)",
+    })[phase] || null;
+  }
+
   // Weekly RSI's own 4-tier scheme (by request): a mild lean either side
   // of the 50 midpoint, an extreme lean beyond the classic 70/30 RSI
   // overbought/oversold levels. Every non-null score falls into exactly
@@ -669,10 +709,11 @@
   // colorFn(tier) maps that key to a fill (or null to skip shading that
   // stretch). Contiguous same-tier runs merge into one rect, mirroring
   // the composite chart's own zone-band pattern so every chart on this
-  // page reads consistently. Only used by the 200w MA chart now -- its
-  // "zone" moves with a changing MA line, not a fixed value range, so
-  // it can't use drawHorizontalBand() above the way RSI/Supply Loss/MVRV
-  // do.
+  // page reads consistently. Used by the 200w MA chart (its "zone" moves
+  // with a changing MA line, not a fixed value range, so it can't use
+  // drawHorizontalBand() above the way RSI/Supply Loss/MVRV do) and by
+  // the halving-cycle chart's Wyckoff-phase shading (which is inherently
+  // time-based, not tied to any value axis at all).
   function drawZoneBands(svg, el, xScale, dates, series, tierFn, colorFn, panelY, panelH) {
     let i = 0;
     while (i < series.length) {
@@ -966,6 +1007,8 @@
       for (const k in attrs) e.setAttribute(k, attrs[k]);
       return e;
     }
+
+    drawZoneBands(svg, el, xScale, dates, series, (d) => d.wyckoff_phase, wyckoffPhaseColor, 0, H);
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price vs halving cycle (log scale)";

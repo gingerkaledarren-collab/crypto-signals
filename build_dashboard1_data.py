@@ -15,7 +15,8 @@ import argparse
 import pandas as pd
 from fetch_data import (fetch_btc_price_history, fetch_fear_greed_history,
                         fetch_supply_in_profit_history, fetch_mvrv_history)
-from indicators import build_indicator_table, SUPPLY_LOSS_CLIP_RANGE, MVRV_CLIP_RANGE, compute_cycle_context, HALVING_DATES
+from indicators import (build_indicator_table, SUPPLY_LOSS_CLIP_RANGE, MVRV_CLIP_RANGE,
+                        compute_cycle_context, compute_wyckoff_phases, HALVING_DATES)
 from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
                      flag_extreme_zones, extract_extreme_periods,
                      EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
@@ -105,6 +106,7 @@ def _build_weekly_series(zoned: pd.DataFrame) -> list:
     bars by week-ending (Sunday) date.
     """
     weekly = zoned.set_index("date").resample("W").last().reset_index()
+    weekly["wyckoff_phase"] = compute_wyckoff_phases(weekly["date"])
 
     def _val(row, col):
         return round(float(row[col]), 2) if pd.notna(row[col]) else None
@@ -124,6 +126,7 @@ def _build_weekly_series(zoned: pd.DataFrame) -> list:
             "supply_loss_score": _val(row, "supply_loss_score"),
             "mvrv_ratio": _val(row, "mvrv_ratio"),
             "mvrv_score": _val(row, "mvrv_score"),
+            "wyckoff_phase": row["wyckoff_phase"],
         }
         for _, row in weekly.iterrows()
     ]
