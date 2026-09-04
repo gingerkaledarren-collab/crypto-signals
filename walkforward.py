@@ -70,10 +70,10 @@ def fmt_pct(x):
 
 
 def run_walkforward(weights: dict = None, configs: list = None, split_frac: float = 0.65,
-                     horizon_days: int = FORWARD_HORIZON_DAYS):
+                     horizon_days: int = FORWARD_HORIZON_DAYS, fng_window: int = 30):
     price_df = fetch_btc_price_history()
     fng_df = fetch_fear_greed_history()
-    table = build_indicator_table(price_df, fng_df).sort_values("date").reset_index(drop=True)
+    table = build_indicator_table(price_df, fng_df, fng_window=fng_window).sort_values("date").reset_index(drop=True)
 
     split_idx = int(len(table) * split_frac)
     split_date = table.iloc[split_idx]["date"]

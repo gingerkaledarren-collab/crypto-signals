@@ -167,10 +167,17 @@ def normalize_ema_structure(pct_distance_21w: pd.Series, clip_range: tuple = (-2
     return (clipped - lo) / (hi - lo) * 100
 
 
-def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.DataFrame:
+def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_window: int = 30) -> pd.DataFrame:
     """
     Joins all indicators into a single date-aligned table, with each
     indicator normalized to the 0-100 greed scale.
+
+    fng_window: smoothing window for Fear & Greed, in days. Default (30)
+    is the live system's validated setting. Exposed as a parameter so
+    the daily/no-smoothing variant can be walk-forward tested (see
+    README's "Testing daily (unsmoothed) Fear & Greed") without a
+    second code path -- fng_window=1 is exactly "no smoothing" since
+    smooth_fear_greed()'s rolling(window=1) is a no-op.
 
     Returns df with columns:
       date, price, ma_200w, pct_distance, ma_200w_score,
@@ -181,7 +188,7 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.Da
     ma_df = compute_200w_ma_distance(price_df)
     ma_df["ma_200w_score"] = normalize_200w_distance(ma_df["pct_distance"])
 
-    fng_smooth_df = smooth_fear_greed(fng_df)
+    fng_smooth_df = smooth_fear_greed(fng_df, window=fng_window)
     fng_smooth_df["fng_score"] = fng_smooth_df["fng_smoothed"]  # already 0-100
 
     merged = pd.merge(ma_df, fng_smooth_df, on="date", how="inner")
