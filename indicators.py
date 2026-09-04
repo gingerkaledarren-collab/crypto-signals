@@ -106,6 +106,100 @@ def compute_wyckoff_phases(dates: pd.Series) -> pd.Series:
     return dates.apply(_phase)
 
 
+# Percentage reversal that confirms a zigzag swing pivot for the "Elliott
+# Wave" chart below. 25% was picked empirically (see this project's own
+# testing notes) as a threshold that yields a workable number of major
+# swings across BTC's full price history without either drowning in noise
+# (15-20% produces 70-100+ pivots) or missing real cycle swings (30%+
+# starts skipping legitimate multi-month corrections).
+ELLIOTT_ZIGZAG_THRESHOLD = 0.25
+
+# Elliott's own naming: a 5-wave impulse (1-2-3-4-5) followed by a 3-wave
+# correction (A-B-C), repeating. Applied here purely by counting zigzag
+# pivots in sequence -- see label_elliott_pivots()'s docstring for why
+# this is a mechanical labeling, not a validated Elliott Wave count.
+ELLIOTT_WAVE_LABELS = ["1", "2", "3", "4", "5", "A", "B", "C"]
+
+
+def compute_zigzag_pivots(prices: pd.Series, threshold_pct: float = ELLIOTT_ZIGZAG_THRESHOLD) -> list:
+    """
+    A standard percentage zigzag filter: starting from the first data
+    point, tracks the running high (in an uptrend) or running low (in a
+    downtrend) and confirms a swing pivot once price reverses by more than
+    threshold_pct from that running extreme. This is a purely mechanical
+    swing-point detector operating on price alone -- it has no concept of
+    Elliott's wave-degree or alternation rules (see label_elliott_pivots()
+    for how loosely those get bolted on afterward).
+
+    Returns a list of {"index": int, "kind": "high"|"low"} into `prices`,
+    in chronological order. The final entry may be the current in-progress
+    swing (not yet confirmed by a reversal) -- still useful to plot as
+    "where we are right now", just not a settled pivot the way earlier
+    ones are.
+    """
+    n = len(prices)
+    pivots = []
+    if n == 0:
+        return pivots
+
+    anchor_idx, anchor_price = 0, float(prices.iloc[0])
+    direction = None  # unknown until the first threshold-crossing move
+    ext_idx, ext_price = anchor_idx, anchor_price
+
+    for i in range(1, n):
+        p = float(prices.iloc[i])
+        if direction is None:
+            if p >= anchor_price * (1 + threshold_pct):
+                direction = "up"
+                pivots.append({"index": anchor_idx, "kind": "low"})
+                ext_idx, ext_price = i, p
+            elif p <= anchor_price * (1 - threshold_pct):
+                direction = "down"
+                pivots.append({"index": anchor_idx, "kind": "high"})
+                ext_idx, ext_price = i, p
+        elif direction == "up":
+            if p > ext_price:
+                ext_idx, ext_price = i, p
+            elif p <= ext_price * (1 - threshold_pct):
+                pivots.append({"index": ext_idx, "kind": "high"})
+                direction = "down"
+                ext_idx, ext_price = i, p
+        else:
+            if p < ext_price:
+                ext_idx, ext_price = i, p
+            elif p >= ext_price * (1 + threshold_pct):
+                pivots.append({"index": ext_idx, "kind": "low"})
+                direction = "up"
+                ext_idx, ext_price = i, p
+
+    if direction == "up":
+        pivots.append({"index": ext_idx, "kind": "high", "unconfirmed": True})
+    elif direction == "down":
+        pivots.append({"index": ext_idx, "kind": "low", "unconfirmed": True})
+
+    return pivots
+
+
+def label_elliott_pivots(pivots: list) -> list:
+    """
+    Assigns Elliott's 1-2-3-4-5-A-B-C labels to zigzag pivots purely by
+    counting through them in order and cycling every 8. This is NOT a
+    validated Elliott Wave count: real Elliott analysis is famously
+    subjective (different analysts routinely disagree on the same chart),
+    checks rules this never does (wave 2 can't retrace past wave 1's
+    start, wave 3 is never the shortest, wave 4 shouldn't overlap wave 1,
+    alternation between corrective waves, Fibonacci retracement/extension
+    ratios) and allows for nested sub-waves and truncations/extensions
+    this simple counter has no concept of. Treat this chart as "one
+    mechanically generated swing count using a fixed zigzag filter", not
+    as a claim about the real wave structure.
+    """
+    return [
+        {**pv, "wave_label": ELLIOTT_WAVE_LABELS[i % len(ELLIOTT_WAVE_LABELS)]}
+        for i, pv in enumerate(pivots)
+    ]
+
+
 def compute_200w_ma_distance(price_df: pd.DataFrame) -> pd.DataFrame:
     """
     Computes the 200-week moving average (= 1400 days) and the price's

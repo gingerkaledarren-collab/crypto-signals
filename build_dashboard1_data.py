@@ -16,7 +16,8 @@ import pandas as pd
 from fetch_data import (fetch_btc_price_history, fetch_fear_greed_history,
                         fetch_supply_in_profit_history, fetch_mvrv_history)
 from indicators import (build_indicator_table, SUPPLY_LOSS_CLIP_RANGE, MVRV_CLIP_RANGE,
-                        compute_cycle_context, compute_wyckoff_phases, HALVING_DATES)
+                        compute_cycle_context, compute_wyckoff_phases, HALVING_DATES,
+                        compute_zigzag_pivots, label_elliott_pivots, ELLIOTT_ZIGZAG_THRESHOLD)
 from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
                      flag_extreme_zones, extract_extreme_periods,
                      EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
@@ -92,8 +93,40 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
             for _, row in extreme_periods.iterrows()
         ],
         "series": _build_weekly_series(zoned),
+        "elliott_wave": _build_elliott_wave_data(price_df),
     }
     return data
+
+
+def _build_elliott_wave_data(price_df: pd.DataFrame) -> dict:
+    """
+    Elliott Wave chart is deliberately independent of the indicator table
+    above -- it only needs price, so it uses price_df's FULL history
+    (back to ~2010) rather than the indicator table's 2018+ window (which
+    starts later purely because the other indicators need warm-up data,
+    e.g. the 200-week MA). More history means more swings to label, which
+    is the whole point of a wave count. See compute_zigzag_pivots() and
+    label_elliott_pivots() for the (heavily caveated) methodology.
+    """
+    weekly = price_df.set_index("date").resample("W").last().reset_index()
+    pivots = label_elliott_pivots(compute_zigzag_pivots(weekly["price"]))
+    return {
+        "zigzag_threshold_pct": ELLIOTT_ZIGZAG_THRESHOLD,
+        "series": [
+            {"date": row["date"].strftime("%Y-%m-%d"), "price": round(float(row["price"]), 2)}
+            for _, row in weekly.iterrows()
+        ],
+        "pivots": [
+            {
+                "date": weekly["date"].iloc[pv["index"]].strftime("%Y-%m-%d"),
+                "price": round(float(weekly["price"].iloc[pv["index"]]), 2),
+                "kind": pv["kind"],
+                "wave_label": pv["wave_label"],
+                "unconfirmed": bool(pv.get("unconfirmed", False)),
+            }
+            for pv in pivots
+        ],
+    }
 
 
 def _build_weekly_series(zoned: pd.DataFrame) -> list:
