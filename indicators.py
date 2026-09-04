@@ -202,8 +202,26 @@ def normalize_supply_in_loss(supply_in_loss_pct: pd.Series, clip_range: tuple = 
     return (hi - clipped) / (hi - lo) * 100
 
 
+def normalize_mvrv(mvrv_ratio: pd.Series, clip_range: tuple = (0.9, 2.5)) -> pd.Series:
+    """
+    Maps the MVRV ratio (market cap / realized cap) to the 0-100 greed
+    scale directly -- unlike supply-in-loss, no inversion needed: high
+    MVRV already means euphoria/greed (most of the network sitting on
+    large unrealized gains), low/near-1 MVRV already means capitulation.
+
+    Clip bounds are the ~5th/95th percentiles of BGeometrics' available
+    history (Sept 2022-present only -- see fetch_mvrv_history()'s
+    docstring for why this metric's free history is so much shorter than
+    the others here). At mvrv<=0.9 score floors at 0, at mvrv>=2.5 it
+    caps at 100.
+    """
+    lo, hi = clip_range
+    clipped = mvrv_ratio.clip(lower=lo, upper=hi)
+    return (clipped - lo) / (hi - lo) * 100
+
+
 def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_window: int = 30,
-                           supply_profit_df: pd.DataFrame = None) -> pd.DataFrame:
+                           supply_profit_df: pd.DataFrame = None, mvrv_df: pd.DataFrame = None) -> pd.DataFrame:
     """
     Joins all indicators into a single date-aligned table, with each
     indicator normalized to the 0-100 greed scale.
@@ -217,10 +235,15 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_wind
 
     supply_profit_df: optional, from fetch_supply_in_profit_history(). If
     given, adds supply_loss_score (see compute_supply_in_loss()) to the
-    table -- a candidate 5th indicator being walk-forward tested (see
-    README's "Testing Bitcoin Supply in Loss %"), not yet in
-    scoring.DEFAULT_WEIGHTS. Omitted by default so existing callers are
-    unaffected.
+    table. Not in scoring.DEFAULT_WEIGHTS (only current_status.LIVE_WEIGHTS
+    -- see README's "Removing Pi Cycle Top, adding Supply in Loss %").
+    Omitted by default so existing callers are unaffected.
+
+    mvrv_df: optional, from fetch_mvrv_history(). If given, adds
+    mvrv_score (see normalize_mvrv()) to the table. Its history only
+    starts ~Sept 2022, so rows before that get NaN here -- by design,
+    not a bug (see README's "Adding MVRV Ratio despite its short
+    history"). Also not in scoring.DEFAULT_WEIGHTS.
 
     Returns df with columns:
       date, price, ma_200w, pct_distance, ma_200w_score,
@@ -228,6 +251,7 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_wind
       sma_111, sma_350x2, pi_cycle_ratio, pi_cycle_score,
       ema_21w, ema_34w, pct_distance_21w, ema_structure_score,
       [supply_in_profit_pct, supply_in_loss_pct, supply_loss_score if supply_profit_df given]
+      [mvrv_ratio, mvrv_score if mvrv_df given]
     """
     ma_df = compute_200w_ma_distance(price_df)
     ma_df["ma_200w_score"] = normalize_200w_distance(ma_df["pct_distance"])
@@ -266,6 +290,20 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_wind
         loss_df["supply_loss_score"] = normalize_supply_in_loss(loss_df["supply_in_loss_pct"])
         merged = pd.merge_asof(
             merged.sort_values("date"), loss_df.sort_values("date"), on="date", direction="backward"
+        )
+
+    if mvrv_df is not None:
+        # Same backward merge_asof pattern, but mvrv_df's history only
+        # starts ~Sept 2022 -- merge_asof naturally leaves mvrv_score as
+        # NaN for every date before that (no prior row to match), rather
+        # than erroring or fabricating a value. scoring.compute_composite_score()
+        # renormalizes weights per-row over whichever columns are non-null,
+        # so those earlier rows still get a real composite from the other
+        # indicators instead of going NaN themselves.
+        mvrv_scored = mvrv_df.copy().sort_values("date").reset_index(drop=True)
+        mvrv_scored["mvrv_score"] = normalize_mvrv(mvrv_scored["mvrv_ratio"])
+        merged = pd.merge_asof(
+            merged.sort_values("date"), mvrv_scored.sort_values("date"), on="date", direction="backward"
         )
 
     return merged

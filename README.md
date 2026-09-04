@@ -28,12 +28,13 @@ below for why.
 
 **The live dashboard and `current_status.py` use a different composite**
 (`current_status.LIVE_WEIGHTS`): Pi Cycle Top removed, Bitcoin Supply in
-Loss % added in its place, by explicit request. This is NOT the
-validated composite above -- see "Removing Pi Cycle Top, adding Supply
-in Loss %" for the full walk-forward comparison and an honest number:
-this specific combination tests as having essentially no validated
-forward-return signal. It's live anyway, the same way Dashboard 2
-already ships a composite that isn't separately validated.
+Loss % and MVRV Ratio added in its place, by explicit request. This is
+NOT the validated composite above -- see "Removing Pi Cycle Top, adding
+Supply in Loss %" and "Adding MVRV Ratio despite its short history" for
+the full walk-forward comparisons and an honest number: none of these
+changes improved on the original's validated forward-return signal.
+It's live anyway, the same way Dashboard 2 already ships a composite
+that isn't separately validated.
 
 ## Data sources
 
@@ -384,6 +385,46 @@ sweep for this specific composite, not just inherited from the original
 `backtest.py`, `trim_signal.py`, `trim_walkforward.py`, and
 `portfolio_simulation.py` continue to use -- none of that documented
 research silently changed underneath it.
+
+## Adding MVRV Ratio despite its short history
+
+Also by explicit request, on top of the change above: `LIVE_WEIGHTS` now
+includes MVRV Ratio (market cap / realized cap, `indicators.normalize_mvrv()`)
+at 20%, with the other four (200w MA, F&G, weekly RSI, Supply Loss)
+rebalanced to 20% each. The catch, flagged before building it: BGeometrics'
+free MVRV data only goes back to **~Sept 2022** (~4 years), not 2014 like
+Supply in Loss -- see "Data sources" for why (BGeometrics gates most of
+their on-chain metrics to 4 years free; Supply in Loss happened not to
+be one of them).
+
+**Handling the short history.** Rather than leaving `composite_score`
+NaN for the ~4.5 years (2018-02 to 2022-09) before MVRV data exists,
+`scoring.compute_composite_score()` was changed to renormalize weights
+*per row* over whichever weighted columns are actually non-null that
+day (a no-op for any fully-populated table, verified against
+`walkforward.py`'s default run: identical 10.3pp before and after this
+change). So earlier dates still get a real composite from the other
+four indicators; MVRV only participates once it exists. The full-history
+chart on the dashboard therefore stays intact; the MVRV Ratio chart
+itself only plots its own available window.
+
+**Testing it anyway.** The standard 2018-2023/2023-2026 TRAIN/TEST split
+can't isolate MVRV's effect (it's NaN for 89% of TRAIN), so this used a
+walk-forward split *within* MVRV's own available window instead (Sept
+2022-present, 65/35 split):
+
+| | LIVE_WEIGHTS without MVRV | LIVE_WEIGHTS + MVRV (20% each) |
+|---|---|---|
+| Best TRAIN spread (this window) | +32.2pp | +29.7pp |
+| TEST spread (this window) | +2.5pp | +1.9pp |
+
+Both numbers are much higher than the full-history results elsewhere in
+this README simply because this shorter window mostly captures one long
+uptrend (the 2022 bottom into the 2024-2025 highs) -- any reasonable
+buy-low-sell-high composite looks good over a trend like that. The
+comparison that matters is *relative*: adding MVRV makes both TRAIN and
+TEST slightly worse, not better -- the same direction every other
+addition in this section has gone. It's live anyway, by request.
 
 ## The second system: short-term signal (`st_backtest.py`)
 

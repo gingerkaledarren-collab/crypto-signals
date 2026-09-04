@@ -23,6 +23,7 @@ DATA_DIR.mkdir(exist_ok=True)
 PRICE_CACHE = DATA_DIR / "btc_price_history.csv"
 FNG_CACHE = DATA_DIR / "fear_greed_history.csv"
 SUPPLY_PROFIT_CACHE = DATA_DIR / "supply_in_profit_history.csv"
+MVRV_CACHE = DATA_DIR / "mvrv_history.csv"
 
 
 def fetch_btc_price_history(days: int = "max", force_refresh: bool = False) -> pd.DataFrame:
@@ -193,6 +194,44 @@ def fetch_supply_in_profit_history(force_refresh: bool = False) -> pd.DataFrame:
     return df
 
 
+def fetch_mvrv_history(force_refresh: bool = False) -> pd.DataFrame:
+    """
+    Fetch Bitcoin's daily MVRV ratio (market cap / realized cap) from
+    BGeometrics -- same unofficial-static-JSON pattern and caveats as
+    fetch_supply_in_profit_history() above, but with much shorter free
+    history: only ~4 years (Sept 2022-present), not 2014. BGeometrics
+    gates most of their "premium" on-chain metrics to 4 years for
+    anonymous/free viewers; Supply in Profit/Loss just happened not to
+    be one of them. Used anyway, by request -- see README's "Adding
+    MVRV Ratio despite its short history" for how the short history is
+    handled (scoring.py renormalizes composite weights per-row over
+    whichever indicators actually have data that day, so pre-2022-09
+    rows aren't broken, just computed from fewer indicators).
+
+    Direction confirmed against known dates: ~0.78 at the Nov 2022
+    capitulation low, ~2.6-2.7 at the 2024/2025 ATHs -- standard MVRV
+    convention (>1 = aggregate unrealized profit; high = euphoria).
+
+    Returns a DataFrame with columns: date, mvrv_ratio
+    """
+    if MVRV_CACHE.exists() and not force_refresh:
+        df = pd.read_csv(MVRV_CACHE, parse_dates=["date"])
+        return df
+
+    url = "https://charts.bgeometrics.com/files/mvrv_data.json"
+    resp = requests.get(url, timeout=30)
+    resp.raise_for_status()
+    records = resp.json()  # list of [timestamp_ms, mvrv_ratio]
+
+    df = pd.DataFrame(records, columns=["timestamp_ms", "mvrv_ratio"])
+    df["date"] = pd.to_datetime(df["timestamp_ms"], unit="ms").dt.normalize()
+    df = df[["date", "mvrv_ratio"]].dropna()
+    df = df.sort_values("date").reset_index(drop=True)
+
+    df.to_csv(MVRV_CACHE, index=False)
+    return df
+
+
 if __name__ == "__main__":
     print("Fetching BTC price history...")
     price_df = fetch_btc_price_history(force_refresh=True)
@@ -205,5 +244,9 @@ if __name__ == "__main__":
     print("Fetching Bitcoin Supply in Profit/Loss history...")
     supply_df = fetch_supply_in_profit_history(force_refresh=True)
     print(f"  Got {len(supply_df)} days of supply-in-profit data, from {supply_df['date'].min().date()} to {supply_df['date'].max().date()}")
+
+    print("Fetching Bitcoin MVRV ratio history...")
+    mvrv_df = fetch_mvrv_history(force_refresh=True)
+    print(f"  Got {len(mvrv_df)} days of MVRV data, from {mvrv_df['date'].min().date()} to {mvrv_df['date'].max().date()}")
 
     print(f"\nCached to {DATA_DIR}/")

@@ -13,7 +13,8 @@ call it from build_dashboards.py.
 import json
 import argparse
 import pandas as pd
-from fetch_data import fetch_btc_price_history, fetch_fear_greed_history, fetch_supply_in_profit_history
+from fetch_data import (fetch_btc_price_history, fetch_fear_greed_history,
+                        fetch_supply_in_profit_history, fetch_mvrv_history)
 from indicators import build_indicator_table
 from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
                      flag_extreme_zones, extract_extreme_periods,
@@ -26,7 +27,8 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
     price_df = fetch_btc_price_history(force_refresh=force_refresh)
     fng_df = fetch_fear_greed_history(force_refresh=force_refresh)
     supply_df = fetch_supply_in_profit_history(force_refresh=force_refresh)
-    table = build_indicator_table(price_df, fng_df, fng_window=fng_window, supply_profit_df=supply_df)
+    mvrv_df = fetch_mvrv_history(force_refresh=force_refresh)
+    table = build_indicator_table(price_df, fng_df, fng_window=fng_window, supply_profit_df=supply_df, mvrv_df=mvrv_df)
 
     scored = compute_composite_score(table, weights=LIVE_WEIGHTS)
     zoned = flag_zones(scored, sell_threshold=sell_threshold, buy_threshold=buy_threshold)
@@ -114,6 +116,7 @@ def _build_weekly_series(zoned: pd.DataFrame) -> list:
             "ma_200w": _val(row, "ma_200w"),
             "weekly_rsi": _val(row, "weekly_rsi"),
             "supply_in_loss_pct": _val(row, "supply_in_loss_pct"),
+            "mvrv_ratio": _val(row, "mvrv_ratio"),
         }
         for _, row in weekly.iterrows()
     ]

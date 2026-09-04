@@ -6,12 +6,12 @@ missing so far: everything else answers "does this system work on
 history," this answers "what does it say right now."
 
 LIVE_WEIGHTS (by explicit request) removes Pi Cycle Top and adds Bitcoin
-Supply in Loss % in its place -- see README's "Removing Pi Cycle Top,
-adding Supply in Loss %" for the full walk-forward comparison. Reported
-honestly: this specific combination tests as having essentially NO
-validated forward-return signal (TRAIN spread 0.9pp, TEST 0.8pp, vs.
-10.3pp/10.3pp for the original Pi-Cycle-based composite this replaces).
-It's live anyway, by request, the same way Dashboard 2 already ships a
+Supply in Loss % and MVRV Ratio in its place -- see README's "Removing
+Pi Cycle Top, adding Supply in Loss %" and "Adding MVRV Ratio despite
+its short history" for the full walk-forward comparisons. Reported
+honestly: none of these changes held up under this project's own
+methodology (see those README sections for the numbers). It's live
+anyway, by request, the same way Dashboard 2 already ships a
 technicals-based composite that isn't separately validated -- just
 don't mistake the buy/sell zone calls below for something this
 project's own methodology found to work.
@@ -21,6 +21,11 @@ untouched for backtest.py / trim_signal.py / portfolio_simulation.py /
 trim_walkforward.py, which document and depend on it specifically --
 only this file and the dashboard it feeds use LIVE_WEIGHTS.
 
+MVRV's source data only starts ~Sept 2022 (see fetch_mvrv_history()) --
+scoring.compute_composite_score() renormalizes weights per-row over
+whichever columns are non-null, so pre-2022 rows still get a real
+composite from the other four inputs rather than going NaN.
+
 Thresholds (sell=60, buy=40, confirm=5d) are still the TRAIN-selected
 best for LIVE_WEIGHTS specifically (re-run, not just inherited) --
 they happen to match the original composite's own thresholds.
@@ -28,7 +33,8 @@ they happen to match the original composite's own thresholds.
 
 import argparse
 import pandas as pd
-from fetch_data import fetch_btc_price_history, fetch_fear_greed_history, fetch_supply_in_profit_history
+from fetch_data import (fetch_btc_price_history, fetch_fear_greed_history,
+                        fetch_supply_in_profit_history, fetch_mvrv_history)
 from indicators import build_indicator_table
 from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
                      flag_extreme_zones, extract_extreme_periods,
@@ -38,14 +44,16 @@ DEFAULT_SELL_THRESHOLD = 60
 DEFAULT_BUY_THRESHOLD = 40
 DEFAULT_CONFIRM_DAYS = 5
 
-# The live composite: 200w MA distance, Fear & Greed, weekly RSI, and
-# Bitcoin Supply in Loss % -- Pi Cycle Top removed, by request. See the
-# module docstring above for the walk-forward result on this exact mix.
+# The live composite: 200w MA distance, Fear & Greed, weekly RSI, Bitcoin
+# Supply in Loss %, and MVRV Ratio -- Pi Cycle Top removed, by request.
+# See the module docstring above for the walk-forward results on these
+# changes.
 LIVE_WEIGHTS = {
-    "ma_200w_score": 0.25,
-    "fng_score": 0.25,
-    "rsi_score": 0.25,
-    "supply_loss_score": 0.25,
+    "ma_200w_score": 0.2,
+    "fng_score": 0.2,
+    "rsi_score": 0.2,
+    "supply_loss_score": 0.2,
+    "mvrv_score": 0.2,
 }
 
 INDICATOR_LABELS = {
@@ -53,6 +61,7 @@ INDICATOR_LABELS = {
     "fng_score": "Fear & Greed (30d smoothed)",
     "rsi_score": "Weekly RSI",
     "supply_loss_score": "Bitcoin Supply in Loss (%)",
+    "mvrv_score": "MVRV Ratio",
 }
 
 # Not in the default composite (see scoring.py) -- shown separately as
@@ -65,7 +74,8 @@ def get_current_status(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_thres
     price_df = fetch_btc_price_history(force_refresh=force_refresh)
     fng_df = fetch_fear_greed_history(force_refresh=force_refresh)
     supply_df = fetch_supply_in_profit_history(force_refresh=force_refresh)
-    table = build_indicator_table(price_df, fng_df, supply_profit_df=supply_df)
+    mvrv_df = fetch_mvrv_history(force_refresh=force_refresh)
+    table = build_indicator_table(price_df, fng_df, supply_profit_df=supply_df, mvrv_df=mvrv_df)
 
     scored = compute_composite_score(table, weights=LIVE_WEIGHTS)
     zoned = flag_zones(scored, sell_threshold=sell_threshold, buy_threshold=buy_threshold)

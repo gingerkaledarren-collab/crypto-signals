@@ -36,18 +36,31 @@ def compute_composite_score(table: pd.DataFrame, weights: dict = None) -> pd.Dat
     to sum to 1 automatically, so you can pass e.g. {"ma_200w_score": 2,
     "fng_score": 1} for a 2:1 ratio without doing the math yourself.
 
+    Renormalizes per ROW over whichever weighted columns are non-null
+    that day, rather than requiring all of them present. This matters
+    now that LIVE_WEIGHTS includes mvrv_score, whose source data only
+    starts ~Sept 2022 (see indicators.build_indicator_table()) -- without
+    this, every earlier row's composite_score would go NaN just because
+    one of five inputs wasn't available yet, rather than being computed
+    from the other four. A no-op for any table where every weighted
+    column is fully populated (the common case), since row_weight_sum
+    then always equals total_weight.
+
     Returns the input df with an added 'composite_score' column.
     """
     if weights is None:
         weights = DEFAULT_WEIGHTS
 
-    total_weight = sum(weights.values())
-    normalized_weights = {k: v / total_weight for k, v in weights.items()}
-
     df = table.copy()
-    df["composite_score"] = sum(
-        df[col] * w for col, w in normalized_weights.items()
-    )
+    cols = list(weights.keys())
+    w = pd.Series(weights, dtype=float)
+
+    values = df[cols]
+    available = values.notna()
+    row_weight_sum = available.mul(w, axis=1).sum(axis=1)
+    weighted_sum = values.fillna(0).mul(w, axis=1).sum(axis=1)
+
+    df["composite_score"] = weighted_sum / row_weight_sum
     return df
 
 
