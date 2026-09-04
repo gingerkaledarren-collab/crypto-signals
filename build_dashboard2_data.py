@@ -81,6 +81,10 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
                 "price": round(float(row["price"]), 2),
                 "composite": round(float(row["composite_score"]), 2),
                 "zone": row["zone"],
+                "daily_rsi": round(float(row["daily_rsi"]), 2) if pd.notna(row["daily_rsi"]) else None,
+                "ma50": round(float(row["ma50"]), 2) if pd.notna(row["ma50"]) else None,
+                "macd_line": round(float(row["macd_line"]), 2) if pd.notna(row["macd_line"]) else None,
+                "macd_signal": round(float(row["macd_signal"]), 2) if pd.notna(row["macd_signal"]) else None,
             }
             for _, row in recent.iterrows()
         ],

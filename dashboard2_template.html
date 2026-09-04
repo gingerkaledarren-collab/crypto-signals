@@ -316,6 +316,10 @@
   .threshold-line { stroke: var(--ink-muted); stroke-width: 1; stroke-dasharray: 3 4; }
   .price-line { fill: none; stroke: var(--ink-2); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
   .composite-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .rsi-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ma50-line { fill: none; stroke: var(--calm); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .macd-line { fill: none; stroke: var(--calm); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .macd-signal-line { fill: none; stroke: var(--ink-muted); stroke-width: 1.5; stroke-dasharray: 5 3; stroke-linecap: round; stroke-linejoin: round; }
   .chart-title { font-family: "Bricolage Grotesque", sans-serif; font-size: 13.5px; font-weight: 700; fill: var(--ink-2); text-transform: uppercase; letter-spacing: 0.03em; }
 
   .crosshair-line { stroke: var(--ink-muted); stroke-width: 1; pointer-events: none; opacity: 0; }
@@ -404,6 +408,46 @@
     </div>
     <div class="chart-wrap" id="chart-wrap">
       <div id="tooltip" class="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Daily RSI(14) vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Daily RSI</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-rsi">
+      <div id="tooltip-rsi" class="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>50-day MA vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--calm)"></span>50-day MA</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-ma50">
+      <div id="tooltip-ma50" class="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>MACD vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--calm)"></span>MACD line</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-muted);border-top-style:dashed"></span>Signal line</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-macd">
+      <div id="tooltip-macd" class="tooltip"></div>
     </div>
   </section>
 
@@ -646,5 +690,402 @@ __DATA_JSON__
   }
 
   renderChart("chart-wrap", "tooltip", DATA.series);
+
+  // ---------- Daily RSI(14) vs price (price panel + RSI panel) ----------
+  function renderRsiChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, RSI_H = 170, GAP = 26;
+    const plotW = W - PAD_L - PAD_R;
+    const rsiTop = PRICE_H + GAP;
+    const totalH = rsiTop + RSI_H;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const priceMin = Math.min(...prices) * 0.97;
+    const priceMax = Math.max(...prices) * 1.03;
+    const yPrice = (p) => PAD_TOP + (1 - (p - priceMin) / (priceMax - priceMin)) * (PRICE_H - PAD_TOP);
+
+    const rsiPlotTop = rsiTop + PAD_TOP * 0.4;
+    const rsiPlotH = RSI_H - PAD_TOP * 0.4 - 12;
+    const yRsi = (v) => rsiPlotTop + (1 - v / 100) * rsiPlotH;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    const priceTitle = el("text", { class: "chart-title", x: PAD_L, y: 10 });
+    priceTitle.textContent = "BTC price";
+    svg.appendChild(priceTitle);
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    const rsiTitle = el("text", { class: "chart-title", x: PAD_L, y: rsiTop + 10 });
+    rsiTitle.textContent = "Daily RSI (0-100)";
+    svg.appendChild(rsiTitle);
+    [0, 50, 100].forEach((v) => {
+      const y = yRsi(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v;
+      svg.appendChild(t);
+    });
+    [[70, "overbought ≥ 70"], [30, "oversold ≤ 30"]].forEach(([th, label]) => {
+      const y = yRsi(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    function buildRsiPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.daily_rsi === null || pt.daily_rsi === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yRsi(pt.daily_rsi).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    svg.appendChild(el("path", { class: "rsi-line", d: buildRsiPath() }));
+
+    const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
+    axisKeys.forEach((key) => {
+      const first = series.find((d) => d.date.slice(0, 7) === key);
+      const label = new Date(key + "-01T00:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotRsi = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotRsi);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      const dot = (color) => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px"></span>`;
+      let rsiLine = "";
+      if (d.daily_rsi != null) {
+        dotRsi.style.opacity = 1;
+        dotRsi.setAttribute("cx", px); dotRsi.setAttribute("cy", yRsi(d.daily_rsi));
+        rsiLine = `<div>${dot("var(--ink)")}RSI ${d.daily_rsi.toFixed(1)}</div>`;
+      } else {
+        dotRsi.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (totalH + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${rsiLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotRsi].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- 50-day MA vs price (single linear panel) ----------
+  function renderMa50Chart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const H = 260;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const allValues = series.flatMap((d) => [d.price, d.ma50]).filter((v) => v != null);
+    const vMin = Math.min(...allValues) * 0.97;
+    const vMax = Math.max(...allValues) * 1.03;
+    const yVal = (v) => PAD_TOP + (1 - (v - vMin) / (vMax - vMin)) * (H - PAD_TOP);
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    const title = el("text", { class: "chart-title", x: PAD_L, y: 10 });
+    title.textContent = "BTC price vs 50-day MA";
+    svg.appendChild(title);
+    [Math.min(...allValues), Math.max(...allValues)].forEach((v) => {
+      const y = yVal(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(v).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+
+    function buildPath(valueFn) {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        const v = valueFn(pt);
+        if (v === null || v === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yVal(v).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price) }));
+    svg.appendChild(el("path", { class: "ma50-line", d: buildPath((d) => d.ma50) }));
+
+    const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
+    axisKeys.forEach((key) => {
+      const first = series.find((d) => d.date.slice(0, 7) === key);
+      const label = new Date(key + "-01T00:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: H + 14, "text-anchor": "middle" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: H });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotMa = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--calm)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotMa);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: H });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yVal(d.price));
+
+      const dot = (color) => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px"></span>`;
+      let maLine = "";
+      if (d.ma50 != null) {
+        dotMa.style.opacity = 1;
+        dotMa.setAttribute("cx", px); dotMa.setAttribute("cy", yVal(d.ma50));
+        const pctDist = ((d.price - d.ma50) / d.ma50 * 100).toFixed(1);
+        maLine = `<div>${dot("var(--calm)")}50d MA ${fmtUSD(d.ma50)} (${pctDist > 0 ? "+" : ""}${pctDist}%)</div>`;
+      } else {
+        dotMa.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yVal(d.price) / (H + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${maLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotMa].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- MACD vs price (price panel + MACD/signal line panel) ----------
+  function renderMacdChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, MACD_H = 170, GAP = 26;
+    const plotW = W - PAD_L - PAD_R;
+    const macdTop = PRICE_H + GAP;
+    const totalH = macdTop + MACD_H;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const priceMin = Math.min(...prices) * 0.97;
+    const priceMax = Math.max(...prices) * 1.03;
+    const yPrice = (p) => PAD_TOP + (1 - (p - priceMin) / (priceMax - priceMin)) * (PRICE_H - PAD_TOP);
+
+    const macdValues = series.flatMap((d) => [d.macd_line, d.macd_signal]).filter((v) => v != null);
+    const macdMin = Math.min(...macdValues, 0);
+    const macdMax = Math.max(...macdValues, 0);
+    const macdPad = (macdMax - macdMin) * 0.1 || 1;
+    const macdPlotTop = macdTop + PAD_TOP * 0.4;
+    const macdPlotH = MACD_H - PAD_TOP * 0.4 - 12;
+    const yMacd = (v) => macdPlotTop + (1 - (v - (macdMin - macdPad)) / ((macdMax + macdPad) - (macdMin - macdPad))) * macdPlotH;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    const priceTitle = el("text", { class: "chart-title", x: PAD_L, y: 10 });
+    priceTitle.textContent = "BTC price";
+    svg.appendChild(priceTitle);
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    const macdTitle = el("text", { class: "chart-title", x: PAD_L, y: macdTop + 10 });
+    macdTitle.textContent = "MACD (12/26/9)";
+    svg.appendChild(macdTitle);
+    const zeroY = yMacd(0);
+    svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: zeroY, y2: zeroY }));
+    const zeroLabel = el("text", { class: "axis-label", x: PAD_L - 6, y: zeroY + 3, "text-anchor": "end" });
+    zeroLabel.textContent = "0";
+    svg.appendChild(zeroLabel);
+
+    function buildMacdPath(valueFn) {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        const v = valueFn(pt);
+        if (v === null || v === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yMacd(v).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    svg.appendChild(el("path", { class: "macd-signal-line", d: buildMacdPath((d) => d.macd_signal) }));
+    svg.appendChild(el("path", { class: "macd-line", d: buildMacdPath((d) => d.macd_line) }));
+
+    const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
+    axisKeys.forEach((key) => {
+      const first = series.find((d) => d.date.slice(0, 7) === key);
+      const label = new Date(key + "-01T00:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotMacd = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--calm)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotSignal = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-muted)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotMacd);
+    svg.appendChild(dotSignal);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      const dot = (color) => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px"></span>`;
+      let macdLines = "";
+      if (d.macd_line != null && d.macd_signal != null) {
+        dotMacd.style.opacity = 1;
+        dotSignal.style.opacity = 1;
+        dotMacd.setAttribute("cx", px); dotMacd.setAttribute("cy", yMacd(d.macd_line));
+        dotSignal.setAttribute("cx", px); dotSignal.setAttribute("cy", yMacd(d.macd_signal));
+        macdLines = `<div>${dot("var(--calm)")}MACD ${d.macd_line.toFixed(1)}</div><div>${dot("var(--ink-muted)")}Signal ${d.macd_signal.toFixed(1)}</div>`;
+      } else {
+        dotMacd.style.opacity = 0;
+        dotSignal.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (totalH + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${macdLines}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotMacd, dotSignal].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  renderRsiChart("chart-wrap-rsi", "tooltip-rsi", DATA.series);
+  renderMa50Chart("chart-wrap-ma50", "tooltip-ma50", DATA.series);
+  renderMacdChart("chart-wrap-macd", "tooltip-macd", DATA.series);
 })();
 </script>
