@@ -22,10 +22,10 @@ from current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEFAUL
 
 
 def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = DEFAULT_BUY_THRESHOLD,
-               confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False) -> dict:
+               confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False, fng_window: int = 7) -> dict:
     price_df = fetch_btc_price_history(force_refresh=force_refresh)
     fng_df = fetch_fear_greed_history(force_refresh=force_refresh)
-    table = build_indicator_table(price_df, fng_df)
+    table = build_indicator_table(price_df, fng_df, fng_window=fng_window)
 
     scored = compute_composite_score(table)
     zoned = flag_zones(scored, sell_threshold=sell_threshold, buy_threshold=buy_threshold)

@@ -536,13 +536,18 @@
   </section>
 
   <footer>
-    Data: blockchain.info (BTC price), alternative.me (Fear &amp; Greed Index). Composite = equal-weighted
-    200-week MA distance, 30d-smoothed Fear &amp; Greed, weekly RSI, and Pi Cycle Top ratio, each normalized 0–100.
-    Thresholds and 5-day confirmation window selected via walk-forward validation on 2018–2023 data, tested blind
-    on 2023–2026. The dashed 21w/34w EMA lines (a trader Alessio Rastani-style support structure) are shown for
-    context only — testing found adding them to the composite weakened out-of-sample performance, so they're
-    tracked but not scored; see the README's "Why the EMA structure indicator isn't in the default weighting."
-    Not financial advice — generated from <code>crypto-signals</code>, run <code>current_status.py</code> for a live check.
+    Data: blockchain.info (BTC price), Fear &amp; Greed Index blended from alternative.me (history before ~June
+    2023) and CoinMarketCap (from that point forward). Composite = equal-weighted 200-week MA distance,
+    <b>7d-smoothed</b> Fear &amp; Greed, weekly RSI, and Pi Cycle Top ratio, each normalized 0–100.
+    <b>The 7-day smoothing window is an experimental variant being tried on this page only</b> — walk-forward
+    testing found the validated 30-day window produces a meaningfully stronger out-of-sample signal (10.3pp
+    TRAIN spread vs. 7.8pp at 7 days); thresholds/confirmation days below are otherwise unchanged from that
+    30-day-validated selection (2018–2023 train, tested blind on 2023–2026). The dashed 21w/34w EMA lines (a
+    trader Alessio Rastani-style support structure) are shown for context only — testing found adding them to
+    the composite weakened out-of-sample performance, so they're tracked but not scored; see the README's "Why
+    the EMA structure indicator isn't in the default weighting." Not financial advice — generated from
+    <code>crypto-signals</code>, run <code>current_status.py</code> for a live check (still defaults to 30-day
+    smoothing).
   </footer>
 </div>
 
@@ -587,7 +592,7 @@
 
   const indicatorMeta = [
     { key: "ma_200w_score", label: "200-week MA distance" },
-    { key: "fng_score", label: "Fear & Greed (30d smoothed)" },
+    { key: "fng_score", label: "Fear & Greed (7d smoothed)" },
     { key: "rsi_score", label: "Weekly RSI" },
     { key: "pi_cycle_score", label: "Pi Cycle Top ratio" },
   ];
