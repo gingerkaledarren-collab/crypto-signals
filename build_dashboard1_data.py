@@ -13,21 +13,22 @@ call it from build_dashboards.py.
 import json
 import argparse
 import pandas as pd
-from fetch_data import fetch_btc_price_history, fetch_fear_greed_history
+from fetch_data import fetch_btc_price_history, fetch_fear_greed_history, fetch_supply_in_profit_history
 from indicators import build_indicator_table
 from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
                      flag_extreme_zones, extract_extreme_periods,
                      EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
-from current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEFAULT_CONFIRM_DAYS, INDICATOR_LABELS
+from current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEFAULT_CONFIRM_DAYS, INDICATOR_LABELS, LIVE_WEIGHTS
 
 
 def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = DEFAULT_BUY_THRESHOLD,
                confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False, fng_window: int = 7) -> dict:
     price_df = fetch_btc_price_history(force_refresh=force_refresh)
     fng_df = fetch_fear_greed_history(force_refresh=force_refresh)
-    table = build_indicator_table(price_df, fng_df, fng_window=fng_window)
+    supply_df = fetch_supply_in_profit_history(force_refresh=force_refresh)
+    table = build_indicator_table(price_df, fng_df, fng_window=fng_window, supply_profit_df=supply_df)
 
-    scored = compute_composite_score(table)
+    scored = compute_composite_score(table, weights=LIVE_WEIGHTS)
     zoned = flag_zones(scored, sell_threshold=sell_threshold, buy_threshold=buy_threshold)
     zoned = apply_confirmation(zoned, min_days=confirm_days)
     zoned = flag_extreme_zones(zoned)
@@ -112,6 +113,7 @@ def _build_weekly_series(zoned: pd.DataFrame) -> list:
             "ema34": _val(row, "ema_34w"),
             "ma_200w": _val(row, "ma_200w"),
             "weekly_rsi": _val(row, "weekly_rsi"),
+            "supply_in_loss_pct": _val(row, "supply_in_loss_pct"),
         }
         for _, row in weekly.iterrows()
     ]

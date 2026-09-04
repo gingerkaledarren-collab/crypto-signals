@@ -355,7 +355,7 @@
   .crosshair-line { stroke: var(--ink-muted); stroke-width: 1; pointer-events: none; opacity: 0; }
   .crosshair-dot { pointer-events: none; opacity: 0; }
 
-  #tooltip, #tooltip-recent, #tooltip-ma200w, #tooltip-rsi {
+  #tooltip, #tooltip-recent, #tooltip-ma200w, #tooltip-rsi, #tooltip-supplyloss {
     position: absolute;
     pointer-events: none;
     background: var(--ink);
@@ -511,6 +511,19 @@
 
   <section class="card">
     <div class="section-head">
+      <h2>Bitcoin Supply in Loss (%) vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Supply in Loss (%)</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-supplyloss">
+      <div id="tooltip-supplyloss"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
       <h2>Recent confirmed signals</h2>
       <span class="section-sub">Held past the confirmation window — see README for methodology</span>
     </div>
@@ -537,17 +550,20 @@
 
   <footer>
     Data: blockchain.info (BTC price), Fear &amp; Greed Index blended from alternative.me (history before ~June
-    2023) and CoinMarketCap (from that point forward). Composite = equal-weighted 200-week MA distance,
-    <b>7d-smoothed</b> Fear &amp; Greed, weekly RSI, and Pi Cycle Top ratio, each normalized 0–100.
-    <b>The 7-day smoothing window is an experimental variant being tried on this page only</b> — walk-forward
-    testing found the validated 30-day window produces a meaningfully stronger out-of-sample signal (10.3pp
-    TRAIN spread vs. 7.8pp at 7 days); thresholds/confirmation days below are otherwise unchanged from that
-    30-day-validated selection (2018–2023 train, tested blind on 2023–2026). The dashed 21w/34w EMA lines (a
-    trader Alessio Rastani-style support structure) are shown for context only — testing found adding them to
-    the composite weakened out-of-sample performance, so they're tracked but not scored; see the README's "Why
-    the EMA structure indicator isn't in the default weighting." Not financial advice — generated from
-    <code>crypto-signals</code>, run <code>current_status.py</code> for a live check (still defaults to 30-day
-    smoothing).
+    2023) and CoinMarketCap (from that point forward), Bitcoin Supply in Loss % from BGeometrics. Composite =
+    equal-weighted 200-week MA distance, <b>7d-smoothed</b> Fear &amp; Greed, weekly RSI, and Bitcoin Supply in
+    Loss %, each normalized 0–100. <b>By explicit request, Pi Cycle Top ratio was removed and Supply in Loss %
+    added in its place — walk-forward testing found this specific combination has essentially no validated
+    forward-return signal</b> (0.9pp TRAIN spread, 0.8pp TEST, vs. 10.3pp/10.3pp for the Pi-Cycle-based composite
+    it replaces); it's live anyway, by request, the same way Dashboard 2 already ships a composite that isn't
+    separately validated — see the README's "Removing Pi Cycle Top, adding Supply in Loss %" for the full
+    comparison. Separately: <b>the 7-day Fear &amp; Greed smoothing window is also an experimental variant</b> —
+    the validated 30-day window scored higher on its own (10.3pp vs. 7.8pp TRAIN spread, tested before the Pi
+    Cycle change above). The dashed 21w/34w EMA lines (a trader Alessio Rastani-style support structure) are
+    shown for context only — testing found adding them to the composite weakened out-of-sample performance, so
+    they're tracked but not scored; see the README's "Why the EMA structure indicator isn't in the default
+    weighting." Not financial advice — generated from <code>crypto-signals</code>, run
+    <code>current_status.py</code> for a live check.
   </footer>
 </div>
 
@@ -594,7 +610,7 @@
     { key: "ma_200w_score", label: "200-week MA distance" },
     { key: "fng_score", label: "Fear & Greed (7d smoothed)" },
     { key: "rsi_score", label: "Weekly RSI" },
-    { key: "pi_cycle_score", label: "Pi Cycle Top ratio" },
+    { key: "supply_loss_score", label: "Bitcoin Supply in Loss (%)" },
   ];
   const grid = document.getElementById("indicator-grid");
   indicatorMeta.forEach(({ key, label }) => {
@@ -1044,8 +1060,138 @@
     });
   }
 
+  // ---------- Bitcoin Supply in Loss (%) vs price (price panel + supply-loss panel) ----------
+  function renderSupplyLossChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, LOSS_H = 170, GAP = 28;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.9);
+    const logMax = Math.log10(Math.max(...prices) * 1.08);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (PRICE_H - PAD_TOP);
+
+    const lossValues = series.map((d) => d.supply_in_loss_pct).filter((v) => v != null);
+    const lossMin = 0;
+    const lossMax = Math.max(...lossValues) * 1.08;
+    const lossTop = PRICE_H + GAP;
+    const yLoss = (v) => lossTop + PAD_TOP * 0.4 + (1 - (v - lossMin) / (lossMax - lossMin)) * (LOSS_H - PAD_TOP * 0.4 - 12);
+    const totalH = lossTop + LOSS_H;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: lossTop + 10 }));
+    svg.querySelectorAll("text.chart-title")[1].textContent = "Supply in Loss (%)";
+    [0, Math.max(...lossValues)].forEach((v) => {
+      const y = yLoss(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v.toFixed(0) + "%";
+      svg.appendChild(t);
+    });
+
+    function buildLossPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.supply_in_loss_pct === null || pt.supply_in_loss_pct === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yLoss(pt.supply_in_loss_pct).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    svg.appendChild(el("path", { class: "rsi-line", d: buildLossPath() }));
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotLoss = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotLoss);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      let lossLine = "";
+      if (d.supply_in_loss_pct != null) {
+        dotLoss.style.opacity = 1;
+        dotLoss.setAttribute("cx", px); dotLoss.setAttribute("cy", yLoss(d.supply_in_loss_pct));
+        lossLine = `<div>Supply in loss ${d.supply_in_loss_pct.toFixed(1)}%</div>`;
+      } else {
+        dotLoss.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / totalH) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${lossLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotLoss].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
   const ma200wSeries = DATA.series.filter((d) => d.ma_200w != null);
   renderMaChart("chart-wrap-ma200w", "tooltip-ma200w", ma200wSeries);
   renderRsiChart("chart-wrap-rsi", "tooltip-rsi", DATA.series);
+  const supplyLossSeries = DATA.series.filter((d) => d.supply_in_loss_pct != null);
+  renderSupplyLossChart("chart-wrap-supplyloss", "tooltip-supplyloss", supplyLossSeries);
 })();
 </script>

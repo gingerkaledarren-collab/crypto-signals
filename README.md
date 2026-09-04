@@ -1,7 +1,10 @@
 # Crypto Long-Term Signal System (Starter)
 
 A minimal starting point for a long-term BTC positioning signal system.
-Currently combines four indicators:
+The originally validated composite (still what `backtest.py`,
+`trim_signal.py`, `portfolio_simulation.py`, and `scoring.DEFAULT_WEIGHTS`
+use, and what everything below through "Walk-forward validation" is
+about) combines four indicators:
 
 1. **200-week moving average distance** — how far price is above/below
    its 200-week MA, as a proxy for long-term valuation.
@@ -23,6 +26,15 @@ is also computed but deliberately left OUT of the default composite —
 see "Why the EMA structure indicator isn't in the default weighting"
 below for why.
 
+**The live dashboard and `current_status.py` use a different composite**
+(`current_status.LIVE_WEIGHTS`): Pi Cycle Top removed, Bitcoin Supply in
+Loss % added in its place, by explicit request. This is NOT the
+validated composite above -- see "Removing Pi Cycle Top, adding Supply
+in Loss %" for the full walk-forward comparison and an honest number:
+this specific combination tests as having essentially no validated
+forward-return signal. It's live anyway, the same way Dashboard 2
+already ships a composite that isn't separately validated.
+
 ## Data sources
 
 BTC price comes from blockchain.info's charts API (free, no key, full
@@ -41,6 +53,18 @@ replacing it outright -- a full switch would have left the 2018-2023
 walk-forward training window with no Fear & Greed input at all. If
 CMC's endpoint fails, `fetch_fear_greed_history()` falls back to
 alternative.me's full history alone rather than hard-failing.
+
+Bitcoin Supply in Loss % comes from **BGeometrics**. Same shape of
+caveat as CMC above: no free/keyless official API exists for this
+metric (paid Pro API key only), so `fetch_supply_in_profit_history()`
+calls the static JSON file BGeometrics' own free chart page fetches for
+anonymous viewers -- unofficial and undocumented, could change or break
+without notice. Unlike CMC's Fear & Greed endpoint, though, this one
+has a long history (2014-present, ~1 day lag), so no blending was
+needed. The fetched series is "% of supply in PROFIT" (confirmed
+against known dates: 96.9% at the Nov 2021 ATH, 44.9% at the Nov 2022
+capitulation low); loss% = 100 minus that value, computed in
+`indicators.compute_supply_in_loss()`.
 
 ## Setup
 
@@ -288,6 +312,78 @@ independent read even when it doesn't belong in the composite. If you
 want to experiment with it anyway, pass a custom weights dict to
 `compute_composite_score()` — that's exactly what the adjustable-weights
 design in `scoring.py` is for.
+
+## Removing Pi Cycle Top, adding Supply in Loss % (live dashboard only)
+
+By explicit request, `current_status.LIVE_WEIGHTS` -- what the live
+dashboard and `current_status.py`'s CLI actually use -- diverges from
+`scoring.DEFAULT_WEIGHTS` above: Pi Cycle Top is removed, Bitcoin Supply
+in Loss % (`indicators.compute_supply_in_loss()`, see "Data sources")
+is added in its place. Both changes were walk-forward tested first;
+neither survived the test, and the combination is live anyway.
+
+**Pi Cycle Top removal.** The trigger was a real observation: the raw
+ratio hasn't crossed its own "top" threshold (1.0) since April 2021, and
+`pi_cycle_score` stayed low (27-46/100) even at brand-new nominal ATHs
+since then ($71k in 2024, $106-117k in 2025) -- worth knowing, and it
+does look like the indicator's calibration has drifted from the
+post-2021 market. But removing it from the composite (weight
+redistributed equally to the other three) doesn't just "remove dead
+weight":
+
+| | 4 indicators (original, with Pi Cycle) | 3 indicators (Pi Cycle removed) |
+|---|---|---|
+| Best TRAIN config | sell=60, buy=40, confirm=5d | sell=55, buy=45, confirm=5d |
+| TRAIN spread | +10.3pp | +10.0pp (looks fine) |
+| **TEST spread (blind)** | **+10.3pp** | **-0.4pp** (inverted) |
+
+TRAIN alone makes removal look harmless. Blind, the TRAIN-selected
+config collapses to noise (buy_ret 5.7% vs. sell_ret 6.0%) -- the same
+overfitting signature flagged elsewhere in this README (the rejected
+buy-side mirror in `trim_signal.py`). Pi Cycle's continuous score
+appears to be doing real calibration work that generalizes out-of-
+sample, despite the raw ratio itself not having crossed 1.0 in years.
+
+**Supply in Loss % addition.** Tested at three weights, added to the
+*original* 4-indicator composite (i.e. before Pi Cycle was removed):
+
+| Weight on supply_loss_score | Best TRAIN spread |
+|---|---|
+| 0% (baseline) | +10.3pp |
+| 10% | +8.8pp |
+| 15% | +7.2pp |
+| 20% (equal 5-way) | +4.6pp |
+
+Monotonic degradation at every weight tried -- the same pattern Pi
+Cycle Top's removal showed, and the same outcome as the EMA structure
+indicator above: a real, independently interesting metric that doesn't
+add validated signal on top of what's already in the composite (most
+likely correlated enough with 200w MA distance to mostly add noise).
+
+**The combination actually shipped** (Pi Cycle removed AND Supply Loss
+added, `LIVE_WEIGHTS`: 200w MA, F&G, weekly RSI, Supply Loss at 25%
+each) is worse than either change alone -- not an overfit that looks
+good on TRAIN and fails blind, but weak on **both**:
+
+| | Original (MA+F&G+RSI+Pi Cycle) | LIVE_WEIGHTS (MA+F&G+RSI+SupplyLoss) |
+|---|---|---|
+| Best TRAIN config | sell=60, buy=40, confirm=5d | sell=60, buy=40, confirm=5d |
+| TRAIN spread | +10.3pp | **+0.9pp** |
+| TEST spread | +10.3pp | **+0.8pp** |
+
+At the best config found, buy-zone and sell-zone forward returns are
+almost identical (22.6% vs. 21.7% on TRAIN) -- this isn't overfitting,
+it's closer to no signal at all by this test's own metric. It's live
+anyway, by explicit request, the same way Dashboard 2 already ships a
+technicals-based composite that isn't separately validated. Thresholds
+(sell=60, buy=40, confirm=5d) were re-selected via the standard TRAIN
+sweep for this specific composite, not just inherited from the original
+-- they happen to land on the same numbers.
+
+`scoring.DEFAULT_WEIGHTS` (unchanged, still Pi-Cycle-based) is what
+`backtest.py`, `trim_signal.py`, `trim_walkforward.py`, and
+`portfolio_simulation.py` continue to use -- none of that documented
+research silently changed underneath it.
 
 ## The second system: short-term signal (`st_backtest.py`)
 
