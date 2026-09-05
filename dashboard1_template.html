@@ -595,8 +595,6 @@
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Weekly RSI</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Extremely oversold (≤30)</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-tint)"></span>Oversold (&lt;50)</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-tint)"></span>Overbought (≥50)</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Extremely overbought (≥70)</span>
       </div>
     </div>
@@ -1457,10 +1455,12 @@
     }
 
     {
+      // Only the two EXTREME bands are shaded (clearer at a glance than
+      // the earlier 4-tier version, by request) -- the 30-70 middle is
+      // left unshaded. The dashed threshold lines + labels below still
+      // mark the 30/70 cutoffs precisely.
       const panelTop = PAD_TOP * 0.4 + rsiTop, panelBottom = panelTop + (RSI_H - PAD_TOP * 0.4 - 12);
       drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 70, 100, panelTop, panelBottom, "var(--sell-band)");
-      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 50, 70, panelTop, panelBottom, "var(--sell-tint)");
-      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 30, 50, panelTop, panelBottom, "var(--buy-tint)");
       drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 0, 30, panelTop, panelBottom, "var(--buy-band)");
     }
 
@@ -1599,16 +1599,17 @@
       return e;
     }
 
+    let lossBuyAt, lossSellAt;
     {
       // Supply-in-loss scoring is inverted (high loss% = capitulation = buy
       // signal), so the buy band sits at the HIGH end of this panel's own
       // value axis and the sell band at the LOW end -- opposite of RSI/MVRV.
       const panelTop = PAD_TOP * 0.4 + lossTop, panelBottom = panelTop + (LOSS_H - PAD_TOP * 0.4 - 12);
       const [clipLo, clipHi] = DATA.supply_loss_clip_range;
-      const buyAt = clipHi - (DATA.buy_threshold / 100) * (clipHi - clipLo);
-      const sellAt = clipHi - (DATA.sell_threshold / 100) * (clipHi - clipLo);
-      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yLoss, buyAt, lossMax, panelTop, panelBottom, "var(--buy-band)");
-      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yLoss, lossMin, sellAt, panelTop, panelBottom, "var(--sell-band)");
+      lossBuyAt = clipHi - (DATA.buy_threshold / 100) * (clipHi - clipLo);
+      lossSellAt = clipHi - (DATA.sell_threshold / 100) * (clipHi - clipLo);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yLoss, lossBuyAt, lossMax, panelTop, panelBottom, "var(--buy-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yLoss, lossMin, lossSellAt, panelTop, panelBottom, "var(--sell-band)");
     }
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
@@ -1630,6 +1631,13 @@
       svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
       const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
       t.textContent = v.toFixed(0) + "%";
+      svg.appendChild(t);
+    });
+    [[lossBuyAt, `buy zone ≥ ${lossBuyAt.toFixed(0)}%`], [lossSellAt, `sell zone ≤ ${lossSellAt.toFixed(0)}%`]].forEach(([th, label]) => {
+      const y = yLoss(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
       svg.appendChild(t);
     });
 
