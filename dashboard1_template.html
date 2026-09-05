@@ -962,6 +962,14 @@
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: compTop + 10 }));
     svg.querySelectorAll("text.chart-title")[1].textContent = "Composite score (0–100)";
+
+    // Composite line is drawn BEFORE the threshold labels below, so the
+    // labels always render on top and stay legible even where the line
+    // happens to cross behind them (it was the other way around before,
+    // and the line could obscure label text, e.g. "extreme buy <= 20").
+    const compositePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yComposite(d.composite).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "composite-line", d: compositePath }));
+
     [
       [DATA.extreme_low_threshold, `extreme buy ≤ ${DATA.extreme_low_threshold}`],
       [DATA.buy_threshold, `buy ≤ ${DATA.buy_threshold}`],
@@ -974,8 +982,18 @@
       t.textContent = label;
       svg.appendChild(t);
     });
-    const compositePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yComposite(d.composite).toFixed(1)}`).join(" ");
-    svg.appendChild(el("path", { class: "composite-line", d: compositePath }));
+    // "Neutral" has no threshold of its own (it's just the unshaded gap
+    // between buy_threshold and sell_threshold) so it gets a label with
+    // no dashed line, centered in that gap.
+    {
+      const t = el("text", {
+        class: "axis-label", x: W - PAD_R,
+        y: (yComposite(DATA.buy_threshold) + yComposite(DATA.sell_threshold)) / 2 + 3,
+        "text-anchor": "end",
+      });
+      t.textContent = "neutral";
+      svg.appendChild(t);
+    }
 
     // --- year ticks (shared x-axis, on bottom panel) ---
     const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
@@ -1467,14 +1485,6 @@
       t.textContent = v;
       svg.appendChild(t);
     });
-    [[70, "extremely overbought ≥ 70"], [30, "extremely oversold ≤ 30"]].forEach(([th, label]) => {
-      const y = yRsi(th);
-      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
-      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
-      t.textContent = label;
-      svg.appendChild(t);
-    });
-
     function buildRsiPath() {
       let d = "", started = false;
       series.forEach((pt, idx) => {
@@ -1484,7 +1494,17 @@
       });
       return d.trim();
     }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
     svg.appendChild(el("path", { class: "rsi-line", d: buildRsiPath() }));
+
+    [[70, "extremely overbought ≥ 70"], [30, "extremely oversold ≤ 30"]].forEach(([th, label]) => {
+      const y = yRsi(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
 
     const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
     years.forEach((y) => {
@@ -1615,14 +1635,6 @@
       t.textContent = v.toFixed(0) + "%";
       svg.appendChild(t);
     });
-    [[lossBuyAt, `buy zone ≥ ${lossBuyAt.toFixed(0)}%`], [lossSellAt, `sell zone ≤ ${lossSellAt.toFixed(0)}%`]].forEach(([th, label]) => {
-      const y = yLoss(th);
-      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
-      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
-      t.textContent = label;
-      svg.appendChild(t);
-    });
-
     function buildLossPath() {
       let d = "", started = false;
       series.forEach((pt, idx) => {
@@ -1632,7 +1644,17 @@
       });
       return d.trim();
     }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
     svg.appendChild(el("path", { class: "rsi-line", d: buildLossPath() }));
+
+    [[lossBuyAt, `buy zone ≥ ${lossBuyAt.toFixed(0)}%`], [lossSellAt, `sell zone ≤ ${lossSellAt.toFixed(0)}%`]].forEach(([th, label]) => {
+      const y = yLoss(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
 
     const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
     years.forEach((y) => {
