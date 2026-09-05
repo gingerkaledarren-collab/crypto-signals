@@ -58,6 +58,16 @@ extreme_sell), by request, not the original three-tier buy/sell/neutral
 forward-return check on whether the extra tiers are actually meaningful
 (buy-side split holds up, sell-side split is inconsistent between TRAIN
 and TEST).
+
+scoring.EXTREME_HIGH_THRESHOLD was recalibrated from 70 to 80, by
+request, after being caught drifting: it was calibrated years ago against
+a composite that no longer exists in this form (Pi Cycle removed, MVRV
+added then dropped, weights rebalanced then reverted), and had quietly
+grown to capture the top ~22% of readings instead of its own stated
+~10% "rarest readings" intent. 80 restores that intent (~11% of days)
+and, as a side effect, makes the extreme band symmetric with
+EXTREME_LOW_THRESHOLD (20/80, both 20 points from their respective
+edges) -- see scoring.py's own comment for the full numbers.
 """
 
 import argparse

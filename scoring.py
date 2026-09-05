@@ -107,15 +107,26 @@ def apply_confirmation(df: pd.DataFrame, min_days: int = 5) -> pd.DataFrame:
 
 
 EXTREME_LOW_THRESHOLD = 20
-EXTREME_HIGH_THRESHOLD = 70
-# Derived from the actual historical distribution of composite_score
-# (2018-present), not guessed: those scores sit almost exactly at the
-# 10th and 90th percentiles of the full history (~22 and ~69), rounded
-# to clean numbers. This is deliberately a stricter, rarer band than the
-# 40/60 buy_zone/sell_zone thresholds used elsewhere (those were chosen
-# for walk-forward predictive value, not for marking rarity) -- "extreme"
-# here means "in the most unusual ~10% of readings," a plain historical
-# fact about the score rather than a claim about what to do next.
+EXTREME_HIGH_THRESHOLD = 80
+# Originally derived from scoring.DEFAULT_WEIGHTS' composite (2018-present
+# history): those scores sat almost exactly at the 10th and 90th
+# percentiles (~22 and ~69), rounded to 20/70. This is deliberately a
+# stricter, rarer band than the 40/60 buy_zone/sell_zone thresholds used
+# elsewhere (those were chosen for walk-forward predictive value, not for
+# marking rarity) -- "extreme" here means "in the most unusual ~10% of
+# readings," a plain historical fact about the score rather than a claim
+# about what to do next.
+#
+# RECALIBRATED (by request, after being flagged): current_status.
+# LIVE_WEIGHTS' composite changed shape several times this session (Pi
+# Cycle removed, MVRV added then dropped, weights rebalanced then
+# reverted) and 70 was never re-checked against it -- it had drifted to
+# capturing the top ~22% of readings, not ~10%. The real current 10th/90th
+# percentiles are ~24/~81; EXTREME_HIGH_THRESHOLD moved to 80 (~11% of
+# days) to restore the "~10% rarest" intent. EXTREME_LOW_THRESHOLD stayed
+# at 20 (~5% of days currently -- stricter than 10%, but not as badly
+# drifted as 70 was) per explicit confirmation of the 20/80 pairing,
+# which also happens to be symmetric in raw points.
 #
 # Deliberately NOT called "extreme_fear"/"extreme_greed": the composite
 # blends 200w MA distance (valuation), Fear & Greed (sentiment), weekly

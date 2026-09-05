@@ -210,14 +210,21 @@ this reading historically been unusual at all?
 
 `scoring.flag_extreme_zones()` answers that directly from the data: it
 computes `extreme_low`/`extreme_high` from `EXTREME_LOW_THRESHOLD` (20)
-and `EXTREME_HIGH_THRESHOLD` (70) — thresholds set from the actual
-historical distribution of `composite_score` (2018-present), where they
-land almost exactly on the 10th and 90th percentiles. So "extreme" here
-means "in the rarest ~10% of readings, historically" — a plain fact about
-the score's distribution, not a claim about predictive value like the
-buy/sell thresholds. No confirmation delay is applied (unlike
-buy_zone/sell_zone) since sitting in the most extreme decile is already a
-rare, meaningful event on its own.
+and `EXTREME_HIGH_THRESHOLD` (80) — thresholds set from the actual
+historical distribution of `composite_score`, landing close to the 10th
+and 90th percentiles. So "extreme" here means "in the rarest ~10% of
+readings, historically" — a plain fact about the score's distribution,
+not a claim about predictive value like the buy/sell thresholds. No
+confirmation delay is applied (unlike buy_zone/sell_zone) since sitting
+in the most extreme decile is already a rare, meaningful event on its
+own.
+
+*(`EXTREME_HIGH_THRESHOLD` was originally 70, calibrated against
+`scoring.DEFAULT_WEIGHTS`' composite. After this session's changes to
+`LIVE_WEIGHTS` -- Pi Cycle removed, MVRV added then dropped, weights
+rebalanced then reverted -- 70 had drifted to capturing the top ~22% of
+readings instead of ~10%, caught and fixed by recalibrating to 80, which
+also restores a symmetric 20/80 range.)*
 
 **Deliberately not called "extreme fear"/"extreme greed."** The composite
 blends four things — 200w MA distance (valuation), the actual Fear & Greed
@@ -250,7 +257,7 @@ five: `extreme_buy`/`buy_zone`/`neutral`/`sell_zone`/`extreme_sell`, via
 `scoring.flag_five_zones()`.
 
 The two new outer cutoffs are **not** newly calibrated — they reuse
-`EXTREME_LOW_THRESHOLD` (20) and `EXTREME_HIGH_THRESHOLD` (70), the same
+`EXTREME_LOW_THRESHOLD` (20) and `EXTREME_HIGH_THRESHOLD` (80), the same
 percentile-based bounds `flag_extreme_zones()` already uses for the
 separate "Extreme zone history" stat described above. One definition of
 "extreme" in this codebase, not two. The two mechanisms stay independent,
@@ -265,11 +272,16 @@ equal-weight composite --
 
 | tier | TRAIN mean fwd return | TEST mean fwd return |
 |---|---|---|
-| extreme_buy | +21.0% (n=159) | +13.7% (n=20) |
-| buy_zone | +14.5% (n=578) | +3.7% (n=217) |
-| neutral | +8.7% (n=498) | +24.7% (n=121) |
-| sell_zone | +8.2% (n=404) | +24.3% (n=297) |
-| extreme_sell | +29.2% (n=398) | -1.7% (n=353) |
+| extreme_buy | +22.5% (n=100) | +13.5% (n=23) |
+| buy_zone | +14.9% (n=609) | +4.9% (n=218) |
+| neutral | +9.0% (n=525) | +26.2% (n=149) |
+| sell_zone | +12.7% (n=571) | +11.8% (n=501) |
+| extreme_sell | +33.0% (n=233) | **-4.5%** (n=117) |
+
+*(Re-run with the current live composite -- 4 indicators, no MVRV -- and
+`EXTREME_HIGH_THRESHOLD`'s corrected 80 cutoff; see "MVRV's declining
+ceiling" and the threshold recalibration note above for why both changed
+since this check was first run.)*
 
 The **buy-side split holds up**: extreme_buy shows meaningfully stronger
 forward returns than plain buy_zone, consistently in both TRAIN and
@@ -277,7 +289,7 @@ TEST. The **sell-side split does not**: extreme_sell shows *better*
 forward returns than sell_zone on TRAIN (backwards from what a
 "stronger sell" tier should show) and only flips to the expected
 direction (worse than sell_zone) on TEST, with a fairly thin extreme_buy
-TEST sample (n=20) on top of that. Treat "Extreme Sell" as a finer label
+TEST sample (n=23) on top of that. Treat "Extreme Sell" as a finer label
 on an already buy/sell-validated boundary, not as a separately-proven
 stronger signal than plain "Sell" -- "Extreme Buy" has more evidence
 behind it.
