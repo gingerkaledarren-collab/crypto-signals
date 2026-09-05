@@ -18,7 +18,7 @@ from fetch_data import (fetch_btc_price_history, fetch_fear_greed_history,
 from indicators import (build_indicator_table, SUPPLY_LOSS_CLIP_RANGE, MVRV_CLIP_RANGE,
                         compute_cycle_context, compute_wyckoff_phases, HALVING_DATES,
                         compute_zigzag_pivots, label_elliott_pivots, ELLIOTT_ZIGZAG_THRESHOLD)
-from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
+from scoring import (compute_composite_score, flag_five_zones, apply_confirmation, extract_zone_transitions,
                      flag_extreme_zones, extract_extreme_periods,
                      EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
 from current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEFAULT_CONFIRM_DAYS, INDICATOR_LABELS, LIVE_WEIGHTS
@@ -33,7 +33,7 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
     table = build_indicator_table(price_df, fng_df, fng_window=fng_window, supply_profit_df=supply_df, mvrv_df=mvrv_df)
 
     scored = compute_composite_score(table, weights=LIVE_WEIGHTS)
-    zoned = flag_zones(scored, sell_threshold=sell_threshold, buy_threshold=buy_threshold)
+    zoned = flag_five_zones(scored, buy_threshold=buy_threshold, sell_threshold=sell_threshold)
     zoned = apply_confirmation(zoned, min_days=confirm_days)
     zoned = flag_extreme_zones(zoned)
 

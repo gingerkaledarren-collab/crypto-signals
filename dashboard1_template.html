@@ -19,10 +19,12 @@
     --buy-strong: #1F5480;
     --buy-tint: rgba(46, 111, 166, 0.10);
     --buy-band: rgba(46, 111, 166, 0.14);
+    --buy-band-extreme: rgba(46, 111, 166, 0.28);
     --sell: #B8842B;
     --sell-strong: #8F661E;
     --sell-tint: rgba(184, 132, 43, 0.10);
     --sell-band: rgba(184, 132, 43, 0.16);
+    --sell-band-extreme: rgba(184, 132, 43, 0.32);
     --neutral: #6B7280;
     --neutral-band: rgba(107, 114, 128, 0.08);
     --phase-accum: rgba(46, 154, 107, 0.16);
@@ -53,10 +55,12 @@
       --buy-strong: #7CB3E3;
       --buy-tint: rgba(74, 147, 212, 0.14);
       --buy-band: rgba(74, 147, 212, 0.18);
+      --buy-band-extreme: rgba(74, 147, 212, 0.32);
       --sell: #E0A94A;
       --sell-strong: #F0C071;
       --sell-tint: rgba(224, 169, 74, 0.14);
       --sell-band: rgba(224, 169, 74, 0.18);
+      --sell-band-extreme: rgba(224, 169, 74, 0.36);
       --neutral: #8A93A3;
       --neutral-band: rgba(138, 147, 163, 0.10);
       --phase-accum: rgba(70, 189, 129, 0.18);
@@ -87,10 +91,12 @@
     --buy-strong: #7CB3E3;
     --buy-tint: rgba(74, 147, 212, 0.14);
     --buy-band: rgba(74, 147, 212, 0.18);
+    --buy-band-extreme: rgba(74, 147, 212, 0.32);
     --sell: #E0A94A;
     --sell-strong: #F0C071;
     --sell-tint: rgba(224, 169, 74, 0.14);
     --sell-band: rgba(224, 169, 74, 0.18);
+    --sell-band-extreme: rgba(224, 169, 74, 0.36);
     --neutral: #8A93A3;
     --neutral-band: rgba(138, 147, 163, 0.10);
     --phase-accum: rgba(70, 189, 129, 0.18);
@@ -211,6 +217,11 @@
   .zone-badge.buy_zone { background: var(--buy-tint); color: var(--buy-strong); border: 1px solid var(--buy); }
   .zone-badge.sell_zone { background: var(--sell-tint); color: var(--sell-strong); border: 1px solid var(--sell); }
   .zone-badge.neutral { background: var(--neutral-band); color: var(--ink-2); border: 1px solid var(--border); }
+  /* Extreme tiers get a solid fill (vs. the tint used for plain buy/sell)
+     so they read as visually "louder" -- a stronger call, not just a
+     different color. */
+  .zone-badge.extreme_buy { background: var(--buy); color: var(--surface); border: 1px solid var(--buy-strong); }
+  .zone-badge.extreme_sell { background: var(--sell); color: var(--surface); border: 1px solid var(--sell-strong); }
   .zone-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
   .hero-score {
@@ -413,6 +424,12 @@
   .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
   .pill.buy_zone { background: var(--buy-tint); color: var(--buy-strong); }
   .pill.sell_zone { background: var(--sell-tint); color: var(--sell-strong); }
+  /* Solid-filled, like the hero badge's extreme tiers -- a visually
+     louder pill than the tinted buy_zone/sell_zone above, distinct from
+     the OUTLINED extreme_low/extreme_high pills below (those describe a
+     separate, no-confirmation-delay rarity stat, not a signal tier). */
+  .pill.extreme_buy { background: var(--buy); color: var(--surface); }
+  .pill.extreme_sell { background: var(--sell); color: var(--surface); }
   /* Extreme-zone pills are outlined, not filled -- a deliberately different
      treatment from the buy/sell signal pills above, so "rare historically"
      doesn't read as the same kind of claim as "act on this." */
@@ -455,10 +472,12 @@
         <div class="gauge-marker" id="gauge-marker"></div>
       </div>
       <div class="gauge-ticks">
-        <span>0 — extreme fear</span>
+        <span>0</span>
+        <span id="extreme-buy-th-label">20</span>
         <span id="buy-th-label">40</span>
         <span id="sell-th-label">60</span>
-        <span>100 — extreme greed</span>
+        <span id="extreme-sell-th-label">70</span>
+        <span>100</span>
       </div>
       <div class="caveat">
         Read this as a risk-reduction / trim signal at genuine extremes, not a standalone return-maximizer —
@@ -599,13 +618,13 @@
 
   <section class="card">
     <div class="section-head">
-      <h2>MVRV Ratio vs price</h2>
-      <span class="section-sub">Only ~4 years of free history available (Sept 2022 onward) — see README</span>
+      <h2>MVRV Ratio vs price (context only)</h2>
+      <span class="section-sub">Not in composite — dropped after its cycle-top ceiling was found to be structurally
+        declining (see README's "MVRV's declining ceiling"). Only ~4 years of free history available
+        (Sept 2022 onward) regardless.</span>
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>MVRV Ratio</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Sell zone</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-mvrv">
@@ -641,25 +660,26 @@
 
   <footer>
     Data: blockchain.info (BTC price), Fear &amp; Greed Index blended from alternative.me (history before ~June
-    2023) and CoinMarketCap (from that point forward), Bitcoin Supply in Loss % and MVRV Ratio from BGeometrics
-    (MVRV's free history only goes back to ~Sept 2022). Composite = 200-week MA distance (5%),
-    <b>7d-smoothed</b> Fear &amp; Greed (30%), weekly RSI (30%), Bitcoin Supply in Loss % (30%), and MVRV Ratio
-    (5%), each normalized 0–100. <b>By explicit request, Pi Cycle Top ratio was removed and Supply in Loss % /
-    MVRV Ratio added in its place, and the weights above were rebalanced away from equal 20% each — walk-forward
-    testing found none of these changes improved the composite's forward-return signal, and the rebalance made it
-    worse again</b> (equal-weighted with Pi Cycle removed tested at 0.9pp TRAIN / 0.8pp spread vs. 10.3pp/10.3pp
-    for the Pi-Cycle-based composite it replaces; the current 5/30/30/30/5 weighting tests at -18.7pp TRAIN /
-    -7.2pp TEST — every threshold config swept came back negative on TRAIN, there was no config left to even
-    optimistically cherry-pick); it's live anyway, by explicit request, fully informed, the same way Dashboard 2
-    already ships a composite that isn't separately validated — see the README's "Removing Pi Cycle Top, adding
-    Supply in Loss %", "Adding MVRV Ratio despite its short history", and "Rebalancing LIVE_WEIGHTS
-    (5/30/30/30/5)" for the full comparisons. Separately: <b>the 7-day Fear &amp; Greed smoothing window is
-    also an experimental variant</b> — the validated 30-day window scored higher on its own (10.3pp vs. 7.8pp
-    TRAIN spread, tested before the changes above). The dashed 21w/34w EMA lines (a trader Alessio Rastani-style
-    support structure) are shown for context only — testing found adding them to the composite weakened
-    out-of-sample performance, so they're tracked but not scored; see the README's "Why the EMA structure
-    indicator isn't in the default weighting." Not financial advice — generated from <code>crypto-signals</code>,
-    run <code>current_status.py</code> for a live check.
+    2023) and CoinMarketCap (from that point forward), Bitcoin Supply in Loss % from BGeometrics. Composite =
+    200-week MA distance, <b>7d-smoothed</b> Fear &amp; Greed, weekly RSI, and Bitcoin Supply in Loss %, equal-
+    weighted at 25% each, normalized 0–100. <b>By explicit request, Pi Cycle Top ratio was removed and Supply in
+    Loss % added in its place — walk-forward testing found this didn't improve the composite's forward-return
+    signal</b> (0.9pp TRAIN / 0.8pp TEST spread here vs. 10.3pp/10.3pp for the Pi-Cycle-based composite it
+    replaces); live anyway, by explicit request, fully informed, the same way Dashboard 2 already ships a
+    composite that isn't separately validated — see the README's "Removing Pi Cycle Top, adding Supply in
+    Loss %" for the full comparison. <b>MVRV Ratio was also tried in the composite, then dropped entirely</b>
+    after its cycle-top ceiling was found to be structurally declining across BTC's history (~7 in 2013, ~5 in
+    2017, ~4 in 2021, ~2.6-2.7 this cycle) — every attempt to keep and reweight it (including downweighting to
+    5-10%) still failed the TRAIN walk-forward sweep, while dropping it outright tested better than every
+    weighted variant, including equal-weighting all 5; see the README's "MVRV's declining ceiling" and "Weight-
+    rebalancing experiments" for the full numbers. MVRV Ratio is still shown below as a standalone, context-only
+    chart. Separately: <b>the 7-day Fear &amp; Greed smoothing window is also an experimental variant</b> — the
+    validated 30-day window scored higher on its own (10.3pp vs. 7.8pp TRAIN spread, tested before the changes
+    above). The dashed 21w/34w EMA lines (a trader Alessio Rastani-style support structure) are shown for
+    context only — testing found adding them to the composite weakened out-of-sample performance, so they're
+    tracked but not scored; see the README's "Why the EMA structure indicator isn't in the default weighting."
+    Not financial advice — generated from <code>crypto-signals</code>, run <code>current_status.py</code> for a
+    live check.
   </footer>
 </div>
 
@@ -757,9 +777,20 @@
     }
   }
   const zoneLabel = (z) => ({
-    buy_zone: "Buy zone", sell_zone: "Sell zone", neutral: "Neutral",
+    extreme_buy: "Extreme Buy", buy_zone: "Buy", neutral: "Neutral",
+    sell_zone: "Sell", extreme_sell: "Extreme Sell",
     extreme_low: "Extreme low (bottom decile)", extreme_high: "Extreme high (top decile)",
   }[z] || z);
+  // Composite zone -> chart-band color, five-tier: extreme_buy/extreme_sell
+  // get the more saturated "-extreme" bands, buy_zone/sell_zone the
+  // regular ones. Used by renderChart()'s zone-band shading below.
+  function compositeZoneColor(zone) {
+    if (zone === "extreme_buy") return "var(--buy-band-extreme)";
+    if (zone === "buy_zone") return "var(--buy-band)";
+    if (zone === "extreme_sell") return "var(--sell-band-extreme)";
+    if (zone === "sell_zone") return "var(--sell-band)";
+    return null;
+  }
 
   document.getElementById("as-of-date").textContent = DATA.as_of;
   document.getElementById("hero-price").textContent = fmtUSD(DATA.price);
@@ -769,22 +800,34 @@
   document.getElementById("zone-badge-text").textContent = zoneLabel(DATA.confirmed_zone) + " · day " + DATA.run_length;
 
   document.getElementById("hero-score").firstChild.textContent = DATA.composite.toFixed(1);
+  document.getElementById("extreme-buy-th-label").textContent = DATA.extreme_low_threshold;
   document.getElementById("buy-th-label").textContent = DATA.buy_threshold;
   document.getElementById("sell-th-label").textContent = DATA.sell_threshold;
+  document.getElementById("extreme-sell-th-label").textContent = DATA.extreme_high_threshold;
   document.getElementById("gauge-marker").style.left = DATA.composite + "%";
-  // The CSS gauge-track gradient is hardcoded at 40%/60% as a static
-  // fallback -- override it here so the color transition actually lines
-  // up with DATA's real thresholds instead of silently drifting out of
-  // sync whenever they're tuned away from 40/60.
+  // The CSS gauge-track gradient is hardcoded as a static fallback --
+  // override it here so the 5-tier color transition actually lines up
+  // with DATA's real thresholds. The two outer segments (extreme_low/
+  // extreme_high) use the "-strong" solid colors for a visibly deeper
+  // tone than the regular buy/sell segments, matching the badge/pill
+  // treatment for extreme_buy/extreme_sell elsewhere on the page.
   document.querySelector(".gauge-track").style.background =
-    `linear-gradient(to right, var(--buy) 0%, var(--buy) ${DATA.buy_threshold}%, var(--neutral) 50%, ` +
-    `var(--sell) ${DATA.sell_threshold}%, var(--sell) 100%)`;
+    `linear-gradient(to right, ` +
+    `var(--buy-strong) 0%, var(--buy-strong) ${DATA.extreme_low_threshold}%, ` +
+    `var(--buy) ${DATA.extreme_low_threshold}%, var(--buy) ${DATA.buy_threshold}%, ` +
+    `var(--neutral) 50%, ` +
+    `var(--sell) ${DATA.sell_threshold}%, var(--sell) ${DATA.extreme_high_threshold}%, ` +
+    `var(--sell-strong) ${DATA.extreme_high_threshold}%, var(--sell-strong) 100%)`;
 
   const capMap = {
+    extreme_buy: `Composite has been in a confirmed EXTREME buy zone for ${DATA.run_length} days — the most undervalued ` +
+                  `~10% of readings historically. Rare and notable, though not a guarantee of a bottom.`,
     buy_zone: `Composite has been in a confirmed buy zone for ${DATA.run_length} days — historically the region where later ` +
                `entries into the market have looked better in hindsight than entries made at extremes above.`,
     sell_zone: `Composite has been in a confirmed sell zone for ${DATA.run_length} days — historically a region worth trimming ` +
                 `exposure in, though not a guarantee the top is in.`,
+    extreme_sell: `Composite has been in a confirmed EXTREME sell zone for ${DATA.run_length} days — the most overvalued ` +
+                   `~10% of readings historically. Rare and notable, though not a guarantee the top is in.`,
     neutral: `Composite is in neutral territory — no confirmed signal active. Historically this is where BTC ` +
              `spends most of its time, including during strong trending periods.`,
   };
@@ -808,7 +851,6 @@
     { key: "fng_score", label: "Fear & Greed (7d smoothed)" },
     { key: "rsi_score", label: "Weekly RSI" },
     { key: "supply_loss_score", label: "Bitcoin Supply in Loss (%)" },
-    { key: "mvrv_score", label: "MVRV Ratio" },
   ];
   const grid = document.getElementById("indicator-grid");
   indicatorMeta.forEach(({ key, label }) => {
@@ -896,10 +938,10 @@
       const zone = series[i].zone;
       let j = i;
       while (j + 1 < series.length && series[j + 1].zone === zone) j++;
-      if (zone !== "neutral") {
+      const color = compositeZoneColor(zone);
+      if (color) {
         const xA = xScale(dates[i]);
         const xB = j + 1 < series.length ? xScale(dates[j + 1]) : xScale(dates[j]) + (plotW / series.length);
-        const color = zone === "buy_zone" ? "var(--buy-band)" : "var(--sell-band)";
         svg.appendChild(el("rect", {
           x: xA, y: PAD_TOP * 0.4 + compTop, width: Math.max(1, xB - xA), height: COMPOSITE_H - PAD_TOP * 0.4 - 12,
           fill: color,
@@ -1693,16 +1735,9 @@
       return e;
     }
 
-    {
-      // MVRV is non-inverted like RSI: low ratio = capitulation = buy signal
-      // (bottom of the panel), high ratio = euphoria = sell signal (top).
-      const panelTop = PAD_TOP * 0.4 + mvrvTop, panelBottom = panelTop + (MVRV_H - PAD_TOP * 0.4 - 12);
-      const [clipLo, clipHi] = DATA.mvrv_clip_range;
-      const buyAt = clipLo + (DATA.buy_threshold / 100) * (clipHi - clipLo);
-      const sellAt = clipLo + (DATA.sell_threshold / 100) * (clipHi - clipLo);
-      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yMvrv, mvrvMin, buyAt, panelTop, panelBottom, "var(--buy-band)");
-      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yMvrv, sellAt, mvrvMax, panelTop, panelBottom, "var(--sell-band)");
-    }
+    // No buy/sell reference bands here (unlike RSI/Supply-Loss) -- MVRV is
+    // no longer scored, so there's no threshold-derived zone to shade.
+    // This chart is context only; see the section note above.
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";

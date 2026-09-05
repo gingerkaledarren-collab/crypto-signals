@@ -241,6 +241,47 @@ filled pills used for buy_zone/sell_zone, so it doesn't visually read as
 "another kind of trading signal" — it's historical context, not a call to
 action.
 
+## Five-tier zones (Extreme Buy/Buy/Neutral/Sell/Extreme Sell, live dashboard only)
+
+By request, Dashboard 1's live `zone`/`confirmed_zone` (hero badge,
+gauge, "Recent confirmed signals" table, and the "Zones over time"
+charts' shading) went from three tiers (buy_zone/sell_zone/neutral) to
+five: `extreme_buy`/`buy_zone`/`neutral`/`sell_zone`/`extreme_sell`, via
+`scoring.flag_five_zones()`.
+
+The two new outer cutoffs are **not** newly calibrated — they reuse
+`EXTREME_LOW_THRESHOLD` (20) and `EXTREME_HIGH_THRESHOLD` (70), the same
+percentile-based bounds `flag_extreme_zones()` already uses for the
+separate "Extreme zone history" stat described above. One definition of
+"extreme" in this codebase, not two. The two mechanisms stay independent,
+though: `flag_five_zones()`'s tiers DO go through `apply_confirmation()`
+(the same `min_days` whipsaw filter buy_zone/sell_zone always used),
+while the older `flag_extreme_zones()`/"Extreme zone history" table
+deliberately has no confirmation delay, per its own original reasoning.
+
+**Checked whether the extra tiers are actually meaningful**, not just
+decorative: split forward returns by tier, TRAIN vs TEST, on the
+equal-weight composite --
+
+| tier | TRAIN mean fwd return | TEST mean fwd return |
+|---|---|---|
+| extreme_buy | +21.0% (n=159) | +13.7% (n=20) |
+| buy_zone | +14.5% (n=578) | +3.7% (n=217) |
+| neutral | +8.7% (n=498) | +24.7% (n=121) |
+| sell_zone | +8.2% (n=404) | +24.3% (n=297) |
+| extreme_sell | +29.2% (n=398) | -1.7% (n=353) |
+
+The **buy-side split holds up**: extreme_buy shows meaningfully stronger
+forward returns than plain buy_zone, consistently in both TRAIN and
+TEST. The **sell-side split does not**: extreme_sell shows *better*
+forward returns than sell_zone on TRAIN (backwards from what a
+"stronger sell" tier should show) and only flips to the expected
+direction (worse than sell_zone) on TEST, with a fairly thin extreme_buy
+TEST sample (n=20) on top of that. Treat "Extreme Sell" as a finer label
+on an already buy/sell-validated boundary, not as a separately-proven
+stronger signal than plain "Sell" -- "Extreme Buy" has more evidence
+behind it.
+
 ## Walk-forward validation (`walkforward.py`)
 
 The backtests above all tune and evaluate on the full history at once,
@@ -368,18 +409,23 @@ good on TRAIN and fails blind, but weak on **both**:
 
 | | Original (MA+F&G+RSI+Pi Cycle) | LIVE_WEIGHTS (MA+F&G+RSI+SupplyLoss) |
 |---|---|---|
-| Best TRAIN config | sell=60, buy=40, confirm=5d | sell=60, buy=40, confirm=5d |
-| TRAIN spread | +10.3pp | **+0.9pp** |
-| TEST spread | +10.3pp | **+0.8pp** |
+| Best TRAIN config | sell=60, buy=40, confirm=5d | sell=55, buy=45, confirm=5d |
+| TRAIN spread | +10.3pp | **+1.9pp** |
+| TEST spread | +10.3pp | **-2.9pp** |
 
-At the best config found, buy-zone and sell-zone forward returns are
-almost identical (22.6% vs. 21.7% on TRAIN) -- this isn't overfitting,
-it's closer to no signal at all by this test's own metric. It's live
-anyway, by explicit request, the same way Dashboard 2 already ships a
+*(Updated from an earlier +0.9pp/+0.8pp reading, which predates a fix to
+a real bug: `current_status.py`'s CLI was silently running 30-day F&G
+smoothing while the dashboard build ran the 7-day variant actually
+shipped -- see `current_status.DEFAULT_FNG_WINDOW`. The two now agree,
+and this is the re-verified number on the consistent pipeline.)*
+
+This isn't overfitting -- the TRAIN-selected config still comes back
+negative blind, which is a real (if small) generalization failure, not
+noise that happened to look good in-sample. It's live anyway, by
+explicit request, the same way Dashboard 2 already ships a
 technicals-based composite that isn't separately validated. Thresholds
-(sell=60, buy=40, confirm=5d) were re-selected via the standard TRAIN
-sweep for this specific composite, not just inherited from the original
--- they happen to land on the same numbers.
+(sell=55, buy=45, confirm=5d) were re-selected via the standard TRAIN
+sweep for this specific composite, not just inherited from the original.
 
 `scoring.DEFAULT_WEIGHTS` (unchanged, still Pi-Cycle-based) is what
 `backtest.py`, `trim_signal.py`, `trim_walkforward.py`, and
@@ -426,39 +472,80 @@ comparison that matters is *relative*: adding MVRV makes both TRAIN and
 TEST slightly worse, not better -- the same direction every other
 addition in this section has gone. It's live anyway, by request.
 
-## Rebalancing LIVE_WEIGHTS (5/30/30/30/5)
+## Weight-rebalancing experiments (all reverted; MVRV ultimately dropped)
 
-Also by explicit request: `LIVE_WEIGHTS` moved away from equal 20% each
-to 200w MA distance 5%, Fear & Greed 30%, weekly RSI 30%, Supply in Loss
-30%, MVRV Ratio 5% -- concentrating weight in the three more reactive
-indicators and cutting the two more structural ones (200w MA, MVRV) down
-to a token 5%.
+By explicit request, several rebalances away from equal 20% each (200w
+MA, F&G, RSI, Supply in Loss, MVRV) were tried and walk-forward tested
+the same way as everything else here (full-history 2018-2023 TRAIN /
+2023-2026 TEST split, same threshold/confirmation sweep on TRAIN only):
 
-**Tested the same way as everything else here**, full-history 2018-2023
-TRAIN / 2023-2026 TEST split, same threshold/confirmation sweep on TRAIN
-only:
-
-| | Equal weights (20% each) | 5/30/30/30/5 |
+| Weighting (ma200w/fng/rsi/supplyloss/mvrv) | Best TRAIN spread | TEST spread |
 |---|---|---|
-| Best TRAIN spread | +1.7pp | **-18.7pp** |
-| TEST spread (TRAIN-selected config) | -4.1pp | -7.2pp |
+| **Equal 20% each (current)** | **+1.7pp** | -4.1pp |
+| 5/30/30/30/5 | -18.7pp | -7.2pp |
+| 20/35/20/20/5 | -5.5pp | -3.1pp |
+| 20/30/20/20/10 | -4.4pp | -3.4pp |
 
-The equal-weight baseline here (+1.7pp/-4.1pp) is already much weaker
-than the original Pi-Cycle-based composite (10.3pp/10.3pp) -- see
-"Removing Pi Cycle Top" above. The 5/30/30/30/5 rebalance is worse
-still, and not just by degree: **every single threshold/confirmation
-config swept on TRAIN came back negative** -- unlike every other change
-tested in this README, there wasn't even one config left to optimistically
-select as "best." The TEST result (which just reruns whatever TRAIN
-picked, even though nothing there was net positive) came back worse too.
+Every rebalance away from equal weighting **failed the TRAIN sweep
+outright** -- not one config in any of those three variants came back
+with a positive spread, so there was nothing to honestly select as
+"best" before even reaching TEST. Equal weighting is the only one that
+clears that bar at all, and only barely. All three variants were
+reverted; `LIVE_WEIGHTS` is back to equal 20% each, and thresholds back
+to 55/45/confirm=5d -- the correctly re-verified TRAIN-best for equal
+weights on the current pipeline (fng_window=7, MVRV included), not the
+stale 60/40/5d documented in an earlier version of this README that
+predated the MVRV addition.
 
-Live anyway, fully informed, by explicit request -- same pattern as Pi
-Cycle removal and the MVRV addition above. The buy/sell thresholds
-(`current_status.DEFAULT_SELL_THRESHOLD`/`DEFAULT_BUY_THRESHOLD`/
-`DEFAULT_CONFIRM_DAYS`) were also updated to 55/45/3d, the TRAIN-selected
-best *for this specific weighting* -- carrying over the old 60/40/5d
-(tuned for equal weights) would have meant running an untested
-threshold/weight combination neither swept selected.
+**MVRV specifically was flagged as the likely culprit** (see "MVRV's
+declining ceiling" below), and testing the composite with MVRV dropped
+entirely (200w MA/F&G/RSI/Supply-in-Loss at 25% each, no MVRV at all)
+came back better than every option above on BOTH metrics:
+
+| | Best TRAIN spread | TEST spread |
+|---|---|---|
+| Equal 20% each (incl. MVRV) | +1.7pp | -4.1pp |
+| **25/25/25/25, MVRV dropped** | **+1.9pp** | **-2.9pp** |
+
+This is now what's live: `current_status.LIVE_WEIGHTS` drops MVRV
+entirely and runs 200w MA/F&G/RSI/Supply-in-Loss at 25% each. MVRV Ratio
+is still fetched and shown on the dashboard as a standalone, context-only
+chart (same treatment as the 21w/34w EMA lines) -- see "MVRV's declining
+ceiling" below for the full reasoning.
+
+## MVRV's declining ceiling
+
+Flagged by the user, with a chart showing it clearly: MVRV's cycle-top
+ceiling has been declining across BTC's history -- roughly 7 (2013), 5
+(2017), 4 (2021), and ~2.6-2.7 this cycle (per BGeometrics). This is the
+same dynamic that got Pi Cycle Top removed earlier in this project's
+history (see "Removing Pi Cycle Top" above): an indicator whose natural
+amplitude structurally decays as the market matures will progressively
+under-fire if calibrated against a fixed historical window, right when
+it matters most.
+
+`indicators.MVRV_CLIP_RANGE`'s upper bound (2.5) is calibrated only off
+BGeometrics' free ~4-year window, which contains exactly **one** cycle
+top. If the decline continues, this fixed clip range will understate
+real danger at the next top rather than correcting for it -- and
+dropping MVRV from the composite entirely tested better than every
+attempt to keep and reweight it (see the table above), which is
+consistent with that concern rather than contradicting it.
+
+Deliberately NOT "fixed" by fitting a declining trend line now: one data
+point is not enough history to responsibly detrend against, and doing so
+anyway would just bake in an unvalidated guess dressed up as a
+correction. Options considered: (1) flag it and revisit once this
+cycle's actual top is known -- the lowest-risk choice given the data
+constraint; (2) a rolling/adaptive clip range -- adapts automatically,
+but a rolling window always finds *something* "extreme" relative to
+recent history, which risks manufacturing signals rather than reflecting
+real structural change; (3) drop MVRV from the scored composite and keep
+it as chart context only (like the 21w/34w EMA lines already are) --
+supported by the walk-forward numbers above. **Option 3 is what shipped**,
+by explicit request: MVRV Ratio is out of `LIVE_WEIGHTS` and the
+"Indicator breakdown" grid, and now appears only as its own standalone,
+unscored chart on the dashboard.
 
 ## The second system: short-term signal (`st_backtest.py`)
 

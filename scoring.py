@@ -146,6 +146,46 @@ def flag_extreme_zones(df: pd.DataFrame, extreme_low_threshold: float = EXTREME_
     return df
 
 
+def flag_five_zones(df: pd.DataFrame, extreme_buy_threshold: float = EXTREME_LOW_THRESHOLD,
+                     buy_threshold: float = 45, sell_threshold: float = 55,
+                     extreme_sell_threshold: float = EXTREME_HIGH_THRESHOLD) -> pd.DataFrame:
+    """
+    A finer-grained sibling to flag_zones(): splits buy_zone/sell_zone
+    each into two tiers (extreme_buy/buy_zone, sell_zone/extreme_sell),
+    by request. Reuses EXTREME_LOW_THRESHOLD/EXTREME_HIGH_THRESHOLD --
+    the same percentile bounds flag_extreme_zones() uses for its separate
+    "how rare is this reading" stat above -- as the outer cutoffs, so
+    there's one definition of "extreme" in this codebase, not two
+    independently calibrated ones.
+
+    Unlike flag_extreme_zones(), this feeds apply_confirmation() the same
+    way flag_zones() does (both are generic over the zone column's value
+    set, so neither needed changes) -- these tiers gate the same buy/sell
+    decision flag_zones() gates, just with an extra "how strongly"
+    gradient, not a separate rarity callout.
+
+    Checked against forward returns on the LIVE (equal-weight) composite,
+    split TRAIN/TEST like everywhere else in this project: the buy-side
+    split holds up (extreme_buy shows stronger subsequent returns than
+    buy_zone alone, in both TRAIN and TEST). The sell-side split does
+    NOT -- extreme_sell vs sell_zone flips order between TRAIN and TEST,
+    and the extreme_buy sample in TEST is thin (n=20). Treat "Extreme
+    Sell" as a finer label on an already-validated sell signal, not as a
+    separately-proven stronger one -- see README's "Five-tier zones
+    (Extreme Buy/Buy/Neutral/Sell/Extreme Sell)".
+
+    Returns the input df with an added 'zone' column: one of
+    extreme_buy, buy_zone, neutral, sell_zone, extreme_sell.
+    """
+    df = df.copy()
+    df["zone"] = "neutral"
+    df.loc[df["composite_score"] <= buy_threshold, "zone"] = "buy_zone"
+    df.loc[df["composite_score"] <= extreme_buy_threshold, "zone"] = "extreme_buy"
+    df.loc[df["composite_score"] >= sell_threshold, "zone"] = "sell_zone"
+    df.loc[df["composite_score"] >= extreme_sell_threshold, "zone"] = "extreme_sell"
+    return df
+
+
 def extract_extreme_periods(df: pd.DataFrame) -> pd.DataFrame:
     """
     Groups consecutive days in the same extreme_zone into date ranges --

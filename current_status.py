@@ -16,29 +16,48 @@ technicals-based composite that isn't separately validated -- just
 don't mistake the buy/sell zone calls below for something this
 project's own methodology found to work.
 
-The weights themselves were also rebalanced by explicit request, away
-from equal 20% each to 200w MA 5% / F&G 30% / RSI 30% / Supply in Loss
-30% / MVRV 5% -- see README's "Rebalancing LIVE_WEIGHTS (5/30/30/30/5)"
-for the walk-forward comparison. This one is worse than equal-weighting
-on BOTH train and test: TRAIN spread went from +1.7pp (equal weights) to
--18.7pp (every single threshold config swept came back negative -- there
-was no config left to even optimistically cherry-pick), and TEST spread
-went from -4.1pp to -7.2pp. Live anyway, fully informed, by explicit
-request.
+Several weight rebalances were tried by explicit request (200w MA 5% /
+F&G 30% / RSI 30% / Supply in Loss 30% / MVRV 5%; 20/35/20/20/5;
+20/30/20/20/10) -- every one of them FAILED the TRAIN walk-forward sweep
+outright (not one config came back with a positive spread), so all were
+reverted. See README's "Weight-rebalancing experiments" for the full
+comparison table.
 
 scoring.DEFAULT_WEIGHTS (the original, Pi-Cycle-based composite) is left
 untouched for backtest.py / trim_signal.py / portfolio_simulation.py /
 trim_walkforward.py, which document and depend on it specifically --
 only this file and the dashboard it feeds use LIVE_WEIGHTS.
 
-MVRV's source data only starts ~Sept 2022 (see fetch_mvrv_history()) --
-scoring.compute_composite_score() renormalizes weights per-row over
-whichever columns are non-null, so pre-2022 rows still get a real
-composite from the other four inputs rather than going NaN.
+MVRV RATIO WAS DROPPED FROM THE COMPOSITE ENTIRELY, by explicit request,
+after being flagged (with a chart) as having a structurally declining
+cycle-top ceiling across BTC's history (~7 in 2013, ~5 in 2017, ~4 in
+2021, ~2.6-2.7 this cycle per BGeometrics) -- the same "an indicator's
+own amplitude decays as the market matures" dynamic that got Pi Cycle
+Top removed earlier. indicators.MVRV_CLIP_RANGE's upper bound (2.5) is
+calibrated only off BGeometrics' free ~4-year window (exactly ONE cycle
+top), so it would progressively understate real danger at future tops if
+the decline continues -- and no amount of downweighting MVRV (tried down
+to 5% and 10%) fixed the composite's failing TRAIN sweep. Dropping it
+outright, leaving the other four equal-weighted at 25% each, tested
+BETTER than every weighted variant including the original equal-20%-
+across-5 baseline on both TRAIN (+1.9pp vs +1.7pp) and TEST (-2.9pp vs
+-4.1pp) -- see README's "MVRV's declining ceiling" for the full
+reasoning. MVRV Ratio is still fetched and still shown on the dashboard
+as a standalone, context-only chart (same treatment as the 21w/34w EMA
+lines) -- visible, not scored.
 
-Thresholds (sell=55, buy=45, confirm=3d) are the TRAIN-selected best for
-the CURRENT LIVE_WEIGHTS specifically (re-run after the rebalance above,
-not just inherited from the equal-weight version's 60/40/5d).
+Thresholds (sell=55, buy=45, confirm=5d) are the TRAIN-selected best for
+the current 4-indicator equal-weighted LIVE_WEIGHTS (re-verified against
+the current data pipeline -- fng_window=7 -- not inherited from an
+earlier, now-stale 60/40/5d that predates the Supply-in-Loss/MVRV
+additions).
+
+Zones are FIVE-tier (extreme_buy/buy_zone/neutral/sell_zone/
+extreme_sell), by request, not the original three-tier buy/sell/neutral
+-- see scoring.flag_five_zones() for the mechanics and the honest
+forward-return check on whether the extra tiers are actually meaningful
+(buy-side split holds up, sell-side split is inconsistent between TRAIN
+and TEST).
 """
 
 import argparse
@@ -46,24 +65,31 @@ import pandas as pd
 from fetch_data import (fetch_btc_price_history, fetch_fear_greed_history,
                         fetch_supply_in_profit_history, fetch_mvrv_history)
 from indicators import build_indicator_table
-from scoring import (compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions,
+from scoring import (compute_composite_score, flag_five_zones, apply_confirmation, extract_zone_transitions,
                      flag_extreme_zones, extract_extreme_periods,
                      EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
 
 DEFAULT_SELL_THRESHOLD = 55
 DEFAULT_BUY_THRESHOLD = 45
-DEFAULT_CONFIRM_DAYS = 3
+DEFAULT_CONFIRM_DAYS = 5
+# build_indicator_table()'s own default is 30d -- this file previously
+# never overrode it, so the CLI silently ran 30d-smoothed F&G while
+# build_dashboard1_data.py (which does pass fng_window=7) ran the 7d
+# experimental variant the dashboard actually ships. Fixed by passing the
+# same 7 here, so current_status.py and the dashboard can't silently
+# disagree about the live signal on any given day.
+DEFAULT_FNG_WINDOW = 7
 
-# The live composite: 200w MA distance, Fear & Greed, weekly RSI, Bitcoin
-# Supply in Loss %, and MVRV Ratio -- Pi Cycle Top removed, by request,
-# and rebalanced away from equal weighting, also by request. See the
-# module docstring above for the walk-forward results on both changes.
+# The live composite: 200w MA distance, Fear & Greed, weekly RSI, and
+# Bitcoin Supply in Loss %, equal-weighted -- Pi Cycle Top removed by
+# request; several weight rebalances were tried and reverted; MVRV Ratio
+# was tried, then dropped entirely (see module docstring above for all
+# three). See the module docstring for the walk-forward results.
 LIVE_WEIGHTS = {
-    "ma_200w_score": 0.05,
-    "fng_score": 0.30,
-    "rsi_score": 0.30,
-    "supply_loss_score": 0.30,
-    "mvrv_score": 0.05,
+    "ma_200w_score": 0.25,
+    "fng_score": 0.25,
+    "rsi_score": 0.25,
+    "supply_loss_score": 0.25,
 }
 
 INDICATOR_LABELS = {
@@ -71,7 +97,6 @@ INDICATOR_LABELS = {
     "fng_score": "Fear & Greed (30d smoothed)",
     "rsi_score": "Weekly RSI",
     "supply_loss_score": "Bitcoin Supply in Loss (%)",
-    "mvrv_score": "MVRV Ratio",
 }
 
 # Not in the default composite (see scoring.py) -- shown separately as
@@ -80,15 +105,16 @@ INDICATOR_LABELS = {
 
 
 def get_current_status(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = DEFAULT_BUY_THRESHOLD,
-                        confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False):
+                        confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False,
+                        fng_window: int = DEFAULT_FNG_WINDOW):
     price_df = fetch_btc_price_history(force_refresh=force_refresh)
     fng_df = fetch_fear_greed_history(force_refresh=force_refresh)
     supply_df = fetch_supply_in_profit_history(force_refresh=force_refresh)
     mvrv_df = fetch_mvrv_history(force_refresh=force_refresh)
-    table = build_indicator_table(price_df, fng_df, supply_profit_df=supply_df, mvrv_df=mvrv_df)
+    table = build_indicator_table(price_df, fng_df, fng_window=fng_window, supply_profit_df=supply_df, mvrv_df=mvrv_df)
 
     scored = compute_composite_score(table, weights=LIVE_WEIGHTS)
-    zoned = flag_zones(scored, sell_threshold=sell_threshold, buy_threshold=buy_threshold)
+    zoned = flag_five_zones(scored, buy_threshold=buy_threshold, sell_threshold=sell_threshold)
     zoned = apply_confirmation(zoned, min_days=confirm_days)
     zoned = flag_extreme_zones(zoned)
 
@@ -100,8 +126,10 @@ def get_current_status(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_thres
 
 
 def print_report(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = DEFAULT_BUY_THRESHOLD,
-                  confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False):
-    latest, zoned, history, extreme_periods = get_current_status(sell_threshold, buy_threshold, confirm_days, force_refresh)
+                  confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False,
+                  fng_window: int = DEFAULT_FNG_WINDOW):
+    latest, zoned, history, extreme_periods = get_current_status(sell_threshold, buy_threshold, confirm_days,
+                                                                   force_refresh, fng_window)
 
     # How many consecutive days the CURRENT raw zone has held, to show
     # progress toward (or past) the confirm_days requirement.
