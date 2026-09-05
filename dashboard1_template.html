@@ -19,12 +19,10 @@
     --buy-strong: #1F5480;
     --buy-tint: rgba(46, 111, 166, 0.10);
     --buy-band: rgba(46, 111, 166, 0.14);
-    --buy-band-extreme: rgba(46, 111, 166, 0.28);
     --sell: #B8842B;
     --sell-strong: #8F661E;
     --sell-tint: rgba(184, 132, 43, 0.10);
     --sell-band: rgba(184, 132, 43, 0.16);
-    --sell-band-extreme: rgba(184, 132, 43, 0.32);
     --neutral: #6B7280;
     --neutral-band: rgba(107, 114, 128, 0.08);
     --phase-accum: rgba(46, 154, 107, 0.16);
@@ -55,12 +53,10 @@
       --buy-strong: #7CB3E3;
       --buy-tint: rgba(74, 147, 212, 0.14);
       --buy-band: rgba(74, 147, 212, 0.18);
-      --buy-band-extreme: rgba(74, 147, 212, 0.32);
       --sell: #E0A94A;
       --sell-strong: #F0C071;
       --sell-tint: rgba(224, 169, 74, 0.14);
       --sell-band: rgba(224, 169, 74, 0.18);
-      --sell-band-extreme: rgba(224, 169, 74, 0.36);
       --neutral: #8A93A3;
       --neutral-band: rgba(138, 147, 163, 0.10);
       --phase-accum: rgba(70, 189, 129, 0.18);
@@ -91,12 +87,10 @@
     --buy-strong: #7CB3E3;
     --buy-tint: rgba(74, 147, 212, 0.14);
     --buy-band: rgba(74, 147, 212, 0.18);
-    --buy-band-extreme: rgba(74, 147, 212, 0.32);
     --sell: #E0A94A;
     --sell-strong: #F0C071;
     --sell-tint: rgba(224, 169, 74, 0.14);
     --sell-band: rgba(224, 169, 74, 0.18);
-    --sell-band-extreme: rgba(224, 169, 74, 0.36);
     --neutral: #8A93A3;
     --neutral-band: rgba(138, 147, 163, 0.10);
     --phase-accum: rgba(70, 189, 129, 0.18);
@@ -595,6 +589,8 @@
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Weekly RSI</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Extremely oversold (≤30)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-tint)"></span>Oversold (&lt;50)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-tint)"></span>Overbought (≥50)</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Extremely overbought (≥70)</span>
       </div>
     </div>
@@ -783,16 +779,6 @@
     sell_zone: "Sell", extreme_sell: "Extreme Sell",
     extreme_low: "Extreme low (bottom decile)", extreme_high: "Extreme high (top decile)",
   }[z] || z);
-  // Composite zone -> chart-band color, five-tier: extreme_buy/extreme_sell
-  // get the more saturated "-extreme" bands, buy_zone/sell_zone the
-  // regular ones. Used by renderChart()'s zone-band shading below.
-  function compositeZoneColor(zone) {
-    if (zone === "extreme_buy") return "var(--buy-band-extreme)";
-    if (zone === "buy_zone") return "var(--buy-band)";
-    if (zone === "extreme_sell") return "var(--sell-band-extreme)";
-    if (zone === "sell_zone") return "var(--sell-band)";
-    return null;
-  }
 
   document.getElementById("as-of-date").textContent = DATA.as_of;
   document.getElementById("hero-price").textContent = fmtUSD(DATA.price);
@@ -934,24 +920,6 @@
       return e;
     }
 
-    // --- zone bands (drawn behind composite panel, spanning full height for continuity) ---
-    let i = 0;
-    while (i < series.length) {
-      const zone = series[i].zone;
-      let j = i;
-      while (j + 1 < series.length && series[j + 1].zone === zone) j++;
-      const color = compositeZoneColor(zone);
-      if (color) {
-        const xA = xScale(dates[i]);
-        const xB = j + 1 < series.length ? xScale(dates[j + 1]) : xScale(dates[j]) + (plotW / series.length);
-        svg.appendChild(el("rect", {
-          x: xA, y: PAD_TOP * 0.4 + compTop, width: Math.max(1, xB - xA), height: COMPOSITE_H - PAD_TOP * 0.4 - 12,
-          fill: color,
-        }));
-      }
-      i = j + 1;
-    }
-
     // --- price panel ---
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
@@ -981,13 +949,29 @@
     svg.appendChild(el("path", { class: "price-line", d: pricePath }));
 
     // --- composite panel ---
+    // Fixed horizontal reference bands at the composite's own 5-tier
+    // thresholds (same style as the RSI chart), drawn before the
+    // gridlines/labels/line so they sit as background.
+    {
+      const panelTop = PAD_TOP * 0.4 + compTop, panelBottom = panelTop + (COMPOSITE_H - PAD_TOP * 0.4 - 12);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.extreme_high_threshold, 100, panelTop, panelBottom, "var(--sell-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.sell_threshold, DATA.extreme_high_threshold, panelTop, panelBottom, "var(--sell-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.extreme_low_threshold, DATA.buy_threshold, panelTop, panelBottom, "var(--buy-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, 0, DATA.extreme_low_threshold, panelTop, panelBottom, "var(--buy-band)");
+    }
+
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: compTop + 10 }));
     svg.querySelectorAll("text.chart-title")[1].textContent = "Composite score (0–100)";
-    [DATA.buy_threshold, DATA.sell_threshold].forEach((th) => {
+    [
+      [DATA.extreme_low_threshold, `extreme buy ≤ ${DATA.extreme_low_threshold}`],
+      [DATA.buy_threshold, `buy ≤ ${DATA.buy_threshold}`],
+      [DATA.sell_threshold, `sell ≥ ${DATA.sell_threshold}`],
+      [DATA.extreme_high_threshold, `extreme sell ≥ ${DATA.extreme_high_threshold}`],
+    ].forEach(([th, label]) => {
       const y = yComposite(th);
       svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
       const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
-      t.textContent = th === DATA.buy_threshold ? `buy ≤ ${th}` : `sell ≥ ${th}`;
+      t.textContent = label;
       svg.appendChild(t);
     });
     const compositePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yComposite(d.composite).toFixed(1)}`).join(" ");
@@ -1455,12 +1439,10 @@
     }
 
     {
-      // Only the two EXTREME bands are shaded (clearer at a glance than
-      // the earlier 4-tier version, by request) -- the 30-70 middle is
-      // left unshaded. The dashed threshold lines + labels below still
-      // mark the 30/70 cutoffs precisely.
       const panelTop = PAD_TOP * 0.4 + rsiTop, panelBottom = panelTop + (RSI_H - PAD_TOP * 0.4 - 12);
       drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 70, 100, panelTop, panelBottom, "var(--sell-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 50, 70, panelTop, panelBottom, "var(--sell-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 30, 50, panelTop, panelBottom, "var(--buy-tint)");
       drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 0, 30, panelTop, panelBottom, "var(--buy-band)");
     }
 
