@@ -426,6 +426,40 @@ comparison that matters is *relative*: adding MVRV makes both TRAIN and
 TEST slightly worse, not better -- the same direction every other
 addition in this section has gone. It's live anyway, by request.
 
+## Rebalancing LIVE_WEIGHTS (5/30/30/30/5)
+
+Also by explicit request: `LIVE_WEIGHTS` moved away from equal 20% each
+to 200w MA distance 5%, Fear & Greed 30%, weekly RSI 30%, Supply in Loss
+30%, MVRV Ratio 5% -- concentrating weight in the three more reactive
+indicators and cutting the two more structural ones (200w MA, MVRV) down
+to a token 5%.
+
+**Tested the same way as everything else here**, full-history 2018-2023
+TRAIN / 2023-2026 TEST split, same threshold/confirmation sweep on TRAIN
+only:
+
+| | Equal weights (20% each) | 5/30/30/30/5 |
+|---|---|---|
+| Best TRAIN spread | +1.7pp | **-18.7pp** |
+| TEST spread (TRAIN-selected config) | -4.1pp | -7.2pp |
+
+The equal-weight baseline here (+1.7pp/-4.1pp) is already much weaker
+than the original Pi-Cycle-based composite (10.3pp/10.3pp) -- see
+"Removing Pi Cycle Top" above. The 5/30/30/30/5 rebalance is worse
+still, and not just by degree: **every single threshold/confirmation
+config swept on TRAIN came back negative** -- unlike every other change
+tested in this README, there wasn't even one config left to optimistically
+select as "best." The TEST result (which just reruns whatever TRAIN
+picked, even though nothing there was net positive) came back worse too.
+
+Live anyway, fully informed, by explicit request -- same pattern as Pi
+Cycle removal and the MVRV addition above. The buy/sell thresholds
+(`current_status.DEFAULT_SELL_THRESHOLD`/`DEFAULT_BUY_THRESHOLD`/
+`DEFAULT_CONFIRM_DAYS`) were also updated to 55/45/3d, the TRAIN-selected
+best *for this specific weighting* -- carrying over the old 60/40/5d
+(tuned for equal weights) would have meant running an untested
+threshold/weight combination neither swept selected.
+
 ## The second system: short-term signal (`st_backtest.py`)
 
 Everything above is one system (~3-5 signals/year, symmetric buy/sell,

@@ -642,15 +642,18 @@
   <footer>
     Data: blockchain.info (BTC price), Fear &amp; Greed Index blended from alternative.me (history before ~June
     2023) and CoinMarketCap (from that point forward), Bitcoin Supply in Loss % and MVRV Ratio from BGeometrics
-    (MVRV's free history only goes back to ~Sept 2022). Composite = equal-weighted 200-week MA distance,
-    <b>7d-smoothed</b> Fear &amp; Greed, weekly RSI, Bitcoin Supply in Loss %, and MVRV Ratio, each normalized
-    0–100. <b>By explicit request, Pi Cycle Top ratio was removed and Supply in Loss % / MVRV Ratio added in its
-    place — walk-forward testing found none of these changes improved the composite's forward-return signal</b>
-    (the combination now live tests at 0.9pp TRAIN / 0.8pp spread vs. 10.3pp/10.3pp for the Pi-Cycle-based
-    composite it replaces; adding MVRV specifically made it slightly worse again on its own shorter test window);
-    it's live anyway, by request, the same way Dashboard 2 already ships a composite that isn't separately
-    validated — see the README's "Removing Pi Cycle Top, adding Supply in Loss %" and "Adding MVRV Ratio despite
-    its short history" for the full comparisons. Separately: <b>the 7-day Fear &amp; Greed smoothing window is
+    (MVRV's free history only goes back to ~Sept 2022). Composite = 200-week MA distance (5%),
+    <b>7d-smoothed</b> Fear &amp; Greed (30%), weekly RSI (30%), Bitcoin Supply in Loss % (30%), and MVRV Ratio
+    (5%), each normalized 0–100. <b>By explicit request, Pi Cycle Top ratio was removed and Supply in Loss % /
+    MVRV Ratio added in its place, and the weights above were rebalanced away from equal 20% each — walk-forward
+    testing found none of these changes improved the composite's forward-return signal, and the rebalance made it
+    worse again</b> (equal-weighted with Pi Cycle removed tested at 0.9pp TRAIN / 0.8pp spread vs. 10.3pp/10.3pp
+    for the Pi-Cycle-based composite it replaces; the current 5/30/30/30/5 weighting tests at -18.7pp TRAIN /
+    -7.2pp TEST — every threshold config swept came back negative on TRAIN, there was no config left to even
+    optimistically cherry-pick); it's live anyway, by explicit request, fully informed, the same way Dashboard 2
+    already ships a composite that isn't separately validated — see the README's "Removing Pi Cycle Top, adding
+    Supply in Loss %", "Adding MVRV Ratio despite its short history", and "Rebalancing LIVE_WEIGHTS
+    (5/30/30/30/5)" for the full comparisons. Separately: <b>the 7-day Fear &amp; Greed smoothing window is
     also an experimental variant</b> — the validated 30-day window scored higher on its own (10.3pp vs. 7.8pp
     TRAIN spread, tested before the changes above). The dashed 21w/34w EMA lines (a trader Alessio Rastani-style
     support structure) are shown for context only — testing found adding them to the composite weakened
@@ -769,6 +772,13 @@
   document.getElementById("buy-th-label").textContent = DATA.buy_threshold;
   document.getElementById("sell-th-label").textContent = DATA.sell_threshold;
   document.getElementById("gauge-marker").style.left = DATA.composite + "%";
+  // The CSS gauge-track gradient is hardcoded at 40%/60% as a static
+  // fallback -- override it here so the color transition actually lines
+  // up with DATA's real thresholds instead of silently drifting out of
+  // sync whenever they're tuned away from 40/60.
+  document.querySelector(".gauge-track").style.background =
+    `linear-gradient(to right, var(--buy) 0%, var(--buy) ${DATA.buy_threshold}%, var(--neutral) 50%, ` +
+    `var(--sell) ${DATA.sell_threshold}%, var(--sell) 100%)`;
 
   const capMap = {
     buy_zone: `Composite has been in a confirmed buy zone for ${DATA.run_length} days — historically the region where later ` +

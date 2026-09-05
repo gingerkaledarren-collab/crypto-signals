@@ -16,6 +16,16 @@ technicals-based composite that isn't separately validated -- just
 don't mistake the buy/sell zone calls below for something this
 project's own methodology found to work.
 
+The weights themselves were also rebalanced by explicit request, away
+from equal 20% each to 200w MA 5% / F&G 30% / RSI 30% / Supply in Loss
+30% / MVRV 5% -- see README's "Rebalancing LIVE_WEIGHTS (5/30/30/30/5)"
+for the walk-forward comparison. This one is worse than equal-weighting
+on BOTH train and test: TRAIN spread went from +1.7pp (equal weights) to
+-18.7pp (every single threshold config swept came back negative -- there
+was no config left to even optimistically cherry-pick), and TEST spread
+went from -4.1pp to -7.2pp. Live anyway, fully informed, by explicit
+request.
+
 scoring.DEFAULT_WEIGHTS (the original, Pi-Cycle-based composite) is left
 untouched for backtest.py / trim_signal.py / portfolio_simulation.py /
 trim_walkforward.py, which document and depend on it specifically --
@@ -26,9 +36,9 @@ scoring.compute_composite_score() renormalizes weights per-row over
 whichever columns are non-null, so pre-2022 rows still get a real
 composite from the other four inputs rather than going NaN.
 
-Thresholds (sell=60, buy=40, confirm=5d) are still the TRAIN-selected
-best for LIVE_WEIGHTS specifically (re-run, not just inherited) --
-they happen to match the original composite's own thresholds.
+Thresholds (sell=55, buy=45, confirm=3d) are the TRAIN-selected best for
+the CURRENT LIVE_WEIGHTS specifically (re-run after the rebalance above,
+not just inherited from the equal-weight version's 60/40/5d).
 """
 
 import argparse
@@ -40,20 +50,20 @@ from scoring import (compute_composite_score, flag_zones, apply_confirmation, ex
                      flag_extreme_zones, extract_extreme_periods,
                      EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
 
-DEFAULT_SELL_THRESHOLD = 60
-DEFAULT_BUY_THRESHOLD = 40
-DEFAULT_CONFIRM_DAYS = 5
+DEFAULT_SELL_THRESHOLD = 55
+DEFAULT_BUY_THRESHOLD = 45
+DEFAULT_CONFIRM_DAYS = 3
 
 # The live composite: 200w MA distance, Fear & Greed, weekly RSI, Bitcoin
-# Supply in Loss %, and MVRV Ratio -- Pi Cycle Top removed, by request.
-# See the module docstring above for the walk-forward results on these
-# changes.
+# Supply in Loss %, and MVRV Ratio -- Pi Cycle Top removed, by request,
+# and rebalanced away from equal weighting, also by request. See the
+# module docstring above for the walk-forward results on both changes.
 LIVE_WEIGHTS = {
-    "ma_200w_score": 0.2,
-    "fng_score": 0.2,
-    "rsi_score": 0.2,
-    "supply_loss_score": 0.2,
-    "mvrv_score": 0.2,
+    "ma_200w_score": 0.05,
+    "fng_score": 0.30,
+    "rsi_score": 0.30,
+    "supply_loss_score": 0.30,
+    "mvrv_score": 0.05,
 }
 
 INDICATOR_LABELS = {
