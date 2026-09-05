@@ -403,6 +403,7 @@
       <div class="legend">
         <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Composite score</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--neutral)"></span>Neutral</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--alert-band)"></span>Sell zone</span>
       </div>
     </div>
@@ -417,6 +418,8 @@
       <div class="legend">
         <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Daily RSI</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Oversold (≤30)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert-band)"></span>Overbought (≥70)</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-rsi">
@@ -483,6 +486,18 @@ __DATA_JSON__
   const DATA = JSON.parse(document.getElementById("dashboard-data").textContent);
   const fmtUSD = (n) => "$" + Math.round(n).toLocaleString("en-US");
 
+  // Fixed horizontal reference band across the full width of one panel,
+  // covering [valueLo, valueHi] on that panel's own y-scale -- a static
+  // "this value range is this zone" strip, not tied to specific dates.
+  // Mirrors dashboard1_template.html's helper of the same name.
+  function drawHorizontalBand(svg, el, PAD_L, W, PAD_R, valueToY, valueLo, valueHi, panelTop, panelBottom, color) {
+    const yA = valueToY(valueLo), yB = valueToY(valueHi);
+    const yTop = Math.max(Math.min(yA, yB), panelTop);
+    const yBottom = Math.min(Math.max(yA, yB), panelBottom);
+    if (yBottom <= yTop) return;
+    svg.appendChild(el("rect", { x: PAD_L, y: yTop, width: W - PAD_R - PAD_L, height: yBottom - yTop, fill: color }));
+  }
+
   document.getElementById("as-of-date").textContent = DATA.as_of;
   document.getElementById("hero-price").textContent = fmtUSD(DATA.price);
   document.getElementById("buy-th-label").textContent = DATA.buy_threshold;
@@ -496,6 +511,13 @@ __DATA_JSON__
 
   document.getElementById("hero-score").firstChild.textContent = DATA.composite.toFixed(1);
   document.getElementById("gauge-marker").style.left = DATA.composite + "%";
+  // The CSS gauge-track gradient is hardcoded at 30%/70% as a static
+  // fallback -- override it here so the color transition actually lines
+  // up with DATA's real thresholds if they're ever tuned away from 30/70
+  // (same latent bug dashboard1_template.html had until fixed).
+  document.querySelector(".gauge-track").style.background =
+    `linear-gradient(to right, var(--buy) 0%, var(--buy) ${DATA.buy_threshold}%, var(--neutral) 50%, ` +
+    `var(--alert) ${DATA.sell_threshold}%, var(--alert) 100%)`;
 
   let caption;
   if (zone === "buy_zone") {
@@ -580,20 +602,6 @@ __DATA_JSON__
       return e;
     }
 
-    // buy/sell zone bands (span both panels for continuity)
-    let i = 0;
-    while (i < series.length) {
-      let j = i;
-      while (j + 1 < series.length && series[j + 1].zone === series[i].zone) j++;
-      if (series[i].zone === "buy_zone" || series[i].zone === "sell_zone") {
-        const xA = xScale(dates[i]);
-        const xB = j + 1 < series.length ? xScale(dates[j + 1]) : xScale(dates[j]) + plotW / series.length;
-        const fill = series[i].zone === "buy_zone" ? "var(--buy-band)" : "var(--alert-band)";
-        svg.appendChild(el("rect", { x: xA, y: PAD_TOP, width: Math.max(1, xB - xA), height: totalH - PAD_TOP, fill }));
-      }
-      i = j + 1;
-    }
-
     // --- price panel ---
     const priceTitle = el("text", { class: "chart-title", x: PAD_L, y: 10 });
     priceTitle.textContent = "BTC price";
@@ -612,6 +620,16 @@ __DATA_JSON__
     const compTitle = el("text", { class: "chart-title", x: PAD_L, y: compTop + 10 });
     compTitle.textContent = "Composite score (0-100)";
     svg.appendChild(compTitle);
+
+    // Fixed horizontal reference bands at the composite's own buy/sell
+    // thresholds (same style as dashboard 1), drawn before the
+    // gridlines/labels/line so they sit as background.
+    {
+      const panelTop = compPlotTop, panelBottom = compPlotTop + compPlotH;
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.sell_threshold, 100, panelTop, panelBottom, "var(--alert-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, 0, DATA.buy_threshold, panelTop, panelBottom, "var(--buy-band)");
+    }
+
     [0, 50, 100].forEach((v) => {
       const y = yComposite(v);
       svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
@@ -619,6 +637,13 @@ __DATA_JSON__
       t.textContent = v;
       svg.appendChild(t);
     });
+
+    // Composite line drawn BEFORE its threshold labels so the labels
+    // always render on top and stay legible where the line crosses
+    // behind them.
+    const compPath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yComposite(d.composite).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "composite-line", d: compPath }));
+
     [[DATA.buy_threshold, "buy<=" + DATA.buy_threshold], [DATA.sell_threshold, "sell>=" + DATA.sell_threshold]].forEach(([th, label]) => {
       const y = yComposite(th);
       svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
@@ -626,9 +651,18 @@ __DATA_JSON__
       t.textContent = label;
       svg.appendChild(t);
     });
-
-    const compPath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yComposite(d.composite).toFixed(1)}`).join(" ");
-    svg.appendChild(el("path", { class: "composite-line", d: compPath }));
+    // "Neutral" has no threshold of its own -- it's the unshaded gap
+    // between buy_threshold and sell_threshold -- so it gets a label
+    // with no dashed line, centered in that gap.
+    {
+      const t = el("text", {
+        class: "axis-label", x: W - PAD_R,
+        y: (yComposite(DATA.buy_threshold) + yComposite(DATA.sell_threshold)) / 2 + 3,
+        "text-anchor": "end",
+      });
+      t.textContent = "neutral";
+      svg.appendChild(t);
+    }
 
     // --- shared time axis (months, since this is always the 24-month view) ---
     const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
@@ -741,18 +775,18 @@ __DATA_JSON__
     const rsiTitle = el("text", { class: "chart-title", x: PAD_L, y: rsiTop + 10 });
     rsiTitle.textContent = "Daily RSI (0-100)";
     svg.appendChild(rsiTitle);
+
+    {
+      const panelTop = rsiPlotTop, panelBottom = rsiPlotTop + rsiPlotH;
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 70, 100, panelTop, panelBottom, "var(--alert-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 0, 30, panelTop, panelBottom, "var(--buy-band)");
+    }
+
     [0, 50, 100].forEach((v) => {
       const y = yRsi(v);
       svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
       const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
       t.textContent = v;
-      svg.appendChild(t);
-    });
-    [[70, "overbought ≥ 70"], [30, "oversold ≤ 30"]].forEach(([th, label]) => {
-      const y = yRsi(th);
-      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
-      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
-      t.textContent = label;
       svg.appendChild(t);
     });
 
@@ -765,7 +799,17 @@ __DATA_JSON__
       });
       return d.trim();
     }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
     svg.appendChild(el("path", { class: "rsi-line", d: buildRsiPath() }));
+
+    [[70, "overbought ≥ 70"], [30, "oversold ≤ 30"]].forEach(([th, label]) => {
+      const y = yRsi(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
 
     const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
     axisKeys.forEach((key) => {
@@ -998,11 +1042,6 @@ __DATA_JSON__
     const macdTitle = el("text", { class: "chart-title", x: PAD_L, y: macdTop + 10 });
     macdTitle.textContent = "MACD (12/26/9)";
     svg.appendChild(macdTitle);
-    const zeroY = yMacd(0);
-    svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: zeroY, y2: zeroY }));
-    const zeroLabel = el("text", { class: "axis-label", x: PAD_L - 6, y: zeroY + 3, "text-anchor": "end" });
-    zeroLabel.textContent = "0";
-    svg.appendChild(zeroLabel);
 
     function buildMacdPath(valueFn) {
       let d = "", started = false;
@@ -1014,8 +1053,16 @@ __DATA_JSON__
       });
       return d.trim();
     }
+    // Drawn BEFORE the zero-line label below so the label always renders
+    // on top and stays legible where a line crosses behind it.
     svg.appendChild(el("path", { class: "macd-signal-line", d: buildMacdPath((d) => d.macd_signal) }));
     svg.appendChild(el("path", { class: "macd-line", d: buildMacdPath((d) => d.macd_line) }));
+
+    const zeroY = yMacd(0);
+    svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: zeroY, y2: zeroY }));
+    const zeroLabel = el("text", { class: "axis-label", x: PAD_L - 6, y: zeroY + 3, "text-anchor": "end" });
+    zeroLabel.textContent = "0";
+    svg.appendChild(zeroLabel);
 
     const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
     axisKeys.forEach((key) => {
