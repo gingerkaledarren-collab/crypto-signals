@@ -559,6 +559,59 @@ by explicit request: MVRV Ratio is out of `LIVE_WEIGHTS` and the
 "Indicator breakdown" grid, and now appears only as its own standalone,
 unscored chart on the dashboard.
 
+## 200-week MA distance: the same maturity check, different answer
+
+Asked how `ma_200w_score` is defined, which led to checking
+`indicators.normalize_200w_distance()`'s clip bounds ((-40, 150), an
+eyeballed starting assumption never revisited) against real percentile
+data -- the same exercise that led to MVRV's clip range concern above.
+
+Across FULL history (2014-present), +150% distance from the 200w MA gets
+exceeded on **~23% of all days** -- suggesting the upper bound was much
+too tight, saturating the indicator's score at 100 for a huge stretch of
+history. But restricting to just the **last 4 years** (this cycle's own
+bottom-to-top) tells a different story:
+
+| Window | 90th pct | 95th pct | 99th pct | Max | % days ≥150% |
+|---|---|---|---|---|---|
+| Last 4 years (this cycle only) | 121.5% | 130.6% | 140.0% | 151.2% | 0.14% |
+| Last 6 years (incl. 2021 top) | 221.0% | 330.0% | 456.0% | 524.9% | 17.24% |
+
+This cycle's actual peak (Oct 2025, ~$126k) hit +151.2% -- right at the
+old +150 ceiling -- while the 2021 cycle blew past +300-500%. That gap is
+the *same* "amplitude shrinks as the market matures" pattern as MVRV's
+declining ceiling, just pointing the opposite direction for what to do
+about it: the old +150 ceiling was already close to correct for the
+current, matured market, almost by coincidence. Raising it to match the
+6-year window (or full history) would mean calibrating against the
+older, larger-amplitude 2013-2017/2021 cycles -- exactly the stale-
+extreme problem this check exists to catch, not fix.
+
+**Nudged down slightly to 140** (this cycle's own ~99th percentile), by
+request, rather than raised. Implemented as a LIVE-only override
+(`indicators.MA_200W_LIVE_CLIP_RANGE`, passed via
+`build_indicator_table(ma_200w_clip_range=...)`) rather than changing
+`normalize_200w_distance()`'s own default -- that default is still what
+`scoring.DEFAULT_WEIGHTS`' composite uses (backtest.py/trim_signal.py/
+portfolio_simulation.py/trim_walkforward.py), so those stay exactly
+reproducible at the original (-40, 150). Re-ran the walk-forward sweep
+on `LIVE_WEIGHTS` after the change: TRAIN-best config unchanged
+(sell=55/buy=45/confirm=5d), TRAIN spread improved slightly (+1.8pp to
++3.5pp), TEST roughly flat (-3.1pp to -3.9pp) -- a minor, non-disruptive
+tweak, not a repeat of the MVRV-style overhaul.
+
+Separately tested and rejected: dropping `ma_200w_score` from the
+composite entirely (mirroring the MVRV removal), on the theory that its
+own clip-range issue might mean it's not pulling its weight either.
+Walk-forward said otherwise, decisively -- TRAIN spread cratered to
+-22.7pp (worse than any weight-rebalance failure tried this session) and
+TEST fell to -9.7pp, because 200w MA distance is the one genuinely
+slow-moving, long-term valuation signal in the mix; removing it leaves
+the composite dominated by three faster, more reactive indicators
+(F&G, RSI, Supply-in-Loss) -- the same failure mode already seen when
+weight was pulled away from the slower indicators toward those three
+(see "Weight-rebalancing experiments" above). Kept in the composite.
+
 ## The second system: short-term signal (`st_backtest.py`)
 
 Everything above is one system (~3-5 signals/year, symmetric buy/sell,

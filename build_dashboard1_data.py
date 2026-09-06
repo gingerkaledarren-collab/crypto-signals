@@ -17,7 +17,8 @@ from fetch_data import (fetch_btc_price_history, fetch_fear_greed_history,
                         fetch_supply_in_profit_history, fetch_mvrv_history)
 from indicators import (build_indicator_table, SUPPLY_LOSS_CLIP_RANGE, MVRV_CLIP_RANGE,
                         compute_cycle_context, compute_wyckoff_phases, HALVING_DATES,
-                        compute_zigzag_pivots, label_elliott_pivots, ELLIOTT_ZIGZAG_THRESHOLD)
+                        compute_zigzag_pivots, label_elliott_pivots, ELLIOTT_ZIGZAG_THRESHOLD,
+                        MA_200W_LIVE_CLIP_RANGE)
 from scoring import (compute_composite_score, flag_five_zones, apply_confirmation, extract_zone_transitions,
                      flag_extreme_zones, extract_extreme_periods,
                      EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
@@ -30,7 +31,8 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
     fng_df = fetch_fear_greed_history(force_refresh=force_refresh)
     supply_df = fetch_supply_in_profit_history(force_refresh=force_refresh)
     mvrv_df = fetch_mvrv_history(force_refresh=force_refresh)
-    table = build_indicator_table(price_df, fng_df, fng_window=fng_window, supply_profit_df=supply_df, mvrv_df=mvrv_df)
+    table = build_indicator_table(price_df, fng_df, fng_window=fng_window, supply_profit_df=supply_df, mvrv_df=mvrv_df,
+                                   ma_200w_clip_range=MA_200W_LIVE_CLIP_RANGE)
 
     scored = compute_composite_score(table, weights=LIVE_WEIGHTS)
     zoned = flag_five_zones(scored, buy_threshold=buy_threshold, sell_threshold=sell_threshold)

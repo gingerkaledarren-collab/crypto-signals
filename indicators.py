@@ -19,6 +19,13 @@ import numpy as np
 SUPPLY_LOSS_CLIP_RANGE = (1.5, 54.7)
 MVRV_CLIP_RANGE = (0.9, 2.5)
 
+# LIVE-only override for normalize_200w_distance()'s upper clip bound (see
+# that function's docstring for the full recalibration reasoning) --
+# scoring.DEFAULT_WEIGHTS' composite keeps normalize_200w_distance()'s own
+# default (-40, 150) so backtest.py/trim_signal.py/portfolio_simulation.py/
+# trim_walkforward.py stay exactly reproducible.
+MA_200W_LIVE_CLIP_RANGE = (-40, 140)
+
 # Bitcoin reward-halving dates -- the anchor points for the ~4-year cycle
 # phase label. This needs no external data source, just the calendar.
 HALVING_DATES = [
@@ -224,12 +231,33 @@ def normalize_200w_distance(pct_distance: pd.Series, clip_range: tuple = (-40, 1
     """
     Maps % distance from 200w MA to a 0-100 greed scale.
 
-    Calibration note: historically BTC has traded from roughly -40% below
-    its 200w MA (deep bear capitulation) to +150%+ above it (late-cycle
-    euphoria, e.g. 2017/2021 tops). These clip bounds are a starting
-    assumption -- once we backtest against full cycle history we should
-    revisit them using actual percentile distributions rather than
-    eyeballed bounds.
+    Default clip bounds ((-40, 150)) are the ORIGINAL eyeballed starting
+    assumption, kept as the default so scoring.DEFAULT_WEIGHTS' composite
+    (backtest.py / trim_signal.py / portfolio_simulation.py /
+    trim_walkforward.py) stays exactly reproducible. current_status.py's
+    LIVE_WEIGHTS composite instead passes MA_200W_LIVE_CLIP_RANGE (see
+    below) via build_indicator_table()'s ma_200w_clip_range param.
+
+    Calibration note behind that live-only override: the lower bound was
+    never an issue -- price has never dropped more than -34.4% below its
+    200w MA in the full 2014-present history, so -40 sits safely below
+    anything actually observed. The upper bound needed more care: across
+    FULL history, +150% gets exceeded on ~23% of all days -- but that's
+    almost entirely an artifact of BTC's 2013-2017 era, when the 200w MA
+    was still catching up to an immature, wildly volatile market.
+    Restricting to just the last 4 years (this cycle's own bottom-to-top)
+    tells a different story: the actual cycle peak (Oct 2025, ~$126k) hit
+    +151.2%, and only 0.14% of days in that window ever approached the
+    old +150 ceiling -- a 6-year window that still includes the 2021
+    top's blow-off shows +150% exceeded ~17% of the time, with a ~300%+
+    peak. That gap is itself evidence of the same "amplitude shrinks as
+    the market matures" pattern found in MVRV's declining cycle-top
+    ceiling (see README): each cycle's peak distance from its 200w MA has
+    been smaller than the last, so calibrating against the older, larger-
+    amplitude 2021 (or 2013-2017) cycles overstates how far a matured BTC
+    will actually stretch. The live-only override nudges the ceiling down
+    slightly to 140 (this cycle's own ~99th percentile), by request,
+    rather than raising it to match older cycles.
     """
     lo, hi = clip_range
     clipped = pct_distance.clip(lower=lo, upper=hi)
@@ -408,7 +436,8 @@ def normalize_mvrv(mvrv_ratio: pd.Series, clip_range: tuple = MVRV_CLIP_RANGE) -
 
 
 def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_window: int = 30,
-                           supply_profit_df: pd.DataFrame = None, mvrv_df: pd.DataFrame = None) -> pd.DataFrame:
+                           supply_profit_df: pd.DataFrame = None, mvrv_df: pd.DataFrame = None,
+                           ma_200w_clip_range: tuple = None) -> pd.DataFrame:
     """
     Joins all indicators into a single date-aligned table, with each
     indicator normalized to the 0-100 greed scale.
@@ -419,6 +448,14 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_wind
     README's "Testing daily (unsmoothed) Fear & Greed") without a
     second code path -- fng_window=1 is exactly "no smoothing" since
     smooth_fear_greed()'s rolling(window=1) is a no-op.
+
+    ma_200w_clip_range: optional override for normalize_200w_distance()'s
+    clip bounds. Omitted (None) by default so existing callers --
+    including scoring.DEFAULT_WEIGHTS' backtest.py/trim_signal.py/
+    portfolio_simulation.py/trim_walkforward.py -- keep that function's
+    own original (-40, 150) default exactly. current_status.py's
+    LIVE_WEIGHTS composite passes MA_200W_LIVE_CLIP_RANGE explicitly --
+    see normalize_200w_distance()'s docstring for why.
 
     supply_profit_df: optional, from fetch_supply_in_profit_history(). If
     given, adds supply_loss_score (see compute_supply_in_loss()) to the
@@ -441,7 +478,10 @@ def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame, fng_wind
       [mvrv_ratio, mvrv_score if mvrv_df given]
     """
     ma_df = compute_200w_ma_distance(price_df)
-    ma_df["ma_200w_score"] = normalize_200w_distance(ma_df["pct_distance"])
+    if ma_200w_clip_range is None:
+        ma_df["ma_200w_score"] = normalize_200w_distance(ma_df["pct_distance"])
+    else:
+        ma_df["ma_200w_score"] = normalize_200w_distance(ma_df["pct_distance"], clip_range=ma_200w_clip_range)
 
     fng_smooth_df = smooth_fear_greed(fng_df, window=fng_window)
     fng_smooth_df["fng_score"] = fng_smooth_df["fng_smoothed"]  # already 0-100
