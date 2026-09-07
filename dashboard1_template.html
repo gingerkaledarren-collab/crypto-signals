@@ -384,7 +384,7 @@
   .crosshair-line { stroke: var(--ink-muted); stroke-width: 1; pointer-events: none; opacity: 0; }
   .crosshair-dot { pointer-events: none; opacity: 0; }
 
-  #tooltip, #tooltip-recent, #tooltip-ma200w, #tooltip-rsi, #tooltip-supplyloss, #tooltip-mvrv, #tooltip-cycle, #tooltip-elliott {
+  #tooltip, #tooltip-recent, #tooltip-ma200w, #tooltip-rsi, #tooltip-fng, #tooltip-supplyloss, #tooltip-mvrv, #tooltip-cycle, #tooltip-elliott {
     position: absolute;
     pointer-events: none;
     background: var(--ink);
@@ -596,6 +596,23 @@
     </div>
     <div class="chart-wrap" id="chart-wrap-rsi">
       <div id="tooltip-rsi"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Fear &amp; Greed (7D smoothed) vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Fear &amp; Greed</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Extreme Buy (≤20)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-tint)"></span>Buy (&lt;45)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-tint)"></span>Sell (≥55)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Extreme Sell (≥80)</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-fng">
+      <div id="tooltip-fng"></div>
     </div>
   </section>
 
@@ -1566,6 +1583,169 @@
     });
   }
 
+  // ---------- Fear & Greed (7D smoothed) vs price (price panel + F&G panel) ----------
+  function renderFngChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, FNG_H = 170, GAP = 28;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.9);
+    const logMax = Math.log10(Math.max(...prices) * 1.08);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (PRICE_H - PAD_TOP);
+
+    const fngTop = PRICE_H + GAP;
+    const yFng = (v) => fngTop + PAD_TOP * 0.4 + (1 - v / 100) * (FNG_H - PAD_TOP * 0.4 - 12);
+    const totalH = fngTop + FNG_H;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    // fng_score IS the raw 7D-smoothed F&G value (no separate
+    // normalization -- see indicators.build_indicator_table()), so
+    // DATA's own composite thresholds apply directly on this chart's
+    // axis, same 4-tier structure as the "Zones over time" chart.
+    {
+      const panelTop = PAD_TOP * 0.4 + fngTop, panelBottom = panelTop + (FNG_H - PAD_TOP * 0.4 - 12);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yFng, DATA.extreme_high_threshold, 100, panelTop, panelBottom, "var(--sell-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yFng, DATA.sell_threshold, DATA.extreme_high_threshold, panelTop, panelBottom, "var(--sell-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yFng, DATA.extreme_low_threshold, DATA.buy_threshold, panelTop, panelBottom, "var(--buy-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yFng, 0, DATA.extreme_low_threshold, panelTop, panelBottom, "var(--buy-band)");
+    }
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: fngTop + 10 }));
+    svg.querySelectorAll("text.chart-title")[1].textContent = "Fear & Greed (0–100)";
+    [0, 50, 100].forEach((v) => {
+      const y = yFng(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v;
+      svg.appendChild(t);
+    });
+    function buildFngPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.fng_smoothed === null || pt.fng_smoothed === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yFng(pt.fng_smoothed).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
+    svg.appendChild(el("path", { class: "rsi-line", d: buildFngPath() }));
+
+    [
+      [DATA.extreme_low_threshold, `extreme buy ≤ ${DATA.extreme_low_threshold}`],
+      [DATA.buy_threshold, `buy ≤ ${DATA.buy_threshold}`],
+      [DATA.sell_threshold, `sell ≥ ${DATA.sell_threshold}`],
+      [DATA.extreme_high_threshold, `extreme sell ≥ ${DATA.extreme_high_threshold}`],
+    ].forEach(([th, label]) => {
+      const y = yFng(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+    // "Neutral" has no threshold of its own -- it's the unshaded gap
+    // between buy_threshold and sell_threshold -- so it gets a label with
+    // no dashed line, centered in that gap (matches the composite chart).
+    {
+      const t = el("text", {
+        class: "axis-label", x: W - PAD_R,
+        y: (yFng(DATA.buy_threshold) + yFng(DATA.sell_threshold)) / 2 + 3,
+        "text-anchor": "end",
+      });
+      t.textContent = "neutral";
+      svg.appendChild(t);
+    }
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotFng = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotFng);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      let fngLine = "";
+      if (d.fng_smoothed != null) {
+        dotFng.style.opacity = 1;
+        dotFng.setAttribute("cx", px); dotFng.setAttribute("cy", yFng(d.fng_smoothed));
+        fngLine = `<div>F&amp;G ${d.fng_smoothed.toFixed(1)}</div>`;
+      } else {
+        dotFng.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / totalH) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${fngLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotFng].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
   // ---------- Bitcoin Supply in Loss (%) vs price (price panel + supply-loss panel) ----------
   function renderSupplyLossChart(wrapId, tooltipId, series) {
     const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
@@ -1861,6 +2041,7 @@
   const ma200wSeries = DATA.series.filter((d) => d.ma_200w != null);
   renderMaChart("chart-wrap-ma200w", "tooltip-ma200w", ma200wSeries);
   renderRsiChart("chart-wrap-rsi", "tooltip-rsi", DATA.series);
+  renderFngChart("chart-wrap-fng", "tooltip-fng", DATA.series);
   const supplyLossSeries = DATA.series.filter((d) => d.supply_in_loss_pct != null);
   renderSupplyLossChart("chart-wrap-supplyloss", "tooltip-supplyloss", supplyLossSeries);
   const mvrvSeries = DATA.series.filter((d) => d.mvrv_ratio != null);

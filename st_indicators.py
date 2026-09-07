@@ -20,6 +20,12 @@ project conversation), not eyeballed.
 
 import pandas as pd
 
+# Named so the dashboard's JS can derive the same raw-value buy/sell
+# thresholds normalize_pct_b() uses (for horizontal reference bands on
+# the Bollinger %B chart) without hardcoding the calibration twice --
+# same pattern as indicators.py's SUPPLY_LOSS_CLIP_RANGE/MVRV_CLIP_RANGE.
+BB_CLIP_RANGE = (-15, 115)
+
 
 def compute_fng_short_smoothed(fng_df: pd.DataFrame, window: int = 5) -> pd.DataFrame:
     """
@@ -102,7 +108,7 @@ def compute_bollinger_pct_b(price_df: pd.DataFrame, window: int = 20, num_std: f
     return df[["date", "price", "bb_mid", "bb_upper", "bb_lower", "pct_b"]]
 
 
-def normalize_pct_b(pct_b: pd.Series, clip_range: tuple = (-15, 115)) -> pd.Series:
+def normalize_pct_b(pct_b: pd.Series, clip_range: tuple = BB_CLIP_RANGE) -> pd.Series:
     """
     Rescales Bollinger %B to a clean 0-100 scale. %B is already close to
     0-100 by construction, but clip bounds are set a bit wider than the
