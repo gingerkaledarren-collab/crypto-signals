@@ -57,7 +57,7 @@ def fetch_btc_price_history(days: int = "max", force_refresh: bool = False) -> p
         resp.raise_for_status()
         values = resp.json()["values"]  # list of {"x": timestamp_s, "y": price}
         df = pd.DataFrame(values).rename(columns={"x": "timestamp_s", "y": "price"})
-        df["date"] = pd.to_datetime(df["timestamp_s"], unit="s").dt.normalize()
+        df["date"] = pd.to_datetime(df["timestamp_s"], unit="s").dt.normalize().astype("datetime64[ns]")
         return df[["date", "price"]]
 
     full = _fetch({"timespan": "all", "format": "json", "sampled": "false"})
@@ -83,7 +83,7 @@ def _fetch_fear_greed_alternative_me() -> pd.DataFrame:
     records = resp.json()["data"]
 
     df = pd.DataFrame(records)
-    df["date"] = pd.to_datetime(df["timestamp"].astype(int), unit="s").dt.normalize()
+    df["date"] = pd.to_datetime(df["timestamp"].astype(int), unit="s").dt.normalize().astype("datetime64[ns]")
     df["fng_value"] = df["value"].astype(int)
     df = df[["date", "fng_value", "value_classification"]].rename(
         columns={"value_classification": "fng_classification"}
@@ -114,7 +114,7 @@ def _fetch_fear_greed_coinmarketcap() -> pd.DataFrame:
     records = resp.json()["data"]["dataList"]
 
     df = pd.DataFrame(records)
-    df["date"] = pd.to_datetime(df["timestamp"].astype(int), unit="s").dt.normalize()
+    df["date"] = pd.to_datetime(df["timestamp"].astype(int), unit="s").dt.normalize().astype("datetime64[ns]")
     df["fng_value"] = df["score"].astype(int)
     df["fng_classification"] = df["name"].str.title()  # CMC uses "Extreme fear"; alternative.me uses "Extreme Fear"
     df = df[["date", "fng_value", "fng_classification"]]
@@ -186,7 +186,7 @@ def fetch_supply_in_profit_history(force_refresh: bool = False) -> pd.DataFrame:
     records = resp.json()  # list of [timestamp_ms, profit_pct]
 
     df = pd.DataFrame(records, columns=["timestamp_ms", "supply_in_profit_pct"])
-    df["date"] = pd.to_datetime(df["timestamp_ms"], unit="ms").dt.normalize()
+    df["date"] = pd.to_datetime(df["timestamp_ms"], unit="ms").dt.normalize().astype("datetime64[ns]")
     df = df[["date", "supply_in_profit_pct"]].dropna()
     df = df.sort_values("date").reset_index(drop=True)
 
@@ -224,7 +224,7 @@ def fetch_mvrv_history(force_refresh: bool = False) -> pd.DataFrame:
     records = resp.json()  # list of [timestamp_ms, mvrv_ratio]
 
     df = pd.DataFrame(records, columns=["timestamp_ms", "mvrv_ratio"])
-    df["date"] = pd.to_datetime(df["timestamp_ms"], unit="ms").dt.normalize()
+    df["date"] = pd.to_datetime(df["timestamp_ms"], unit="ms").dt.normalize().astype("datetime64[ns]")
     df = df[["date", "mvrv_ratio"]].dropna()
     df = df.sort_values("date").reset_index(drop=True)
 
