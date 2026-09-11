@@ -477,6 +477,9 @@
         <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="legend-line" style="border-color:var(--calm)"></span>MACD line</span>
         <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-muted);border-top-style:dashed"></span>Signal line</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Histogram (% of price)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert-band)"></span>Sell zone</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-macd">
@@ -1333,10 +1336,11 @@ __DATA_JSON__
     const x0 = dates[0], x1 = dates[dates.length - 1];
 
     const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
-    const PRICE_H = 150, MACD_H = 170, GAP = 26;
+    const PRICE_H = 150, MACD_H = 170, HIST_H = 170, GAP = 26;
     const plotW = W - PAD_L - PAD_R;
     const macdTop = PRICE_H + GAP;
-    const totalH = macdTop + MACD_H;
+    const histTop = macdTop + MACD_H + GAP;
+    const totalH = histTop + HIST_H;
 
     const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
 
@@ -1352,6 +1356,14 @@ __DATA_JSON__
     const macdPlotTop = macdTop + PAD_TOP * 0.4;
     const macdPlotH = MACD_H - PAD_TOP * 0.4 - 12;
     const yMacd = (v) => macdPlotTop + (1 - (v - (macdMin - macdPad)) / ((macdMax + macdPad) - (macdMin - macdPad))) * macdPlotH;
+
+    const histValues = series.map((d) => d.macd_hist_pct).filter((v) => v != null);
+    const histMin = Math.min(...histValues, 0);
+    const histMax = Math.max(...histValues, 0);
+    const histPad = (histMax - histMin) * 0.1 || 1;
+    const histPlotTop = histTop + PAD_TOP * 0.4;
+    const histPlotH = HIST_H - PAD_TOP * 0.4 - 12;
+    const yHist = (v) => histPlotTop + (1 - (v - (histMin - histPad)) / ((histMax + histPad) - (histMin - histPad))) * histPlotH;
 
     const svgNS = "http://www.w3.org/2000/svg";
     const svg = document.createElementNS(svgNS, "svg");
@@ -1403,6 +1415,55 @@ __DATA_JSON__
     zeroLabel.textContent = "0";
     svg.appendChild(zeroLabel);
 
+    // --- MACD histogram panel (% of price) -- this is the value macd_score
+    // is actually derived from, not the raw macd_line/macd_signal above
+    // (which are in ever-growing dollar terms over an 8-year, $3k-to-$120k+
+    // price history, so a FIXED buy/sell band on that panel wouldn't mean
+    // the same thing in 2018 as it does today). Bands here invert
+    // DATA.macd_clip_range the same way the Bollinger %B chart does.
+    const histTitle = el("text", { class: "chart-title", x: PAD_L, y: histTop + 10 });
+    histTitle.textContent = "MACD Histogram (% of price)";
+    svg.appendChild(histTitle);
+
+    const [macdClipLo, macdClipHi] = DATA.macd_clip_range;
+    const macdBuyAt = macdClipLo + (DATA.buy_threshold / 100) * (macdClipHi - macdClipLo);
+    const macdSellAt = macdClipLo + (DATA.sell_threshold / 100) * (macdClipHi - macdClipLo);
+    {
+      const panelTop = histPlotTop, panelBottom = histPlotTop + histPlotH;
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yHist, macdSellAt, histMax + histPad, panelTop, panelBottom, "var(--alert-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yHist, histMin - histPad, macdBuyAt, panelTop, panelBottom, "var(--buy-band)");
+    }
+
+    const histZeroY = yHist(0);
+    svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: histZeroY, y2: histZeroY }));
+    [histMin, 0, histMax].forEach((v) => {
+      const y = yHist(v);
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v.toFixed(2) + "%";
+      svg.appendChild(t);
+    });
+
+    function buildHistPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.macd_hist_pct === null || pt.macd_hist_pct === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yHist(pt.macd_hist_pct).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
+    svg.appendChild(el("path", { class: "rsi-line", d: buildHistPath() }));
+
+    [[macdSellAt, `sell zone ≥ ${macdSellAt.toFixed(2)}%`], [macdBuyAt, `buy zone ≤ ${macdBuyAt.toFixed(2)}%`]].forEach(([th, label]) => {
+      const y = yHist(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
     const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
     axisKeys.forEach((key) => {
       const first = series.find((d) => d.date.slice(0, 7) === key);
@@ -1416,10 +1477,12 @@ __DATA_JSON__
     const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
     const dotMacd = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--calm)", stroke: "var(--surface)", "stroke-width": 2 });
     const dotSignal = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-muted)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotHist = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
     svg.appendChild(crossLine);
     svg.appendChild(dotPrice);
     svg.appendChild(dotMacd);
     svg.appendChild(dotSignal);
+    svg.appendChild(dotHist);
 
     const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
     svg.appendChild(hit);
@@ -1458,14 +1521,23 @@ __DATA_JSON__
         dotSignal.style.opacity = 0;
       }
 
+      let histLine = "";
+      if (d.macd_hist_pct != null) {
+        dotHist.style.opacity = 1;
+        dotHist.setAttribute("cx", px); dotHist.setAttribute("cy", yHist(d.macd_hist_pct));
+        histLine = `<div>${dot("var(--ink)")}Histogram ${d.macd_hist_pct.toFixed(2)}%</div>`;
+      } else {
+        dotHist.style.opacity = 0;
+      }
+
       tooltip.style.opacity = 1;
       const wrapRect = wrap.getBoundingClientRect();
       tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
       tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (totalH + 16)) * rect.height) + "px";
-      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${macdLines}`;
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${macdLines}${histLine}`;
     });
     hit.addEventListener("mouseleave", () => {
-      [crossLine, dotPrice, dotMacd, dotSignal].forEach((n) => (n.style.opacity = 0));
+      [crossLine, dotPrice, dotMacd, dotSignal, dotHist].forEach((n) => (n.style.opacity = 0));
       tooltip.style.opacity = 0;
     });
   }

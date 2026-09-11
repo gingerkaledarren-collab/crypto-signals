@@ -636,10 +636,13 @@
       <h2>MVRV Ratio vs price (context only)</h2>
       <span class="section-sub">Not in composite — dropped after its cycle-top ceiling was found to be structurally
         declining (see README's "MVRV's declining ceiling"). Only ~4 years of free history available
-        (Sept 2022 onward) regardless.</span>
+        (Sept 2022 onward) regardless. Buy/sell bands below show what MVRV's own (still-computed but unweighted)
+        score would say on the same call bar as everything else here — not a claim it's a live signal.</span>
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>MVRV Ratio</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Sell zone</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-mvrv">
@@ -1931,10 +1934,6 @@
       return e;
     }
 
-    // No buy/sell reference bands here (unlike RSI/Supply-Loss) -- MVRV is
-    // no longer scored, so there's no threshold-derived zone to shade.
-    // This chart is context only; see the section note above.
-
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
     svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
     [Math.min(...prices), Math.max(...prices)].forEach((p) => {
@@ -1949,6 +1948,24 @@
 
     svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: mvrvTop + 10 }));
     svg.querySelectorAll("text.chart-title")[1].textContent = "MVRV Ratio";
+
+    // mvrv_score is still computed (normalize_mvrv(mvrv_ratio,
+    // DATA.mvrv_clip_range)) even though it's excluded from the live
+    // composite weighting -- invert that same clip range into raw MVRV
+    // buy/sell values so this context-only chart can show "what MVRV's
+    // own score would say," same as every other per-indicator chart,
+    // explicitly caveated as not a live composite signal (see section
+    // note above). Not inverted (high MVRV = high score = sell), same
+    // direction as RSI/Bollinger %B.
+    const [mvrvClipLo, mvrvClipHi] = DATA.mvrv_clip_range;
+    const mvrvBuyAt = mvrvClipLo + (DATA.buy_threshold / 100) * (mvrvClipHi - mvrvClipLo);
+    const mvrvSellAt = mvrvClipLo + (DATA.sell_threshold / 100) * (mvrvClipHi - mvrvClipLo);
+    {
+      const panelTop = mvrvTop + PAD_TOP * 0.4, panelBottom = panelTop + (MVRV_H - PAD_TOP * 0.4 - 12);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yMvrv, mvrvSellAt, mvrvMax, panelTop, panelBottom, "var(--sell-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yMvrv, mvrvMin, mvrvBuyAt, panelTop, panelBottom, "var(--buy-band)");
+    }
+
     [Math.min(...mvrvValues), Math.max(...mvrvValues)].forEach((v) => {
       const y = yMvrv(v);
       svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
@@ -1974,6 +1991,14 @@
       return d.trim();
     }
     svg.appendChild(el("path", { class: "rsi-line", d: buildMvrvPath() }));
+
+    [[mvrvSellAt, `sell ≥ ${mvrvSellAt.toFixed(2)}`], [mvrvBuyAt, `buy ≤ ${mvrvBuyAt.toFixed(2)}`]].forEach(([th, label]) => {
+      const y = yMvrv(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
 
     const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
     years.forEach((y) => {

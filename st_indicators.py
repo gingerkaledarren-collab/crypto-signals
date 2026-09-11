@@ -26,6 +26,11 @@ import pandas as pd
 # same pattern as indicators.py's SUPPLY_LOSS_CLIP_RANGE/MVRV_CLIP_RANGE.
 BB_CLIP_RANGE = (-15, 115)
 
+# Same purpose, for normalize_macd()'s clip bounds -- lets the MACD
+# histogram chart derive its own horizontal buy/sell bands instead of
+# hardcoding the calibration twice.
+MACD_CLIP_RANGE = (-1.9, 1.83)
+
 
 def compute_fng_short_smoothed(fng_df: pd.DataFrame, window: int = 5) -> pd.DataFrame:
     """
@@ -149,7 +154,7 @@ def compute_macd(price_df: pd.DataFrame, fast: int = 12, slow: int = 26, signal:
     return df[["date", "macd_line", "macd_signal", "macd_hist_pct"]]
 
 
-def normalize_macd(macd_hist_pct: pd.Series, clip_range: tuple = (-1.9, 1.83)) -> pd.Series:
+def normalize_macd(macd_hist_pct: pd.Series, clip_range: tuple = MACD_CLIP_RANGE) -> pd.Series:
     """
     Maps the MACD histogram (as % of price) to a 0-100 scale. Clip bounds
     from the 2018-present ~5th/95th percentiles.

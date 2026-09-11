@@ -15,7 +15,7 @@ import json
 import argparse
 import pandas as pd
 from fetch_data import fetch_btc_price_history, fetch_fear_greed_history
-from st_indicators import build_st_indicator_table, BB_CLIP_RANGE
+from st_indicators import build_st_indicator_table, BB_CLIP_RANGE, MACD_CLIP_RANGE
 from scoring import compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions, apply_signal_cooldown
 from st_backtest import ST_DEFAULT_WEIGHTS
 from st_current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEFAULT_CONFIRM_DAYS, INDICATOR_LABELS
@@ -61,6 +61,7 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
         "confirm_days": confirm_days,
         "cooldown_days": cooldown_days,
         "bb_clip_range": list(BB_CLIP_RANGE),
+        "macd_clip_range": list(MACD_CLIP_RANGE),
         "indicators": [
             {"key": key, "label": label, "value": round(float(latest[key]), 1)}
             for key, label in INDICATOR_LABELS.items()
@@ -86,6 +87,7 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
                 "ma50": round(float(row["ma50"]), 2) if pd.notna(row["ma50"]) else None,
                 "macd_line": round(float(row["macd_line"]), 2) if pd.notna(row["macd_line"]) else None,
                 "macd_signal": round(float(row["macd_signal"]), 2) if pd.notna(row["macd_signal"]) else None,
+                "macd_hist_pct": round(float(row["macd_hist_pct"]), 3) if pd.notna(row["macd_hist_pct"]) else None,
                 "fng_short_smoothed": round(float(row["fng_short_smoothed"]), 2) if pd.notna(row["fng_short_smoothed"]) else None,
                 "pct_b": round(float(row["pct_b"]), 2) if pd.notna(row["pct_b"]) else None,
             }
