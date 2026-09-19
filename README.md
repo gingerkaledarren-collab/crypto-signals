@@ -600,9 +600,9 @@ on `LIVE_WEIGHTS` after the change: TRAIN-best config unchanged
 +3.5pp), TEST roughly flat (-3.1pp to -3.9pp) -- a minor, non-disruptive
 tweak, not a repeat of the MVRV-style overhaul.
 
-Separately tested and rejected: dropping `ma_200w_score` from the
-composite entirely (mirroring the MVRV removal), on the theory that its
-own clip-range issue might mean it's not pulling its weight either.
+Separately tested and initially rejected: dropping `ma_200w_score` from
+the composite entirely (mirroring the MVRV removal), on the theory that
+its own clip-range issue might mean it's not pulling its weight either.
 Walk-forward said otherwise, decisively -- TRAIN spread cratered to
 -22.7pp (worse than any weight-rebalance failure tried this session) and
 TEST fell to -9.7pp, because 200w MA distance is the one genuinely
@@ -610,7 +610,23 @@ slow-moving, long-term valuation signal in the mix; removing it leaves
 the composite dominated by three faster, more reactive indicators
 (F&G, RSI, Supply-in-Loss) -- the same failure mode already seen when
 weight was pulled away from the slower indicators toward those three
-(see "Weight-rebalancing experiments" above). Kept in the composite.
+(see "Weight-rebalancing experiments" above). Kept in the composite at
+the time.
+
+**Update: removed from the composite after all, by explicit request.**
+Re-run against the current data pipeline, the same removal test still
+shows a decisive negative result -- every config in the standard
+threshold sweep came back with a negative TRAIN spread (best:
+sell=70/buy=30/confirm=3d at -21.2pp), and that config's TEST spread was
+-4.3pp. This is reported the same way as the Pi-Cycle/Supply-in-Loss
+swap and the 7-day F&G smoothing window above: not a validated
+improvement, live anyway because it was explicitly requested with the
+numbers already in hand. Unlike the MVRV removal (which tested BETTER),
+this one is a knowing trade-off, not a fix. `ma_200w_score` is still
+computed by `indicators.build_indicator_table()` regardless (nothing
+about `LIVE_WEIGHTS` excluding it changes what gets fetched or scored
+per-indicator) and is still shown on the dashboard as a standalone,
+context-only chart with its own buy/sell bands, same treatment as MVRV.
 
 ## The second system: short-term signal (`st_backtest.py`)
 

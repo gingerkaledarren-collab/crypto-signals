@@ -46,11 +46,13 @@ reasoning. MVRV Ratio is still fetched and still shown on the dashboard
 as a standalone, context-only chart (same treatment as the 21w/34w EMA
 lines) -- visible, not scored.
 
-Thresholds (sell=55, buy=45, confirm=5d) are the TRAIN-selected best for
-the current 4-indicator equal-weighted LIVE_WEIGHTS (re-verified against
-the current data pipeline -- fng_window=7 -- not inherited from an
-earlier, now-stale 60/40/5d that predates the Supply-in-Loss/MVRV
-additions).
+Thresholds (sell=55, buy=45, confirm=5d) were the TRAIN-selected best for
+the 4-indicator equal-weighted LIVE_WEIGHTS that included 200w MA
+distance (re-verified against the current data pipeline -- fng_window=7
+-- not inherited from an earlier, now-stale 60/40/5d that predates the
+Supply-in-Loss/MVRV additions). Left unchanged after 200w MA distance's
+removal (see module docstring) since the resulting 3-indicator sweep has
+no positive-spread config to re-tune to.
 
 Zones are FIVE-tier (extreme_buy/buy_zone/neutral/sell_zone/
 extreme_sell), by request, not the original three-tier buy/sell/neutral
@@ -68,6 +70,31 @@ grown to capture the top ~22% of readings instead of its own stated
 and, as a side effect, makes the extreme band symmetric with
 EXTREME_LOW_THRESHOLD (20/80, both 20 points from their respective
 edges) -- see scoring.py's own comment for the full numbers.
+
+200-WEEK MA DISTANCE WAS DROPPED FROM THE COMPOSITE ENTIRELY, by explicit
+request, made fully informed after walk-forward testing showed this is
+NOT a validated improvement (unlike the MVRV removal above) -- it's the
+opposite finding. With ma_200w_score removed and the remaining three
+indicators (F&G, RSI, Supply-in-Loss) equal-weighted, every threshold
+config in the standard sweep came back with a NEGATIVE TRAIN spread
+(best: sell=70/buy=30/confirm=3d at -21.2pp), and the TEST spread on that
+same config was -4.3pp -- both worse than keeping it (+3.5pp TRAIN as of
+the last check in README's "200-week MA distance" section). 200w MA
+distance is the one genuinely slow-moving, long-term valuation signal in
+this mix; removing it leaves the composite dominated by three faster,
+more reactive indicators, the same failure mode already seen whenever
+weight was pulled away from it (see "Weight-rebalancing experiments" and
+the 200w-MA-removal test documented in README). Removed anyway, by
+request, the same way the Pi-Cycle/Supply-in-Loss swap and the 7-day F&G
+smoothing window are live despite not being the validated choice -- see
+README's "200-week MA distance: the same maturity check, different
+answer" for the numbers. ma_200w_score is still fetched and computed
+(indicators.build_indicator_table() always computes it) and still shown
+on the dashboard as a standalone, context-only chart with its own
+buy/sell bands (same treatment as MVRV) -- visible, not scored. Existing
+thresholds (55/45/5d) were left unchanged rather than re-tuned to the
+new sweep's best config, since every option in that sweep is negative --
+there's no better choice to switch to, only a less-bad one.
 """
 
 import argparse
@@ -90,20 +117,19 @@ DEFAULT_CONFIRM_DAYS = 5
 # disagree about the live signal on any given day.
 DEFAULT_FNG_WINDOW = 7
 
-# The live composite: 200w MA distance, Fear & Greed, weekly RSI, and
-# Bitcoin Supply in Loss %, equal-weighted -- Pi Cycle Top removed by
-# request; several weight rebalances were tried and reverted; MVRV Ratio
-# was tried, then dropped entirely (see module docstring above for all
-# three). See the module docstring for the walk-forward results.
+# The live composite: Fear & Greed, weekly RSI, and Bitcoin Supply in
+# Loss %, equal-weighted -- Pi Cycle Top removed by request; several
+# weight rebalances were tried and reverted; MVRV Ratio and, later, 200w
+# MA distance were each tried, then dropped entirely (see module
+# docstring above for all four). See the module docstring for the
+# walk-forward results.
 LIVE_WEIGHTS = {
-    "ma_200w_score": 0.25,
-    "fng_score": 0.25,
-    "rsi_score": 0.25,
-    "supply_loss_score": 0.25,
+    "fng_score": 1 / 3,
+    "rsi_score": 1 / 3,
+    "supply_loss_score": 1 / 3,
 }
 
 INDICATOR_LABELS = {
-    "ma_200w_score": "200-week MA distance",
     "fng_score": "Fear & Greed (30d smoothed)",
     "rsi_score": "Weekly RSI",
     "supply_loss_score": "Bitcoin Supply in Loss (%)",
