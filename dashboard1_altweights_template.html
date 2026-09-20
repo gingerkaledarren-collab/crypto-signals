@@ -1,0 +1,2097 @@
+<title>Signal Dashboard (40/40/20)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --bg: #EEF0F3;
+    --surface: #FFFFFF;
+    --surface-2: #E4E8EE;
+    --border: #D3D8E0;
+    --ink: #14181F;
+    --ink-2: #4A5160;
+    --ink-muted: #7B8394;
+    --accent: #B8842B;
+    --accent-strong: #8F661E;
+    --buy: #2E6FA6;
+    --buy-strong: #1F5480;
+    --buy-tint: rgba(46, 111, 166, 0.10);
+    --buy-band: rgba(46, 111, 166, 0.14);
+    --sell: #B8842B;
+    --sell-strong: #8F661E;
+    --sell-tint: rgba(184, 132, 43, 0.10);
+    --sell-band: rgba(184, 132, 43, 0.16);
+    --neutral: #6B7280;
+    --neutral-band: rgba(107, 114, 128, 0.08);
+    --phase-accum: rgba(46, 154, 107, 0.16);
+    --phase-accum-strong: #2E9A6B;
+    --phase-markup: rgba(46, 111, 166, 0.16);
+    --phase-markup-strong: #2E6FA6;
+    --phase-distrib: rgba(217, 138, 43, 0.16);
+    --phase-distrib-strong: #D98A2B;
+    --phase-markdown: rgba(192, 57, 43, 0.16);
+    --phase-markdown-strong: #C0392B;
+    --shadow: 0 1px 2px rgba(20, 24, 31, 0.04), 0 8px 24px -12px rgba(20, 24, 31, 0.18);
+    --grid-line: #DEE2E9;
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10131A;
+      --surface: #171B24;
+      --surface-2: #1E2430;
+      --border: #2A3140;
+      --ink: #F3F5F8;
+      --ink-2: #C3CAD6;
+      --ink-muted: #8A93A3;
+      --accent: #E0A94A;
+      --accent-strong: #F0C071;
+      --buy: #4A93D4;
+      --buy-strong: #7CB3E3;
+      --buy-tint: rgba(74, 147, 212, 0.14);
+      --buy-band: rgba(74, 147, 212, 0.18);
+      --sell: #E0A94A;
+      --sell-strong: #F0C071;
+      --sell-tint: rgba(224, 169, 74, 0.14);
+      --sell-band: rgba(224, 169, 74, 0.18);
+      --neutral: #8A93A3;
+      --neutral-band: rgba(138, 147, 163, 0.10);
+      --phase-accum: rgba(70, 189, 129, 0.18);
+      --phase-accum-strong: #5FCB93;
+      --phase-markup: rgba(74, 147, 212, 0.18);
+      --phase-markup-strong: #7CB3E3;
+      --phase-distrib: rgba(224, 169, 74, 0.18);
+      --phase-distrib-strong: #F0C071;
+      --phase-markdown: rgba(224, 92, 74, 0.18);
+      --phase-markdown-strong: #F08A74;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -12px rgba(0, 0, 0, 0.5);
+      --grid-line: #262D3A;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #10131A;
+    --surface: #171B24;
+    --surface-2: #1E2430;
+    --border: #2A3140;
+    --ink: #F3F5F8;
+    --ink-2: #C3CAD6;
+    --ink-muted: #8A93A3;
+    --accent: #E0A94A;
+    --accent-strong: #F0C071;
+    --buy: #4A93D4;
+    --buy-strong: #7CB3E3;
+    --buy-tint: rgba(74, 147, 212, 0.14);
+    --buy-band: rgba(74, 147, 212, 0.18);
+    --sell: #E0A94A;
+    --sell-strong: #F0C071;
+    --sell-tint: rgba(224, 169, 74, 0.14);
+    --sell-band: rgba(224, 169, 74, 0.18);
+    --neutral: #8A93A3;
+    --neutral-band: rgba(138, 147, 163, 0.10);
+    --phase-accum: rgba(70, 189, 129, 0.18);
+    --phase-accum-strong: #5FCB93;
+    --phase-markup: rgba(74, 147, 212, 0.18);
+    --phase-markup-strong: #7CB3E3;
+    --phase-distrib: rgba(224, 169, 74, 0.18);
+    --phase-distrib-strong: #F0C071;
+    --phase-markdown: rgba(224, 92, 74, 0.18);
+    --phase-markdown-strong: #F08A74;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px -12px rgba(0, 0, 0, 0.5);
+    --grid-line: #262D3A;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Public Sans", -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: clamp(16px, 4vw, 48px);
+  }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  h1 {
+    font-family: "Big Shoulders Display", sans-serif;
+    font-weight: 800;
+    font-size: clamp(28px, 4.4vw, 40px);
+    line-height: 1;
+    letter-spacing: 0.01em;
+    margin: 4px 0 0;
+    text-wrap: balance;
+  }
+
+  h2 {
+    font-family: "Big Shoulders Display", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: 0.01em;
+    margin: 0;
+    color: var(--ink);
+  }
+
+  header.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 18px;
+  }
+
+  .top-meta {
+    text-align: right;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .top-meta .price {
+    font-family: "Big Shoulders Display", sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    color: var(--ink);
+    display: block;
+    margin-top: 2px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 22px 24px;
+  }
+
+  /* ---- Hero status ---- */
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(220px, 320px) 1fr;
+    gap: 28px;
+    align-items: center;
+  }
+
+  .zone-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    width: fit-content;
+  }
+  .zone-badge.buy_zone { background: var(--buy-tint); color: var(--buy-strong); border: 1px solid var(--buy); }
+  .zone-badge.sell_zone { background: var(--sell-tint); color: var(--sell-strong); border: 1px solid var(--sell); }
+  .zone-badge.neutral { background: var(--neutral-band); color: var(--ink-2); border: 1px solid var(--border); }
+  /* Extreme tiers get a solid fill (vs. the tint used for plain buy/sell)
+     so they read as visually "louder" -- a stronger call, not just a
+     different color. */
+  .zone-badge.extreme_buy { background: var(--buy); color: var(--surface); border: 1px solid var(--buy-strong); }
+  .zone-badge.extreme_sell { background: var(--sell); color: var(--surface); border: 1px solid var(--sell-strong); }
+  .zone-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .hero-score {
+    font-family: "Big Shoulders Display", sans-serif;
+    font-weight: 800;
+    font-size: 76px;
+    line-height: 0.95;
+    margin: 10px 0 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-score .unit { font-size: 22px; font-weight: 600; color: var(--ink-muted); margin-left: 6px; }
+
+  .hero-caption {
+    font-size: 13.5px;
+    color: var(--ink-2);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .gauge-track {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(to right, var(--buy) 0%, var(--buy) 40%, var(--neutral) 50%, var(--sell) 60%, var(--sell) 100%);
+    opacity: 0.85;
+    margin-top: 18px;
+  }
+  .gauge-marker {
+    position: absolute;
+    top: -5px;
+    width: 3px;
+    height: 20px;
+    background: var(--ink);
+    border-radius: 2px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+  .gauge-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-muted);
+    margin-top: 6px;
+  }
+
+  .caveat {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    line-height: 1.55;
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+    margin-top: 16px;
+  }
+
+  .ema-context {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+    line-height: 1.55;
+    margin-top: 12px;
+  }
+  .ema-context .dash-swatch { margin-top: 7px; }
+  .dash-swatch {
+    display: inline-block;
+    width: 18px;
+    height: 0;
+    border-top: 2px dashed var(--ink-muted);
+    flex-shrink: 0;
+  }
+  .ema-context b { color: var(--ink); font-family: "IBM Plex Mono", monospace; }
+
+  .line-swatch {
+    display: inline-block;
+    width: 16px;
+    height: 0;
+    border-top: 2.5px solid var(--ink-muted);
+    flex-shrink: 0;
+  }
+
+  /* ---- Indicator grid ---- */
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .section-sub { font-size: 12.5px; color: var(--ink-muted); }
+
+  .indicator-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .indicator-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .indicator-label {
+    font-size: 12.5px;
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+
+  .indicator-value {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600;
+    font-size: 22px;
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .indicator-value.v-buy { color: var(--buy-strong); }
+  .indicator-value.v-sell { color: var(--sell-strong); }
+  .indicator-value.v-neutral { color: var(--ink-2); }
+
+  .mini-track {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--border);
+    margin-top: 10px;
+  }
+  .mini-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 999px; }
+  .mini-fill.f-buy { background: var(--buy); }
+  .mini-fill.f-sell { background: var(--sell); }
+  .mini-fill.f-neutral { background: var(--neutral); }
+  .mini-tick { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--ink-muted); opacity: 0.55; }
+
+  /* ---- Chart section ---- */
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 11px; height: 11px; border-radius: 3px; }
+
+  .chart-wrap {
+    margin-top: 16px;
+    position: relative;
+  }
+
+  svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
+  .axis-label { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; fill: var(--ink-muted); }
+  .grid-line { stroke: var(--grid-line); stroke-width: 1; }
+  .threshold-line { stroke: var(--ink-muted); stroke-width: 1; stroke-dasharray: 3 4; }
+  .price-line { fill: none; stroke: var(--ink-2); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .ema-line { fill: none; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; opacity: 0.7; }
+  .ema-line.ema21 { stroke: var(--ink-muted); stroke-dasharray: 5 3; }
+  .ema-line.ema34 { stroke: var(--ink-muted); stroke-dasharray: 1 3; }
+  .composite-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ma200w-line { fill: none; stroke: var(--buy); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .rsi-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .chart-title { font-family: "Big Shoulders Display", sans-serif; font-size: 14px; font-weight: 700; fill: var(--ink-2); text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .crosshair-line { stroke: var(--ink-muted); stroke-width: 1; pointer-events: none; opacity: 0; }
+  .crosshair-dot { pointer-events: none; opacity: 0; }
+
+  #tooltip, #tooltip-recent, #tooltip-ma200w, #tooltip-rsi, #tooltip-fng, #tooltip-supplyloss, #tooltip-mvrv, #tooltip-cycle, #tooltip-elliott {
+    position: absolute;
+    pointer-events: none;
+    background: var(--ink);
+    color: var(--bg);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11.5px;
+    line-height: 1.6;
+    padding: 8px 10px;
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    transform: translate(-50%, -110%);
+    white-space: nowrap;
+    z-index: 5;
+    transition: opacity 0.08s ease;
+  }
+  #tooltip .tt-zone, #tooltip-recent .tt-zone { text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  #tooltip .tt-zone.buy_zone, #tooltip-recent .tt-zone.buy_zone { color: var(--buy-strong); filter: brightness(1.6); }
+  #tooltip .tt-zone.sell_zone, #tooltip-recent .tt-zone.sell_zone { color: var(--sell-strong); filter: brightness(1.6); }
+  #tooltip .tt-zone.neutral, #tooltip-recent .tt-zone.neutral { color: var(--neutral); }
+
+  .chart-hit { fill: transparent; cursor: crosshair; }
+
+  /* ---- Table ---- */
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+  th { text-align: left; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-muted); font-weight: 600; padding: 0 10px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  tr:last-child td { border-bottom: none; }
+  td.zone-cell { font-family: "Public Sans", sans-serif; }
+  .table-wrap { overflow-x: auto; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .pill.buy_zone { background: var(--buy-tint); color: var(--buy-strong); }
+  .pill.sell_zone { background: var(--sell-tint); color: var(--sell-strong); }
+  /* Solid-filled, like the hero badge's extreme tiers -- a visually
+     louder pill than the tinted buy_zone/sell_zone above, distinct from
+     the OUTLINED extreme_low/extreme_high pills below (those describe a
+     separate, no-confirmation-delay rarity stat, not a signal tier). */
+  .pill.extreme_buy { background: var(--buy); color: var(--surface); }
+  .pill.extreme_sell { background: var(--sell); color: var(--surface); }
+  /* Extreme-zone pills are outlined, not filled -- a deliberately different
+     treatment from the buy/sell signal pills above, so "rare historically"
+     doesn't read as the same kind of claim as "act on this." */
+  .pill.extreme_low { background: transparent; color: var(--buy-strong); border: 1.5px solid var(--buy); }
+  .pill.extreme_high { background: transparent; color: var(--sell-strong); border: 1.5px solid var(--sell); }
+
+  footer {
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.6;
+    padding: 4px 4px 0;
+  }
+  footer a { color: var(--ink-2); }
+
+  @media (max-width: 620px) {
+    .hero { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="page">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Long-term BTC positioning &middot; comparison variant</div>
+      <h1>Signal Dashboard (40/40/20)</h1>
+    </div>
+    <div class="top-meta">
+      As of <span id="as-of-date"></span>
+      <span class="price" id="hero-price"></span>
+    </div>
+  </header>
+
+  <section class="card hero">
+    <div>
+      <span class="zone-badge" id="zone-badge"><span class="dot"></span><span id="zone-badge-text"></span></span>
+      <div class="hero-score" id="hero-score">--<span class="unit">/ 100</span></div>
+      <div class="hero-caption" id="hero-caption"></div>
+    </div>
+    <div>
+      <div class="gauge-track">
+        <div class="gauge-marker" id="gauge-marker"></div>
+      </div>
+      <div class="gauge-ticks">
+        <span>0</span>
+        <span id="extreme-buy-th-label">20</span>
+        <span id="buy-th-label">40</span>
+        <span id="sell-th-label">60</span>
+        <span id="extreme-sell-th-label">70</span>
+        <span>100</span>
+      </div>
+      <div class="caveat">
+        <b>Comparison variant, not the live signal:</b> composite here weights Fear &amp; Greed and Weekly RSI at
+        40% each and Bitcoin Supply in Loss at 20%, instead of the live dashboard's equal 1/3 each. Walk-forward
+        testing found this weighting decisively worse (TEST spread -13.3pp vs. -2.7pp for the live weighting) —
+        published side by side purely so the two can be compared, not as a proposed replacement. See the main
+        "Signal Dashboard" for the live composite, and the repo README for full methodology and caveats.
+      </div>
+      <div class="ema-context" id="ema-context"></div>
+      <div class="ema-context" id="cycle-context"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Indicator breakdown</h2>
+      <span class="section-sub">0 = extreme fear / undervalued&nbsp;&nbsp;·&nbsp;&nbsp;100 = extreme greed / overvalued
+        &nbsp;&nbsp;·&nbsp;&nbsp;weighted F&amp;G 40% / RSI 40% / Supply-in-Loss 20%</span>
+    </div>
+    <div class="indicator-grid" id="indicator-grid"></div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Zones over time</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-strong)"></span>Extreme Buy</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--neutral)"></span>Neutral</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell)"></span>Sell zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-strong)"></span>Extreme Sell</span>
+        <span class="legend-item"><span class="dash-swatch" style="border-top:2px dashed var(--ink-muted)"></span>21w / 34w EMA (context, not in composite)</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap">
+      <div id="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Zones over time — last 24 months</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-strong)"></span>Extreme Buy</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--neutral)"></span>Neutral</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell)"></span>Sell zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-strong)"></span>Extreme Sell</span>
+        <span class="legend-item"><span class="dash-swatch" style="border-top:2px dashed var(--ink-muted)"></span>21w / 34w EMA (context, not in composite)</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-recent">
+      <div id="tooltip-recent"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>BTC price vs halving cycle</h2>
+      <span class="section-sub">Wyckoff-style phase shading, context only, not in composite — see note above</span>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="dash-swatch" style="border-top:2px dashed var(--accent)"></span>Halving</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--phase-accum)"></span>Accumulation</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--phase-markup)"></span>Markup</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--phase-distrib)"></span>Distribution</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--phase-markdown)"></span>Markdown</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-cycle">
+      <div id="tooltip-cycle"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Elliott Wave (illustrative only)</h2>
+      <span class="section-sub">Mechanically generated, not in composite — see caveat below</span>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--accent)"></span>Zigzag swing (<span id="elliott-threshold"></span>% reversal filter)</span>
+      </div>
+    </div>
+    <div class="caveat" style="margin-top:14px;padding-top:0;border-top:none;">
+      This is <b>not</b> a validated Elliott Wave count. Elliott Wave analysis is inherently subjective — trained
+      analysts routinely disagree on the same chart. What's plotted here is a purely mechanical swing detector (a
+      zigzag filter that marks a new pivot whenever price reverses by more than the threshold shown) with the
+      classic 1-2-3-4-5-A-B-C labels applied by counting pivots in order and cycling every 8. It does <b>not</b>
+      check any actual Elliott rule (wave 2 can't retrace past wave 1's start, wave 3 is never the shortest, wave 4
+      shouldn't overlap wave 1, alternation, Fibonacci ratios) and has no concept of nested sub-waves, truncations,
+      or extensions. Treat the labels as "one arbitrary count a simple algorithm produced," not a claim about the
+      real wave structure — a different reversal threshold would produce an entirely different count.
+    </div>
+    <div class="chart-wrap" id="chart-wrap-elliott">
+      <div id="tooltip-elliott"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>200-week MA vs price (context only)</h2>
+      <span class="section-sub">Not in composite — removed by explicit request even though walk-forward testing
+        found this makes the composite's forward-return spread go strongly negative (every threshold config tested
+        came back negative; see README's "200-week MA distance: the same maturity check, different answer").
+        Buy/sell bands below show what this indicator's own (still-computed but unweighted) score would say on the
+        same call bar as everything else here — not a claim it's a validated live signal.</span>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--buy)"></span>200-week MA</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Sell zone</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-ma200w">
+      <div id="tooltip-ma200w"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Weekly RSI vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Weekly RSI</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Extremely oversold (≤30)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-tint)"></span>Oversold (&lt;50)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-tint)"></span>Overbought (≥50)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Extremely overbought (≥70)</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-rsi">
+      <div id="tooltip-rsi"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Fear &amp; Greed (7D smoothed) vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Fear &amp; Greed</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Extreme Buy (≤20)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-tint)"></span>Buy (&lt;45)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-tint)"></span>Sell (≥55)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Extreme Sell (≥80)</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-fng">
+      <div id="tooltip-fng"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Bitcoin Supply in Loss (%) vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Supply in Loss (%)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Sell zone</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-supplyloss">
+      <div id="tooltip-supplyloss"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>MVRV Ratio vs price (context only)</h2>
+      <span class="section-sub">Not in composite — dropped after its cycle-top ceiling was found to be structurally
+        declining (see README's "MVRV's declining ceiling"). Only ~4 years of free history available
+        (Sept 2022 onward) regardless. Buy/sell bands below show what MVRV's own (still-computed but unweighted)
+        score would say on the same call bar as everything else here — not a claim it's a live signal.</span>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>MVRV Ratio</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Sell zone</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-mvrv">
+      <div id="tooltip-mvrv"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Recent confirmed signals</h2>
+      <span class="section-sub">Held past the confirmation window — see README for methodology</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Price</th><th>Composite</th><th>Signal</th></tr></thead>
+        <tbody id="signals-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Extreme zone history</h2>
+      <span class="section-sub" id="extreme-sub"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Period</th><th>Days</th><th>Zone</th><th>Price start → end</th><th>Composite range</th></tr></thead>
+        <tbody id="extreme-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <b>This is a side-by-side COMPARISON VARIANT of the live "Signal Dashboard," not itself a live signal.</b>
+    Same three indicators, same thresholds, but weighted 40% Fear &amp; Greed / 40% weekly RSI / 20% Bitcoin
+    Supply in Loss instead of the live equal 1/3 each. Walk-forward testing (fresh check, 2026-09-20 data) found
+    this weighting decisively worse than the live equal-weighting on the out-of-sample TEST period (-13.3pp vs.
+    -2.7pp; both TRAIN-best spreads land at -21.2pp), because it pulls weight away from Supply-in-Loss — the
+    slower, more contrarian indicator — toward the two faster momentum indicators, which tend to confirm trend
+    rather than call reversals. Published only so the two weightings can be viewed side by side; not a proposed
+    replacement for the live composite.
+    <br><br>
+    Data: blockchain.info (BTC price), Fear &amp; Greed Index blended from alternative.me (history before ~June
+    2023) and CoinMarketCap (from that point forward), Bitcoin Supply in Loss % from BGeometrics. Composite =
+    <b>7d-smoothed</b> Fear &amp; Greed, weekly RSI, and Bitcoin Supply in Loss %, weighted 40%/40%/20% here,
+    normalized 0–100. <b>By explicit request, Pi Cycle Top ratio was removed and Supply in
+    Loss % added in its place — walk-forward testing found this didn't improve the composite's forward-return
+    signal</b> (0.9pp TRAIN / 0.8pp TEST spread here vs. 10.3pp/10.3pp for the Pi-Cycle-based composite it
+    replaces); live anyway, by explicit request, fully informed, the same way Dashboard 2 already ships a
+    composite that isn't separately validated — see the README's "Removing Pi Cycle Top, adding Supply in
+    Loss %" for the full comparison. <b>MVRV Ratio was also tried in the composite, then dropped entirely</b>
+    after its cycle-top ceiling was found to be structurally declining across BTC's history (~7 in 2013, ~5 in
+    2017, ~4 in 2021, ~2.6-2.7 this cycle) — every attempt to keep and reweight it (including downweighting to
+    5-10%) still failed the TRAIN walk-forward sweep, while dropping it outright tested better than every
+    weighted variant, including equal-weighting all 5; see the README's "MVRV's declining ceiling" and "Weight-
+    rebalancing experiments" for the full numbers. MVRV Ratio is still shown below as a standalone, context-only
+    chart. <b>200-week MA distance was also dropped from the composite, by explicit request</b> — unlike the
+    MVRV removal, this one is NOT a validated improvement: with it removed, every threshold config in the
+    standard walk-forward sweep came back with a negative forward-return spread (best config: -21.2pp TRAIN,
+    -4.3pp TEST), because it was the one genuinely slow-moving, long-term valuation signal balancing the three
+    faster indicators left in the mix. Removed anyway, fully informed; still shown below as a standalone,
+    context-only chart — see the README's "200-week MA distance: the same maturity check, different answer"
+    for the full numbers. Separately: <b>the 7-day Fear &amp; Greed smoothing window is also an experimental
+    variant</b> — the validated 30-day window scored higher on its own (10.3pp vs. 7.8pp TRAIN spread, tested
+    before the changes above). The dashed 21w/34w EMA lines (a trader Alessio Rastani-style support structure)
+    are shown for context only — testing found adding them to the composite weakened out-of-sample performance,
+    so they're tracked but not scored; see the README's "Why the EMA structure indicator isn't in the default
+    weighting." Not financial advice — generated from <code>crypto-signals</code>, run
+    <code>current_status.py</code> for a live check.
+  </footer>
+</div>
+
+<script>
+  const DATA = __DASHBOARD1_DATA_JSON__;
+</script>
+<script>
+(function () {
+  const fmtUSD = (n) => "$" + Math.round(n).toLocaleString("en-US");
+
+  // Per-indicator buy/sell zone, using this indicator's OWN 0-100 score
+  // against the same buy/sell thresholds the live composite uses -- not
+  // a claim any single indicator is separately validated at these
+  // cutoffs, just "what would this one signal say, on the same call bar
+  // as everything else here."
+  function zoneForScore(score) {
+    if (score == null) return null;
+    if (score <= DATA.buy_threshold) return "buy_zone";
+    if (score >= DATA.sell_threshold) return "sell_zone";
+    return "neutral";
+  }
+  function zoneColor(zone) {
+    if (zone === "buy_zone") return "var(--buy-band)";
+    if (zone === "sell_zone") return "var(--sell-band)";
+    return null;
+  }
+
+  // Classic 4-phase Wyckoff cycle coloring (by request), computed from
+  // days-since-halving in indicators.py's compute_wyckoff_phases() -- see
+  // that function's docstring for the CONTEXT ONLY caveat.
+  function wyckoffPhaseColor(phase) {
+    return ({
+      accumulation: "var(--phase-accum)",
+      markup: "var(--phase-markup)",
+      distribution: "var(--phase-distrib)",
+      markdown: "var(--phase-markdown)",
+    })[phase] || null;
+  }
+
+  // Weekly RSI's own 4-tier scheme (by request): a mild lean either side
+  // of the 50 midpoint, an extreme lean beyond the classic 70/30 RSI
+  // overbought/oversold levels. Every non-null score falls into exactly
+  // one tier -- there's no "neutral" gap here, since 50 is RSI's own
+  // pivot, not a dead zone.
+  function rsiTier(score) {
+    if (score == null) return null;
+    if (score >= 70) return "extreme_sell";
+    if (score >= 50) return "sell";
+    if (score <= 30) return "extreme_buy";
+    return "buy";
+  }
+  function rsiTierColor(tier) {
+    return { extreme_sell: "var(--sell-band)", sell: "var(--sell-tint)", buy: "var(--buy-tint)", extreme_buy: "var(--buy-band)" }[tier] || null;
+  }
+
+  // Draws a fixed horizontal reference band across the FULL width of one
+  // panel, covering the value range [valueLo, valueHi] on that panel's
+  // own y-scale (valueToY) -- a CryptoQuant/onchain-style "this whole
+  // horizontal strip is the buy/sell zone" band, not tied to any
+  // particular date the way drawZoneBands() below is. Clamped to the
+  // panel's own vertical bounds so a threshold outside the currently
+  // plotted value range just doesn't show, rather than overflowing into
+  // the panel above/below it.
+  function drawHorizontalBand(svg, el, PAD_L, W, PAD_R, valueToY, valueLo, valueHi, panelTop, panelBottom, color) {
+    const yA = valueToY(valueLo), yB = valueToY(valueHi);
+    const yTop = Math.max(Math.min(yA, yB), panelTop);
+    const yBottom = Math.min(Math.max(yA, yB), panelBottom);
+    if (yBottom <= yTop) return;
+    svg.appendChild(el("rect", { x: PAD_L, y: yTop, width: W - PAD_R - PAD_L, height: yBottom - yTop, fill: color }));
+  }
+
+  // Draws zone bands within one panel's vertical bounds (panelY to
+  // panelY+panelH). tierFn(point) classifies each date into a tier key;
+  // colorFn(tier) maps that key to a fill (or null to skip shading that
+  // stretch). Contiguous same-tier runs merge into one rect, mirroring
+  // the composite chart's own zone-band pattern so every chart on this
+  // page reads consistently. Used by the 200w MA chart (its "zone" moves
+  // with a changing MA line, not a fixed value range, so it can't use
+  // drawHorizontalBand() above the way RSI/Supply Loss/MVRV do) and by
+  // the halving-cycle chart's Wyckoff-phase shading (which is inherently
+  // time-based, not tied to any value axis at all).
+  function drawZoneBands(svg, el, xScale, dates, series, tierFn, colorFn, panelY, panelH) {
+    let i = 0;
+    while (i < series.length) {
+      const tier = tierFn(series[i]);
+      let j = i;
+      while (j + 1 < series.length && tierFn(series[j + 1]) === tier) j++;
+      const color = colorFn(tier);
+      if (color) {
+        const xA = xScale(dates[i]);
+        const xB = j + 1 < series.length ? xScale(dates[j + 1]) : xScale(dates[j]) + (xScale(dates[1]) - xScale(dates[0]) || 1);
+        svg.appendChild(el("rect", { x: xA, y: panelY, width: Math.max(1, xB - xA), height: panelH, fill: color }));
+      }
+      i = j + 1;
+    }
+  }
+  const zoneLabel = (z) => ({
+    extreme_buy: "Extreme Buy", buy_zone: "Buy", neutral: "Neutral",
+    sell_zone: "Sell", extreme_sell: "Extreme Sell",
+    extreme_low: "Extreme low (bottom decile)", extreme_high: "Extreme high (top decile)",
+  }[z] || z);
+
+  document.getElementById("as-of-date").textContent = DATA.as_of;
+  document.getElementById("hero-price").textContent = fmtUSD(DATA.price);
+
+  const badge = document.getElementById("zone-badge");
+  badge.classList.add(DATA.confirmed_zone);
+  document.getElementById("zone-badge-text").textContent = zoneLabel(DATA.confirmed_zone) + " · day " + DATA.run_length;
+
+  document.getElementById("hero-score").firstChild.textContent = DATA.composite.toFixed(1);
+  document.getElementById("extreme-buy-th-label").textContent = DATA.extreme_low_threshold;
+  document.getElementById("buy-th-label").textContent = DATA.buy_threshold;
+  document.getElementById("sell-th-label").textContent = DATA.sell_threshold;
+  document.getElementById("extreme-sell-th-label").textContent = DATA.extreme_high_threshold;
+  document.getElementById("gauge-marker").style.left = DATA.composite + "%";
+  // The CSS gauge-track gradient is hardcoded as a static fallback --
+  // override it here so the 5-tier color transition actually lines up
+  // with DATA's real thresholds. The two outer segments (extreme_low/
+  // extreme_high) use the "-strong" solid colors for a visibly deeper
+  // tone than the regular buy/sell segments, matching the badge/pill
+  // treatment for extreme_buy/extreme_sell elsewhere on the page.
+  document.querySelector(".gauge-track").style.background =
+    `linear-gradient(to right, ` +
+    `var(--buy-strong) 0%, var(--buy-strong) ${DATA.extreme_low_threshold}%, ` +
+    `var(--buy) ${DATA.extreme_low_threshold}%, var(--buy) ${DATA.buy_threshold}%, ` +
+    `var(--neutral) 50%, ` +
+    `var(--sell) ${DATA.sell_threshold}%, var(--sell) ${DATA.extreme_high_threshold}%, ` +
+    `var(--sell-strong) ${DATA.extreme_high_threshold}%, var(--sell-strong) 100%)`;
+
+  const capMap = {
+    extreme_buy: `Composite has been in a confirmed EXTREME buy zone for ${DATA.run_length} days — the most undervalued ` +
+                  `~10% of readings historically. Rare and notable, though not a guarantee of a bottom.`,
+    buy_zone: `Composite has been in a confirmed buy zone for ${DATA.run_length} days — historically the region where later ` +
+               `entries into the market have looked better in hindsight than entries made at extremes above.`,
+    sell_zone: `Composite has been in a confirmed sell zone for ${DATA.run_length} days — historically a region worth trimming ` +
+                `exposure in, though not a guarantee the top is in.`,
+    extreme_sell: `Composite has been in a confirmed EXTREME sell zone for ${DATA.run_length} days — the most overvalued ` +
+                   `~10% of readings historically. Rare and notable, though not a guarantee the top is in.`,
+    neutral: `Composite is in neutral territory — no confirmed signal active. Historically this is where BTC ` +
+             `spends most of its time, including during strong trending periods.`,
+  };
+  document.getElementById("hero-caption").textContent = capMap[DATA.confirmed_zone];
+
+  const emaC = DATA.ema_context;
+  document.getElementById("ema-context").innerHTML =
+    `<span class="dash-swatch"></span><span>21w/34w EMA (context, not in composite): price is ` +
+    `<b>${emaC.above_21w ? "above" : "below"}</b> the 21w EMA (${fmtUSD(emaC.ema_21w)}) and ` +
+    `<b>${emaC.above_34w ? "above" : "below"}</b> the 34w EMA (${fmtUSD(emaC.ema_34w)})</span>`;
+
+  const cycleC = DATA.cycle_context;
+  const cycleMonths = (cycleC.days_since_halving / 30.44).toFixed(1);
+  document.getElementById("cycle-context").innerHTML =
+    `<span class="dash-swatch"></span><span>4-year cycle (context only, not walk-forward tested, not in composite): ` +
+    `<b>${cycleC.phase}</b> — ${cycleC.days_since_halving} days (~${cycleMonths} months) since the last halving ` +
+    `(${cycleC.last_halving}). Based on only 3 completed cycles; not a validated signal.</span>`;
+
+  const indicatorMeta = [
+    { key: "fng_score", label: "Fear & Greed (7d smoothed)" },
+    { key: "rsi_score", label: "Weekly RSI" },
+    { key: "supply_loss_score", label: "Bitcoin Supply in Loss (%)" },
+  ];
+  const grid = document.getElementById("indicator-grid");
+  indicatorMeta.forEach(({ key, label }) => {
+    const v = DATA.indicators[key];
+    const cls = v <= DATA.buy_threshold ? "buy" : v >= DATA.sell_threshold ? "sell" : "neutral";
+    const card = document.createElement("div");
+    card.className = "indicator-card";
+    card.innerHTML = `
+      <div class="indicator-label">${label}</div>
+      <div class="indicator-value v-${cls}">${v.toFixed(1)}</div>
+      <div class="mini-track">
+        <div class="mini-fill f-${cls}" style="width:${v}%"></div>
+        <div class="mini-tick" style="left:${DATA.buy_threshold}%"></div>
+        <div class="mini-tick" style="left:${DATA.sell_threshold}%"></div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  const signalsBody = document.getElementById("signals-body");
+  DATA.signals.slice().reverse().forEach((s) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${s.date}</td>
+      <td>${fmtUSD(s.price)}</td>
+      <td>${s.composite.toFixed(1)}</td>
+      <td class="zone-cell"><span class="pill ${s.zone}">${zoneLabel(s.zone)}</span></td>`;
+    signalsBody.appendChild(tr);
+  });
+
+  document.getElementById("extreme-sub").textContent =
+    `Composite ≤ ${DATA.extreme_low_threshold} or ≥ ${DATA.extreme_high_threshold} — the rarest ~10% of readings since ${DATA.data_start}. A statistical fact about the score, not a fear/greed sentiment claim.`;
+
+  const extremeBody = document.getElementById("extreme-body");
+  DATA.extreme_periods.forEach((p) => {
+    const tr = document.createElement("tr");
+    const period = p.start_date === p.end_date ? p.start_date : `${p.start_date} → ${p.end_date}`;
+    tr.innerHTML = `
+      <td>${period}</td>
+      <td>${p.days}</td>
+      <td class="zone-cell"><span class="pill ${p.zone}">${zoneLabel(p.zone)}</span></td>
+      <td>${fmtUSD(p.start_price)} → ${fmtUSD(p.end_price)}</td>
+      <td>${p.min_composite.toFixed(1)}–${p.max_composite.toFixed(1)}</td>`;
+    extremeBody.appendChild(tr);
+  });
+  if (DATA.extreme_periods.length === 0) {
+    extremeBody.innerHTML = `<tr><td colspan="5" style="font-family:'Public Sans',sans-serif;color:var(--ink-muted)">No extreme-zone episodes in this history.</td></tr>`;
+  }
+
+  // ---------- Charts (two stacked SVG panels sharing an x-axis + crosshair) ----------
+  function renderChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22, PAD_BOTTOM = 20;
+    const PRICE_H = 150, COMPOSITE_H = 170, GAP = 28;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.9);
+    const logMax = Math.log10(Math.max(...prices) * 1.08);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (PRICE_H - PAD_TOP);
+
+    const compTop = PRICE_H + GAP;
+    const yComposite = (c) => compTop + PAD_TOP * 0.4 + (1 - c / 100) * (COMPOSITE_H - PAD_TOP * 0.4 - 12);
+
+    const totalH = compTop + COMPOSITE_H;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    // --- price panel ---
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
+    [yPrice(Math.min(...prices)), yPrice(Math.max(...prices))].forEach((y) => {
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+    });
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: yPrice(p) + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    function buildPath(valueFn) {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        const v = valueFn(pt);
+        if (v === null || v === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yPrice(v).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+
+    svg.appendChild(el("path", { class: "ema-line ema34", d: buildPath((d) => d.ema34) }));
+    svg.appendChild(el("path", { class: "ema-line ema21", d: buildPath((d) => d.ema21) }));
+
+    const pricePath = buildPath((d) => d.price);
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    // --- composite panel ---
+    // Fixed horizontal reference bands at the composite's own 5-tier
+    // thresholds (same style as the RSI chart), drawn before the
+    // gridlines/labels/line so they sit as background.
+    {
+      const panelTop = PAD_TOP * 0.4 + compTop, panelBottom = panelTop + (COMPOSITE_H - PAD_TOP * 0.4 - 12);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.extreme_high_threshold, 100, panelTop, panelBottom, "var(--sell-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.sell_threshold, DATA.extreme_high_threshold, panelTop, panelBottom, "var(--sell-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.extreme_low_threshold, DATA.buy_threshold, panelTop, panelBottom, "var(--buy-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, 0, DATA.extreme_low_threshold, panelTop, panelBottom, "var(--buy-band)");
+    }
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: compTop + 10 }));
+    svg.querySelectorAll("text.chart-title")[1].textContent = "Composite score (0–100)";
+
+    // Composite line is drawn BEFORE the threshold labels below, so the
+    // labels always render on top and stay legible even where the line
+    // happens to cross behind them (it was the other way around before,
+    // and the line could obscure label text, e.g. "extreme buy <= 20").
+    const compositePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yComposite(d.composite).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "composite-line", d: compositePath }));
+
+    [
+      [DATA.extreme_low_threshold, `extreme buy ≤ ${DATA.extreme_low_threshold}`],
+      [DATA.buy_threshold, `buy ≤ ${DATA.buy_threshold}`],
+      [DATA.sell_threshold, `sell ≥ ${DATA.sell_threshold}`],
+      [DATA.extreme_high_threshold, `extreme sell ≥ ${DATA.extreme_high_threshold}`],
+    ].forEach(([th, label]) => {
+      const y = yComposite(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+    // "Neutral" has no threshold of its own (it's just the unshaded gap
+    // between buy_threshold and sell_threshold) so it gets a label with
+    // no dashed line, centered in that gap.
+    {
+      const t = el("text", {
+        class: "axis-label", x: W - PAD_R,
+        y: (yComposite(DATA.buy_threshold) + yComposite(DATA.sell_threshold)) / 2 + 3,
+        "text-anchor": "end",
+      });
+      t.textContent = "neutral";
+      svg.appendChild(t);
+    }
+
+    // --- year ticks (shared x-axis, on bottom panel) ---
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    // --- crosshair + tooltip ---
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotComposite = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotComposite);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      let idx = Math.round(frac * (series.length - 1));
+      return Math.max(0, Math.min(series.length - 1, idx));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      [crossLine, dotPrice, dotComposite].forEach((n) => (n.style.opacity = 1));
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+      dotComposite.setAttribute("cx", px); dotComposite.setAttribute("cy", yComposite(d.composite));
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / totalH) * rect.height) + "px";
+      const emaLine = (d.ema21 != null && d.ema34 != null)
+        ? `<div style="color:var(--ink-muted)">21w EMA ${fmtUSD(d.ema21)} · 34w EMA ${fmtUSD(d.ema34)}</div>` : "";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)} · score ${d.composite.toFixed(1)}</div>${emaLine}<div class="tt-zone ${d.zone}">${zoneLabel(d.zone)}</div>`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotComposite].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  renderChart("chart-wrap", "tooltip", DATA.series);
+
+  const lastWeekDate = new Date(DATA.series[DATA.series.length - 1].date + "T00:00:00Z");
+  const recentCutoff = new Date(lastWeekDate);
+  recentCutoff.setUTCMonth(recentCutoff.getUTCMonth() - 24);
+  const recentSeries = DATA.series.filter((d) => new Date(d.date + "T00:00:00Z") >= recentCutoff);
+  renderChart("chart-wrap-recent", "tooltip-recent", recentSeries);
+
+  // ---------- 200w MA vs price (single log-scale panel) ----------
+  // ---------- BTC price with halving markers (4-year cycle, context only) ----------
+  function renderCycleChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const H = 260;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.9);
+    const logMax = Math.log10(Math.max(...prices) * 1.08);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (H - PAD_TOP);
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    drawZoneBands(svg, el, xScale, dates, series, (d) => d.wyckoff_phase, wyckoffPhaseColor, 0, H);
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price vs halving cycle (log scale)";
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+
+    // One dashed vertical line + label per halving that falls within the
+    // plotted date range -- purely a calendar marker, not derived from any
+    // price/score data, so it's drawn independently of the series above.
+    (DATA.halving_dates || []).forEach((iso) => {
+      const t = new Date(iso + "T00:00:00Z").getTime();
+      if (t < x0 || t > x1) return;
+      const x = xScale(t);
+      svg.appendChild(el("line", {
+        class: "threshold-line", x1: x, x2: x, y1: PAD_TOP - 8, y2: H,
+        style: "stroke:var(--accent);stroke-width:1.5",
+      }));
+      const nearRightEdge = x > W - 90;
+      const label = el("text", {
+        class: "axis-label", x: x + (nearRightEdge ? -6 : 6), y: PAD_TOP + 4,
+        "text-anchor": nearRightEdge ? "end" : "start",
+      });
+      label.setAttribute("fill", "var(--accent-strong)");
+      label.textContent = "Halving " + iso.slice(0, 4);
+      svg.appendChild(label);
+    });
+
+    function buildPath(valueFn) {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        const v = valueFn(pt);
+        if (v === null || v === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yPrice(v).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+
+    svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price) }));
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: H + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: H });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: H });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      dotPrice.style.opacity = 1;
+      crossLine.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (H + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- Elliott Wave -- mechanical zigzag count (illustrative only) ----------
+  function renderElliottChart(wrapId, tooltipId, elliottData) {
+    const series = elliottData.series;
+    const pivots = elliottData.pivots;
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const H = 280;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.85);
+    const logMax = Math.log10(Math.max(...prices) * 1.12);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (H - PAD_TOP);
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price with mechanical zigzag wave count (log scale)";
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+
+    function buildPathXY(points) {
+      let d = "";
+      points.forEach(([x, y], idx) => {
+        d += `${idx === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)} `;
+      });
+      return d.trim();
+    }
+
+    svg.appendChild(el("path", {
+      class: "price-line",
+      d: buildPathXY(series.map((d, idx) => [xScale(dates[idx]), yPrice(d.price)])),
+    }));
+
+    if (pivots.length > 1) {
+      svg.appendChild(el("path", {
+        d: buildPathXY(pivots.map((pv) => [xScale(new Date(pv.date + "T00:00:00Z").getTime()), yPrice(pv.price)])),
+        fill: "none",
+        style: "stroke:var(--accent);stroke-width:1.75",
+      }));
+    }
+
+    pivots.forEach((pv) => {
+      const x = xScale(new Date(pv.date + "T00:00:00Z").getTime());
+      const y = yPrice(pv.price);
+      svg.appendChild(el("circle", {
+        cx: x, cy: y, r: pv.unconfirmed ? 3 : 2.5,
+        fill: pv.unconfirmed ? "var(--surface)" : "var(--accent-strong)",
+        style: pv.unconfirmed ? "stroke:var(--accent-strong);stroke-width:1.5" : "",
+      }));
+      const label = el("text", {
+        class: "axis-label", x, y: pv.kind === "high" ? y - 8 : y + 14, "text-anchor": "middle",
+      });
+      label.setAttribute("fill", "var(--accent-strong)");
+      label.setAttribute("font-weight", "600");
+      label.textContent = pv.wave_label;
+      svg.appendChild(label);
+    });
+
+    const years = [...new Set(series.filter((_, i) => i % 4 === 0).map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: H + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: H });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: H });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      dotPrice.style.opacity = 1;
+      crossLine.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (H + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  function renderMaChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const H = 260;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const allValues = series.flatMap((d) => [d.price, d.ma_200w]).filter((v) => v != null);
+    const logMin = Math.log10(Math.min(...allValues) * 0.9);
+    const logMax = Math.log10(Math.max(...allValues) * 1.08);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (H - PAD_TOP);
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    drawZoneBands(svg, el, xScale, dates, series, (d) => zoneForScore(d.ma_200w_score), zoneColor, 0, H);
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price vs 200-week MA (log scale)";
+    [Math.min(...allValues), Math.max(...allValues)].forEach((v) => {
+      const y = yPrice(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(v).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+
+    function buildPath(valueFn) {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        const v = valueFn(pt);
+        if (v === null || v === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yPrice(v).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+
+    svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price) }));
+    svg.appendChild(el("path", { class: "ma200w-line", d: buildPath((d) => d.ma_200w) }));
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: H + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: H });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotMa = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--buy)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotMa);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: H });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      dotPrice.style.opacity = 1;
+      crossLine.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      let maLine = "";
+      if (d.ma_200w != null) {
+        dotMa.style.opacity = 1;
+        dotMa.setAttribute("cx", px); dotMa.setAttribute("cy", yPrice(d.ma_200w));
+        const pctDist = ((d.price - d.ma_200w) / d.ma_200w * 100).toFixed(1);
+        maLine = `<div style="color:var(--buy-strong)">200w MA ${fmtUSD(d.ma_200w)} (${pctDist > 0 ? "+" : ""}${pctDist}%)</div>`;
+      } else {
+        dotMa.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (H + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${maLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotMa].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- Weekly RSI vs price (price panel + RSI panel) ----------
+  function renderRsiChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, RSI_H = 170, GAP = 28;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.9);
+    const logMax = Math.log10(Math.max(...prices) * 1.08);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (PRICE_H - PAD_TOP);
+
+    const rsiTop = PRICE_H + GAP;
+    const yRsi = (v) => rsiTop + PAD_TOP * 0.4 + (1 - v / 100) * (RSI_H - PAD_TOP * 0.4 - 12);
+    const totalH = rsiTop + RSI_H;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    {
+      const panelTop = PAD_TOP * 0.4 + rsiTop, panelBottom = panelTop + (RSI_H - PAD_TOP * 0.4 - 12);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 70, 100, panelTop, panelBottom, "var(--sell-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 50, 70, panelTop, panelBottom, "var(--sell-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 30, 50, panelTop, panelBottom, "var(--buy-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 0, 30, panelTop, panelBottom, "var(--buy-band)");
+    }
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: rsiTop + 10 }));
+    svg.querySelectorAll("text.chart-title")[1].textContent = "Weekly RSI (0–100)";
+    [0, 50, 100].forEach((v) => {
+      const y = yRsi(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v;
+      svg.appendChild(t);
+    });
+    function buildRsiPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.weekly_rsi === null || pt.weekly_rsi === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yRsi(pt.weekly_rsi).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
+    svg.appendChild(el("path", { class: "rsi-line", d: buildRsiPath() }));
+
+    [[70, "extremely overbought ≥ 70"], [30, "extremely oversold ≤ 30"]].forEach(([th, label]) => {
+      const y = yRsi(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotRsi = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotRsi);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      let rsiLine = "";
+      if (d.weekly_rsi != null) {
+        dotRsi.style.opacity = 1;
+        dotRsi.setAttribute("cx", px); dotRsi.setAttribute("cy", yRsi(d.weekly_rsi));
+        rsiLine = `<div>RSI ${d.weekly_rsi.toFixed(1)}</div>`;
+      } else {
+        dotRsi.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / totalH) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${rsiLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotRsi].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- Fear & Greed (7D smoothed) vs price (price panel + F&G panel) ----------
+  function renderFngChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, FNG_H = 170, GAP = 28;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.9);
+    const logMax = Math.log10(Math.max(...prices) * 1.08);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (PRICE_H - PAD_TOP);
+
+    const fngTop = PRICE_H + GAP;
+    const yFng = (v) => fngTop + PAD_TOP * 0.4 + (1 - v / 100) * (FNG_H - PAD_TOP * 0.4 - 12);
+    const totalH = fngTop + FNG_H;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    // fng_score IS the raw 7D-smoothed F&G value (no separate
+    // normalization -- see indicators.build_indicator_table()), so
+    // DATA's own composite thresholds apply directly on this chart's
+    // axis, same 4-tier structure as the "Zones over time" chart.
+    {
+      const panelTop = PAD_TOP * 0.4 + fngTop, panelBottom = panelTop + (FNG_H - PAD_TOP * 0.4 - 12);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yFng, DATA.extreme_high_threshold, 100, panelTop, panelBottom, "var(--sell-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yFng, DATA.sell_threshold, DATA.extreme_high_threshold, panelTop, panelBottom, "var(--sell-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yFng, DATA.extreme_low_threshold, DATA.buy_threshold, panelTop, panelBottom, "var(--buy-tint)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yFng, 0, DATA.extreme_low_threshold, panelTop, panelBottom, "var(--buy-band)");
+    }
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: fngTop + 10 }));
+    svg.querySelectorAll("text.chart-title")[1].textContent = "Fear & Greed (0–100)";
+    [0, 50, 100].forEach((v) => {
+      const y = yFng(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v;
+      svg.appendChild(t);
+    });
+    function buildFngPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.fng_smoothed === null || pt.fng_smoothed === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yFng(pt.fng_smoothed).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
+    svg.appendChild(el("path", { class: "rsi-line", d: buildFngPath() }));
+
+    [
+      [DATA.extreme_low_threshold, `extreme buy ≤ ${DATA.extreme_low_threshold}`],
+      [DATA.buy_threshold, `buy ≤ ${DATA.buy_threshold}`],
+      [DATA.sell_threshold, `sell ≥ ${DATA.sell_threshold}`],
+      [DATA.extreme_high_threshold, `extreme sell ≥ ${DATA.extreme_high_threshold}`],
+    ].forEach(([th, label]) => {
+      const y = yFng(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+    // "Neutral" has no threshold of its own -- it's the unshaded gap
+    // between buy_threshold and sell_threshold -- so it gets a label with
+    // no dashed line, centered in that gap (matches the composite chart).
+    {
+      const t = el("text", {
+        class: "axis-label", x: W - PAD_R,
+        y: (yFng(DATA.buy_threshold) + yFng(DATA.sell_threshold)) / 2 + 3,
+        "text-anchor": "end",
+      });
+      t.textContent = "neutral";
+      svg.appendChild(t);
+    }
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotFng = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotFng);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      let fngLine = "";
+      if (d.fng_smoothed != null) {
+        dotFng.style.opacity = 1;
+        dotFng.setAttribute("cx", px); dotFng.setAttribute("cy", yFng(d.fng_smoothed));
+        fngLine = `<div>F&amp;G ${d.fng_smoothed.toFixed(1)}</div>`;
+      } else {
+        dotFng.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / totalH) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${fngLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotFng].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- Bitcoin Supply in Loss (%) vs price (price panel + supply-loss panel) ----------
+  function renderSupplyLossChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, LOSS_H = 170, GAP = 28;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.9);
+    const logMax = Math.log10(Math.max(...prices) * 1.08);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (PRICE_H - PAD_TOP);
+
+    const lossValues = series.map((d) => d.supply_in_loss_pct).filter((v) => v != null);
+    const lossMin = 0;
+    const lossMax = Math.max(...lossValues) * 1.08;
+    const lossTop = PRICE_H + GAP;
+    const yLoss = (v) => lossTop + PAD_TOP * 0.4 + (1 - (v - lossMin) / (lossMax - lossMin)) * (LOSS_H - PAD_TOP * 0.4 - 12);
+    const totalH = lossTop + LOSS_H;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    let lossBuyAt, lossSellAt;
+    {
+      // Supply-in-loss scoring is inverted (high loss% = capitulation = buy
+      // signal), so the buy band sits at the HIGH end of this panel's own
+      // value axis and the sell band at the LOW end -- opposite of RSI/MVRV.
+      const panelTop = PAD_TOP * 0.4 + lossTop, panelBottom = panelTop + (LOSS_H - PAD_TOP * 0.4 - 12);
+      const [clipLo, clipHi] = DATA.supply_loss_clip_range;
+      lossBuyAt = clipHi - (DATA.buy_threshold / 100) * (clipHi - clipLo);
+      lossSellAt = clipHi - (DATA.sell_threshold / 100) * (clipHi - clipLo);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yLoss, lossBuyAt, lossMax, panelTop, panelBottom, "var(--buy-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yLoss, lossMin, lossSellAt, panelTop, panelBottom, "var(--sell-band)");
+    }
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: lossTop + 10 }));
+    svg.querySelectorAll("text.chart-title")[1].textContent = "Supply in Loss (%)";
+    [0, Math.max(...lossValues)].forEach((v) => {
+      const y = yLoss(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v.toFixed(0) + "%";
+      svg.appendChild(t);
+    });
+    function buildLossPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.supply_in_loss_pct === null || pt.supply_in_loss_pct === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yLoss(pt.supply_in_loss_pct).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
+    svg.appendChild(el("path", { class: "rsi-line", d: buildLossPath() }));
+
+    [[lossBuyAt, `buy zone ≥ ${lossBuyAt.toFixed(0)}%`], [lossSellAt, `sell zone ≤ ${lossSellAt.toFixed(0)}%`]].forEach(([th, label]) => {
+      const y = yLoss(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotLoss = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotLoss);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      let lossLine = "";
+      if (d.supply_in_loss_pct != null) {
+        dotLoss.style.opacity = 1;
+        dotLoss.setAttribute("cx", px); dotLoss.setAttribute("cy", yLoss(d.supply_in_loss_pct));
+        lossLine = `<div>Supply in loss ${d.supply_in_loss_pct.toFixed(1)}%</div>`;
+      } else {
+        dotLoss.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / totalH) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${lossLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotLoss].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- MVRV Ratio vs price (price panel + MVRV panel) ----------
+  function renderMvrvChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, MVRV_H = 170, GAP = 28;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.9);
+    const logMax = Math.log10(Math.max(...prices) * 1.08);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (PRICE_H - PAD_TOP);
+
+    const mvrvValues = series.map((d) => d.mvrv_ratio).filter((v) => v != null);
+    const mvrvMin = Math.min(...mvrvValues) * 0.95;
+    const mvrvMax = Math.max(...mvrvValues) * 1.05;
+    const mvrvTop = PRICE_H + GAP;
+    const yMvrv = (v) => mvrvTop + PAD_TOP * 0.4 + (1 - (v - mvrvMin) / (mvrvMax - mvrvMin)) * (MVRV_H - PAD_TOP * 0.4 - 12);
+    const totalH = mvrvTop + MVRV_H;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price (log scale)";
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: mvrvTop + 10 }));
+    svg.querySelectorAll("text.chart-title")[1].textContent = "MVRV Ratio";
+
+    // mvrv_score is still computed (normalize_mvrv(mvrv_ratio,
+    // DATA.mvrv_clip_range)) even though it's excluded from the live
+    // composite weighting -- invert that same clip range into raw MVRV
+    // buy/sell values so this context-only chart can show "what MVRV's
+    // own score would say," same as every other per-indicator chart,
+    // explicitly caveated as not a live composite signal (see section
+    // note above). Not inverted (high MVRV = high score = sell), same
+    // direction as RSI/Bollinger %B.
+    const [mvrvClipLo, mvrvClipHi] = DATA.mvrv_clip_range;
+    const mvrvBuyAt = mvrvClipLo + (DATA.buy_threshold / 100) * (mvrvClipHi - mvrvClipLo);
+    const mvrvSellAt = mvrvClipLo + (DATA.sell_threshold / 100) * (mvrvClipHi - mvrvClipLo);
+    {
+      const panelTop = mvrvTop + PAD_TOP * 0.4, panelBottom = panelTop + (MVRV_H - PAD_TOP * 0.4 - 12);
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yMvrv, mvrvSellAt, mvrvMax, panelTop, panelBottom, "var(--sell-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yMvrv, mvrvMin, mvrvBuyAt, panelTop, panelBottom, "var(--buy-band)");
+    }
+
+    [Math.min(...mvrvValues), Math.max(...mvrvValues)].forEach((v) => {
+      const y = yMvrv(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v.toFixed(1);
+      svg.appendChild(t);
+    });
+    if (mvrvMin <= 1 && mvrvMax >= 1) {
+      const y = yMvrv(1);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = "breakeven (MVRV=1)";
+      svg.appendChild(t);
+    }
+
+    function buildMvrvPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.mvrv_ratio === null || pt.mvrv_ratio === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yMvrv(pt.mvrv_ratio).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    svg.appendChild(el("path", { class: "rsi-line", d: buildMvrvPath() }));
+
+    [[mvrvSellAt, `sell ≥ ${mvrvSellAt.toFixed(2)}`], [mvrvBuyAt, `buy ≤ ${mvrvBuyAt.toFixed(2)}`]].forEach(([th, label]) => {
+      const y = yMvrv(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotMvrv = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotMvrv);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      let mvrvLine = "";
+      if (d.mvrv_ratio != null) {
+        dotMvrv.style.opacity = 1;
+        dotMvrv.setAttribute("cx", px); dotMvrv.setAttribute("cy", yMvrv(d.mvrv_ratio));
+        mvrvLine = `<div>MVRV ${d.mvrv_ratio.toFixed(2)}</div>`;
+      } else {
+        dotMvrv.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / totalH) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${mvrvLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotMvrv].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  renderCycleChart("chart-wrap-cycle", "tooltip-cycle", DATA.series);
+  document.getElementById("elliott-threshold").textContent = Math.round(DATA.elliott_wave.zigzag_threshold_pct * 100);
+  renderElliottChart("chart-wrap-elliott", "tooltip-elliott", DATA.elliott_wave);
+  const ma200wSeries = DATA.series.filter((d) => d.ma_200w != null);
+  renderMaChart("chart-wrap-ma200w", "tooltip-ma200w", ma200wSeries);
+  renderRsiChart("chart-wrap-rsi", "tooltip-rsi", DATA.series);
+  renderFngChart("chart-wrap-fng", "tooltip-fng", DATA.series);
+  const supplyLossSeries = DATA.series.filter((d) => d.supply_in_loss_pct != null);
+  renderSupplyLossChart("chart-wrap-supplyloss", "tooltip-supplyloss", supplyLossSeries);
+  const mvrvSeries = DATA.series.filter((d) => d.mvrv_ratio != null);
+  renderMvrvChart("chart-wrap-mvrv", "tooltip-mvrv", mvrvSeries);
+})();
+</script>

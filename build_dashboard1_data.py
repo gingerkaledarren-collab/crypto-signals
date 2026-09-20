@@ -26,7 +26,14 @@ from current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEFAUL
 
 
 def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = DEFAULT_BUY_THRESHOLD,
-               confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False, fng_window: int = 7) -> dict:
+               confirm_days: int = DEFAULT_CONFIRM_DAYS, force_refresh: bool = False, fng_window: int = 7,
+               weights: dict = None) -> dict:
+    """
+    weights: optional override for the composite weighting, e.g. for a
+    side-by-side comparison variant (see build_dashboard1_altweights_data.py).
+    Defaults to LIVE_WEIGHTS (the actual live Dashboard 1 composite) so
+    existing callers are unaffected.
+    """
     price_df = fetch_btc_price_history(force_refresh=force_refresh)
     fng_df = fetch_fear_greed_history(force_refresh=force_refresh)
     supply_df = fetch_supply_in_profit_history(force_refresh=force_refresh)
@@ -34,7 +41,7 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
     table = build_indicator_table(price_df, fng_df, fng_window=fng_window, supply_profit_df=supply_df, mvrv_df=mvrv_df,
                                    ma_200w_clip_range=MA_200W_LIVE_CLIP_RANGE)
 
-    scored = compute_composite_score(table, weights=LIVE_WEIGHTS)
+    scored = compute_composite_score(table, weights=weights if weights is not None else LIVE_WEIGHTS)
     zoned = flag_five_zones(scored, buy_threshold=buy_threshold, sell_threshold=sell_threshold)
     zoned = apply_confirmation(zoned, min_days=confirm_days)
     zoned = flag_extreme_zones(zoned)

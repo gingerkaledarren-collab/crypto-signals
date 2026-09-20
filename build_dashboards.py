@@ -17,12 +17,15 @@ import os
 
 import build_dashboard1_data
 import build_dashboard2_data
+import build_dashboard1_altweights_data
 
 TEMPLATE_1 = "dashboard1_template.html"
 TEMPLATE_2 = "dashboard2_template.html"
+TEMPLATE_1_ALT = "dashboard1_altweights_template.html"
 OUTPUT_DIR = "dashboard_output"
 OUTPUT_1 = os.path.join(OUTPUT_DIR, "dashboard1.html")
 OUTPUT_2 = os.path.join(OUTPUT_DIR, "dashboard2.html")
+OUTPUT_1_ALT = os.path.join(OUTPUT_DIR, "dashboard1_altweights.html")
 
 
 def render(template_path: str, placeholder: str, data: dict, output_path: str):
@@ -43,6 +46,13 @@ def main(force_refresh: bool = False):
     data2 = build_dashboard2_data.build_data(force_refresh=force_refresh)
     render(TEMPLATE_2, "__DATA_JSON__", data2, OUTPUT_2)
     print(f"Wrote {OUTPUT_2} -- as of {data2['as_of']}, composite {data2['composite']}, zone {data2['confirmed_zone']}")
+
+    # Side-by-side comparison variant (40/40/20 weighting) -- see
+    # build_dashboard1_altweights_data.py's docstring. Not part of the
+    # automated daily-refresh trigger, which only publishes dashboard1/2.
+    data1_alt = build_dashboard1_altweights_data.build_alt_data(force_refresh=force_refresh)
+    render(TEMPLATE_1_ALT, "__DASHBOARD1_DATA_JSON__", data1_alt, OUTPUT_1_ALT)
+    print(f"Wrote {OUTPUT_1_ALT} -- as of {data1_alt['as_of']}, composite {data1_alt['composite']}, zone {data1_alt['confirmed_zone']}")
 
 
 if __name__ == "__main__":
