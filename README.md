@@ -628,6 +628,41 @@ about `LIVE_WEIGHTS` excluding it changes what gets fetched or scored
 per-indicator) and is still shown on the dashboard as a standalone,
 context-only chart with its own buy/sell bands, same treatment as MVRV.
 
+**Update: put back in, after a concrete real-world miss.** The concern
+that triggered this: BTC's actual October 2025 all-time high (~$124,777)
+came and went with the (200w-MA-removed) composite peaking at only
+72.99 -- comfortably inside "sell zone" (≥55) but nowhere near "extreme
+sell" (≥80), which is a materially weaker call at exactly the moment it
+mattered most. Re-adding `ma_200w_score` and re-checking the same top:
+the composite reaches 78.84 -- right at the edge of extreme, a much
+stronger call. This isn't just a one-off anecdote: re-running the
+standard walk-forward sweep on the 4-indicator (`ma_200w_score` back in)
+`LIVE_WEIGHTS` at the existing 55/45/5-day thresholds took TRAIN spread
+from -21.2pp to roughly flat (+0.8pp) and TEST from -11.0pp to also
+roughly flat (-1.1pp) -- not a resounding positive, but a completely
+different picture from the deeply-negative 3-indicator version, and
+consistent with the removal test's own explanation (200w MA distance is
+the one genuinely slow-moving, long-term valuation signal balancing the
+three faster, more reactive indicators otherwise left in the mix).
+
+Also checked at the same time, and separately: whether
+`EXTREME_HIGH_THRESHOLD` (80) itself needs recalibrating down for a
+milder cycle, the same "amplitude shrinks as the market matures"
+question already answered for MVRV's ceiling and 200w MA's own clip
+range above. With `ma_200w_score` back in and its already-recalibrated
+LIVE clip range (140, see above) feeding into the composite, the recent-
+window 90th percentile of the composite score (78.9-82.6 across 2/4/8-
+year windows) clusters right around 80 with no consistent drift in
+either direction -- unlike the clear drift found for MVRV/200w-MA's own
+bounds. Checked and left unchanged; not every "is this stale?" question
+this session asked came back with a "yes, recalibrate" answer, and this
+is one that honestly didn't.
+
+`ma_200w_score` is back in `LIVE_WEIGHTS` at 25% (all four indicators
+equal-weighted), and the "200-week MA vs price" chart on the dashboard
+is once again a scored part of the composite rather than a standalone,
+context-only chart.
+
 ## The second system: short-term signal (`st_backtest.py`)
 
 Everything above is one system (~3-5 signals/year, symmetric buy/sell,

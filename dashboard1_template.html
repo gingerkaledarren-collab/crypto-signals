@@ -569,12 +569,7 @@
 
   <section class="card">
     <div class="section-head">
-      <h2>200-week MA vs price (context only)</h2>
-      <span class="section-sub">Not in composite — removed by explicit request even though walk-forward testing
-        found this makes the composite's forward-return spread go strongly negative (every threshold config tested
-        came back negative; see README's "200-week MA distance: the same maturity check, different answer").
-        Buy/sell bands below show what this indicator's own (still-computed but unweighted) score would say on the
-        same call bar as everything else here — not a claim it's a validated live signal.</span>
+      <h2>200-week MA vs price</h2>
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--buy)"></span>200-week MA</span>
@@ -684,31 +679,37 @@
   <footer>
     Data: blockchain.info (BTC price), Fear &amp; Greed Index blended from alternative.me (history before ~June
     2023) and CoinMarketCap (from that point forward), Bitcoin Supply in Loss % from BGeometrics. Composite =
-    <b>7d-smoothed</b> Fear &amp; Greed, weekly RSI, and Bitcoin Supply in Loss %, equal-weighted at 1/3 each,
-    normalized 0–100. <b>By explicit request, Pi Cycle Top ratio was removed and Supply in
-    Loss % added in its place — walk-forward testing found this didn't improve the composite's forward-return
-    signal</b> (0.9pp TRAIN / 0.8pp TEST spread here vs. 10.3pp/10.3pp for the Pi-Cycle-based composite it
-    replaces); live anyway, by explicit request, fully informed, the same way Dashboard 2 already ships a
-    composite that isn't separately validated — see the README's "Removing Pi Cycle Top, adding Supply in
-    Loss %" for the full comparison. <b>MVRV Ratio was also tried in the composite, then dropped entirely</b>
+    200-week MA distance, <b>7d-smoothed</b> Fear &amp; Greed, weekly RSI, and Bitcoin Supply in Loss %,
+    equal-weighted at 25% each, normalized 0–100. <b>By explicit request, Pi Cycle Top ratio was removed and
+    Supply in Loss % added in its place — walk-forward testing found this didn't improve the composite's
+    forward-return signal</b> (0.9pp TRAIN / 0.8pp TEST spread here vs. 10.3pp/10.3pp for the Pi-Cycle-based
+    composite it replaces); live anyway, by explicit request, fully informed, the same way Dashboard 2 already
+    ships a composite that isn't separately validated — see the README's "Removing Pi Cycle Top, adding Supply
+    in Loss %" for the full comparison. <b>MVRV Ratio was also tried in the composite, then dropped entirely</b>
     after its cycle-top ceiling was found to be structurally declining across BTC's history (~7 in 2013, ~5 in
     2017, ~4 in 2021, ~2.6-2.7 this cycle) — every attempt to keep and reweight it (including downweighting to
     5-10%) still failed the TRAIN walk-forward sweep, while dropping it outright tested better than every
     weighted variant, including equal-weighting all 5; see the README's "MVRV's declining ceiling" and "Weight-
     rebalancing experiments" for the full numbers. MVRV Ratio is still shown below as a standalone, context-only
-    chart. <b>200-week MA distance was also dropped from the composite, by explicit request</b> — unlike the
-    MVRV removal, this one is NOT a validated improvement: with it removed, every threshold config in the
-    standard walk-forward sweep came back with a negative forward-return spread (best config: -21.2pp TRAIN,
-    -4.3pp TEST), because it was the one genuinely slow-moving, long-term valuation signal balancing the three
-    faster indicators left in the mix. Removed anyway, fully informed; still shown below as a standalone,
-    context-only chart — see the README's "200-week MA distance: the same maturity check, different answer"
-    for the full numbers. Separately: <b>the 7-day Fear &amp; Greed smoothing window is also an experimental
-    variant</b> — the validated 30-day window scored higher on its own (10.3pp vs. 7.8pp TRAIN spread, tested
-    before the changes above). The dashed 21w/34w EMA lines (a trader Alessio Rastani-style support structure)
-    are shown for context only — testing found adding them to the composite weakened out-of-sample performance,
-    so they're tracked but not scored; see the README's "Why the EMA structure indicator isn't in the default
-    weighting." Not financial advice — generated from <code>crypto-signals</code>, run
-    <code>current_status.py</code> for a live check.
+    chart. <b>200-week MA distance was also dropped from the composite for a time, then put back</b>, both by
+    explicit request. It came out first because, unlike the MVRV removal, that was NOT a validated improvement:
+    with it removed, every threshold config in the standard walk-forward sweep came back with a negative
+    forward-return spread (best config: -21.2pp TRAIN, -4.3pp TEST). It went back in after a concrete real-world
+    check: at BTC's actual October 2025 all-time high (~$124,777), the composite without 200-week MA distance
+    peaked at only 72.99 — inside "sell zone" (≥55) but nowhere near "extreme sell" (≥80); with it restored, the
+    same top reached 78.84, right at the edge of extreme. Re-running the walk-forward sweep confirmed it wasn't
+    just a one-off: TRAIN spread went from -21.2pp to roughly flat (+0.8pp), and TEST from -11.0pp to also
+    roughly flat (-1.1pp) at the existing 55/45/5-day thresholds — not resoundingly positive, but a completely
+    different picture than the deeply-negative 3-indicator version, since 200-week MA distance is the one
+    genuinely slow-moving, long-term valuation signal balancing the three faster indicators otherwise left in
+    the mix. See the README's "200-week MA distance: the same maturity check, different answer" for the full
+    numbers, including why <code>EXTREME_HIGH_THRESHOLD</code> (80) was checked and left unchanged. Separately:
+    <b>the 7-day Fear &amp; Greed smoothing window is also an experimental variant</b> — the validated 30-day
+    window scored higher on its own (10.3pp vs. 7.8pp TRAIN spread, tested before the changes above). The dashed
+    21w/34w EMA lines (a trader Alessio Rastani-style support structure) are shown for context only — testing
+    found adding them to the composite weakened out-of-sample performance, so they're tracked but not scored;
+    see the README's "Why the EMA structure indicator isn't in the default weighting." Not financial advice —
+    generated from <code>crypto-signals</code>, run <code>current_status.py</code> for a live check.
   </footer>
 </div>
 
@@ -866,6 +867,7 @@
     `(${cycleC.last_halving}). Based on only 3 completed cycles; not a validated signal.</span>`;
 
   const indicatorMeta = [
+    { key: "ma_200w_score", label: "200-week MA distance" },
     { key: "fng_score", label: "Fear & Greed (7d smoothed)" },
     { key: "rsi_score", label: "Weekly RSI" },
     { key: "supply_loss_score", label: "Bitcoin Supply in Loss (%)" },

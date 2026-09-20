@@ -50,9 +50,9 @@ Thresholds (sell=55, buy=45, confirm=5d) were the TRAIN-selected best for
 the 4-indicator equal-weighted LIVE_WEIGHTS that included 200w MA
 distance (re-verified against the current data pipeline -- fng_window=7
 -- not inherited from an earlier, now-stale 60/40/5d that predates the
-Supply-in-Loss/MVRV additions). Left unchanged after 200w MA distance's
-removal (see module docstring) since the resulting 3-indicator sweep has
-no positive-spread config to re-tune to.
+Supply-in-Loss/MVRV additions). Unchanged through 200w MA distance's
+brief removal and restoration (see module docstring) -- it's back to the
+composite shape these thresholds were originally tuned for.
 
 Zones are FIVE-tier (extreme_buy/buy_zone/neutral/sell_zone/
 extreme_sell), by request, not the original three-tier buy/sell/neutral
@@ -71,30 +71,35 @@ and, as a side effect, makes the extreme band symmetric with
 EXTREME_LOW_THRESHOLD (20/80, both 20 points from their respective
 edges) -- see scoring.py's own comment for the full numbers.
 
-200-WEEK MA DISTANCE WAS DROPPED FROM THE COMPOSITE ENTIRELY, by explicit
-request, made fully informed after walk-forward testing showed this is
-NOT a validated improvement (unlike the MVRV removal above) -- it's the
-opposite finding. With ma_200w_score removed and the remaining three
-indicators (F&G, RSI, Supply-in-Loss) equal-weighted, every threshold
-config in the standard sweep came back with a NEGATIVE TRAIN spread
-(best: sell=70/buy=30/confirm=3d at -21.2pp), and the TEST spread on that
-same config was -4.3pp -- both worse than keeping it (+3.5pp TRAIN as of
-the last check in README's "200-week MA distance" section). 200w MA
-distance is the one genuinely slow-moving, long-term valuation signal in
-this mix; removing it leaves the composite dominated by three faster,
-more reactive indicators, the same failure mode already seen whenever
-weight was pulled away from it (see "Weight-rebalancing experiments" and
-the 200w-MA-removal test documented in README). Removed anyway, by
-request, the same way the Pi-Cycle/Supply-in-Loss swap and the 7-day F&G
-smoothing window are live despite not being the validated choice -- see
-README's "200-week MA distance: the same maturity check, different
-answer" for the numbers. ma_200w_score is still fetched and computed
-(indicators.build_indicator_table() always computes it) and still shown
-on the dashboard as a standalone, context-only chart with its own
-buy/sell bands (same treatment as MVRV) -- visible, not scored. Existing
-thresholds (55/45/5d) were left unchanged rather than re-tuned to the
-new sweep's best config, since every option in that sweep is negative --
-there's no better choice to switch to, only a less-bad one.
+200-WEEK MA DISTANCE: DROPPED, THEN RESTORED, both by explicit request.
+It was dropped first (walk-forward showed that was NOT a validated
+improvement, unlike the MVRV removal above -- every threshold config in
+the 3-indicator sweep came back negative on TRAIN, best -21.2pp, with
+-4.3pp on TEST). It went back in after a concrete real-world check: at
+BTC's actual October 2025 all-time high (~$124,777), the 3-indicator
+(no-200w-MA) composite peaked at only 72.99 -- comfortably inside
+"sell zone" (>=55) but nowhere near "extreme sell" (>=80). With 200w MA
+distance restored, the SAME top peaked at 78.84 -- right at the edge of
+extreme, a materially stronger call at exactly the moment it mattered.
+Re-running the walk-forward sweep confirmed this isn't just a one-off
+anecdote: with 200w MA back in, TRAIN spread went from -21.2pp to
+roughly flat (+0.8pp on a fresh check), and TEST from -11.0pp to also
+roughly flat (-1.1pp) at the existing 55/45/5d thresholds -- not a
+resounding positive, but a completely different picture from the
+deeply-negative 3-indicator version. 200w MA distance is the one
+genuinely slow-moving, long-term valuation signal in this mix; without
+it the composite is dominated by three faster, more reactive indicators,
+the same failure mode seen whenever weight was pulled away from it (see
+"Weight-rebalancing experiments" and both removal tests in README's
+"200-week MA distance" section). Separately checked and NOT changed:
+whether EXTREME_HIGH_THRESHOLD (80) itself needed recalibrating down for
+the current, milder cycle (the same "amplitude shrinks as the market
+matures" concern already addressed for MVRV's ceiling and 200w MA's own
+clip range) -- with 200w MA's already-recalibrated LIVE clip range
+feeding back into the composite, the recent-window 90th percentile
+(78.9-82.6pp depending on the window, 2-8 years back) clusters right
+around 80 with no consistent drift in either direction, unlike the clear
+drift found for MVRV/200w-MA's own bounds. 80 stays.
 """
 
 import argparse
@@ -117,19 +122,21 @@ DEFAULT_CONFIRM_DAYS = 5
 # disagree about the live signal on any given day.
 DEFAULT_FNG_WINDOW = 7
 
-# The live composite: Fear & Greed, weekly RSI, and Bitcoin Supply in
-# Loss %, equal-weighted -- Pi Cycle Top removed by request; several
-# weight rebalances were tried and reverted; MVRV Ratio and, later, 200w
-# MA distance were each tried, then dropped entirely (see module
-# docstring above for all four). See the module docstring for the
-# walk-forward results.
+# The live composite: 200w MA distance, Fear & Greed, weekly RSI, and
+# Bitcoin Supply in Loss %, equal-weighted -- Pi Cycle Top removed by
+# request; several weight rebalances were tried and reverted; MVRV Ratio
+# was tried, then dropped entirely; 200w MA distance was tried dropped,
+# then restored after further testing (see module docstring above for
+# all three). See the module docstring for the walk-forward results.
 LIVE_WEIGHTS = {
-    "fng_score": 1 / 3,
-    "rsi_score": 1 / 3,
-    "supply_loss_score": 1 / 3,
+    "ma_200w_score": 0.25,
+    "fng_score": 0.25,
+    "rsi_score": 0.25,
+    "supply_loss_score": 0.25,
 }
 
 INDICATOR_LABELS = {
+    "ma_200w_score": "200-week MA distance",
     "fng_score": "Fear & Greed (30d smoothed)",
     "rsi_score": "Weekly RSI",
     "supply_loss_score": "Bitcoin Supply in Loss (%)",
