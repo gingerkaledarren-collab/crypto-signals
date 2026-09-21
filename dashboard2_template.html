@@ -772,13 +772,13 @@ __DATA_JSON__
     const compPath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yComposite(d.composite).toFixed(1)}`).join(" ");
     svg.appendChild(el("path", { class: "composite-line", d: compPath }));
 
-    [[DATA.extreme_low_threshold, "extreme buy<=" + DATA.extreme_low_threshold],
-     [DATA.buy_threshold, "buy<=" + DATA.buy_threshold],
-     [DATA.sell_threshold, "sell>=" + DATA.sell_threshold],
-     [DATA.extreme_high_threshold, "extreme sell>=" + DATA.extreme_high_threshold]].forEach(([th, label]) => {
+    [[DATA.extreme_low_threshold, "extreme buy<=" + DATA.extreme_low_threshold, "below"],
+     [DATA.buy_threshold, "buy<=" + DATA.buy_threshold, "below"],
+     [DATA.sell_threshold, "sell>=" + DATA.sell_threshold, "above"],
+     [DATA.extreme_high_threshold, "extreme sell>=" + DATA.extreme_high_threshold, "above"]].forEach(([th, label, side]) => {
       const y = yComposite(th);
       svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
-      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: side === "above" ? y - 4 : y + 13, "text-anchor": "end" });
       t.textContent = label;
       svg.appendChild(t);
     });
@@ -934,10 +934,10 @@ __DATA_JSON__
     // on top and stay legible where the line crosses behind them.
     svg.appendChild(el("path", { class: "rsi-line", d: buildRsiPath() }));
 
-    [[70, "overbought ≥ 70"], [30, "oversold ≤ 30"]].forEach(([th, label]) => {
+    [[70, "overbought ≥ 70", "above"], [30, "oversold ≤ 30", "below"]].forEach(([th, label, side]) => {
       const y = yRsi(th);
       svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
-      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: side === "above" ? y - 4 : y + 13, "text-anchor": "end" });
       t.textContent = label;
       svg.appendChild(t);
     });
@@ -1085,10 +1085,10 @@ __DATA_JSON__
     // on top and stay legible where the line crosses behind them.
     svg.appendChild(el("path", { class: "rsi-line", d: buildFngPath() }));
 
-    [[DATA.sell_threshold, `sell zone ≥ ${DATA.sell_threshold}`], [DATA.buy_threshold, `buy zone ≤ ${DATA.buy_threshold}`]].forEach(([th, label]) => {
+    [[DATA.sell_threshold, `sell zone ≥ ${DATA.sell_threshold}`, "above"], [DATA.buy_threshold, `buy zone ≤ ${DATA.buy_threshold}`, "below"]].forEach(([th, label, side]) => {
       const y = yFng(th);
       svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
-      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: side === "above" ? y - 4 : y + 13, "text-anchor": "end" });
       t.textContent = label;
       svg.appendChild(t);
     });
@@ -1243,10 +1243,10 @@ __DATA_JSON__
     // on top and stay legible where the line crosses behind them.
     svg.appendChild(el("path", { class: "rsi-line", d: buildBbPath() }));
 
-    [[bbSellAt, `sell zone ≥ ${bbSellAt.toFixed(0)}`], [bbBuyAt, `buy zone ≤ ${bbBuyAt.toFixed(0)}`]].forEach(([th, label]) => {
+    [[bbSellAt, `sell zone ≥ ${bbSellAt.toFixed(0)}`, "above"], [bbBuyAt, `buy zone ≤ ${bbBuyAt.toFixed(0)}`, "below"]].forEach(([th, label, side]) => {
       const y = yBb(th);
       svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
-      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: side === "above" ? y - 4 : y + 13, "text-anchor": "end" });
       t.textContent = label;
       svg.appendChild(t);
     });
@@ -1554,10 +1554,10 @@ __DATA_JSON__
     // on top and stay legible where the line crosses behind them.
     svg.appendChild(el("path", { class: "rsi-line", d: buildHistPath() }));
 
-    [[macdSellAt, `sell zone ≥ ${macdSellAt.toFixed(2)}%`], [macdBuyAt, `buy zone ≤ ${macdBuyAt.toFixed(2)}%`]].forEach(([th, label]) => {
+    [[macdSellAt, `sell zone ≥ ${macdSellAt.toFixed(2)}%`, "above"], [macdBuyAt, `buy zone ≤ ${macdBuyAt.toFixed(2)}%`, "below"]].forEach(([th, label, side]) => {
       const y = yHist(th);
       svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
-      const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: side === "above" ? y - 4 : y + 13, "text-anchor": "end" });
       t.textContent = label;
       svg.appendChild(t);
     });
