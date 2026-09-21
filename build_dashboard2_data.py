@@ -28,6 +28,33 @@ against dashboard 1's composite, not this one); this is a display
 granularity addition on top of the already-disclosed, already-negative-
 spread short-term signal (see the footer/README), not a new edge.
 
+**sell_threshold moved from 70 to 60 (buy_threshold left at 30), by
+request**, after noticing the sell zone almost never triggered while the
+buy zone did. Checked directly and it's real, not a perception: at 30/70,
+the composite spent 15.5% of days at/below 30 (buy) but only 12.1%
+at/above 70 (sell) over the full 2018-2026 history -- and far worse
+recently (last 24mo: 12.3% buy vs 6.8% sell; last 12mo: 20.5% buy vs just
+3.3% sell, a 6x gap). The cause traces to the underlying indicators, not
+the thresholds: ma50_score and fng_st_score -- the two most heavily
+weighted inputs -- both have a full-history median well below 50 (~41,
+~43) and cross <=30 roughly twice as often as they cross >=70, pulling
+the whole composite's distribution left. Moving sell_threshold down to 60
+(rather than a symmetric 60/40, which would have pushed confirmed signal
+frequency to ~20/year against the ~9/year design target) brings sell's
+trigger rate to 28.0% full-history / 24.8% last-24mo -- now MORE common
+than buy's 15.5%/12.3%, correcting the direction of the imbalance rather
+than just splitting the difference. It also better matches real turning
+points: sell>=60 catches 57% of real local price peaks (vs 31% at 70),
+while buy<=30 is left unchanged (catches 50% of real local troughs).
+Confirmed signal frequency rises from ~9-12/year to ~15.6/year -- a real,
+disclosed cost of this change, not a free win. As with the five-zone
+addition above, not separately walk-forward validated as an improvement
+(that metric mechanically improves toward zero as any threshold narrows
+toward 50/50 on this already-backwards-spread composite -- see README --
+so it isn't a fair test of this specific asymmetric change either); the
+justification here is distributional/descriptive accuracy, not a forward-
+return claim.
+
 Run standalone to print the JSON to stdout, or import build_data() and
 call it from build_dashboards.py.
 """

@@ -7,6 +7,11 @@ composite. Uses five-tier zones (extreme_buy/buy_zone/neutral/sell_zone/
 extreme_sell), by request -- see build_dashboard2_data.py's module
 docstring for why (the plain 3-zone version spends ~72% of days in
 "neutral" even at real peaks/troughs).
+
+sell_threshold moved from 70 to 60, by request, after noticing the sell
+zone almost never triggered while the buy zone did -- see
+build_dashboard2_data.py's module docstring for the asymmetry that caused
+that and why 60/30 (not a symmetric 60/40) was chosen.
 """
 
 import argparse
@@ -16,7 +21,7 @@ from scoring import (compute_composite_score, flag_five_zones, apply_confirmatio
                      flag_extreme_zones, EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
 from st_backtest import ST_DEFAULT_WEIGHTS
 
-DEFAULT_SELL_THRESHOLD = 70
+DEFAULT_SELL_THRESHOLD = 60
 DEFAULT_BUY_THRESHOLD = 30
 DEFAULT_CONFIRM_DAYS = 3
 

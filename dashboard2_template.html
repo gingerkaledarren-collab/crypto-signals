@@ -222,7 +222,7 @@
     position: relative;
     height: 10px;
     border-radius: 999px;
-    background: linear-gradient(to right, var(--buy) 0%, var(--buy) 30%, var(--neutral) 50%, var(--alert) 70%, var(--alert) 100%);
+    background: linear-gradient(to right, var(--buy) 0%, var(--buy) 30%, var(--neutral) 50%, var(--alert) 60%, var(--alert) 100%);
     opacity: 0.85;
     margin-top: 18px;
   }
@@ -401,7 +401,7 @@
         <span>0 &mdash; oversold</span>
         <span id="extreme-buy-th-label">20</span>
         <span id="buy-th-label">30</span>
-        <span id="sell-th-label">70</span>
+        <span id="sell-th-label">60</span>
         <span id="extreme-sell-th-label">80</span>
         <span>100 &mdash; overbought</span>
       </div>
@@ -538,19 +538,28 @@
   <footer>
     Data: blockchain.info (BTC price), alternative.me (Fear &amp; Greed Index). This composite blends 50-day MA
     distance, 5-day-smoothed Fear &amp; Greed, daily RSI(14), Bollinger %B(20), and MACD histogram (12/26/9) into
-    one 0-100 score, tuned for roughly 8-10 repositioning signals a year. It's a practical technicals-based tool,
-    not a separately back-tested edge like the long-term dashboard &mdash; earlier testing found these short-lookback
-    indicators tend to confirm trend rather than call reversals (see the repo README for that finding in full).
+    one 0-100 score. It's a practical technicals-based tool, not a separately back-tested edge like the long-term
+    dashboard &mdash; earlier testing found these short-lookback indicators tend to confirm trend rather than call
+    reversals (see the repo README for that finding in full).
     <b>Five-tier zones (Extreme Buy/Buy/Neutral/Sell/Extreme Sell), by request</b> &mdash; the plain 3-zone
-    version spends ~72% of days in "neutral" (30-70) even though the composite legitimately swings from single
+    version spends ~72% of days in "neutral" even though the composite legitimately swings from single
     digits to the high 90s; checked directly, real local price peaks score a median of only ~64 (already inside
-    "neutral"), and the literal October 2025 all-time high scored 69.5, a hair under the sell threshold.
+    "neutral"), and the literal October 2025 all-time high scored 69.5, under the old sell threshold of 70.
     Extreme Buy/Extreme Sell reuse the same &le;20 / &ge;80 rarity cutoffs the long-term dashboard uses (roughly
     the rarest 5% on each side for this composite too), added purely for display granularity on the genuinely
-    rare blow-off/capitulation days &mdash; not separately walk-forward tested for this composite, and not a fix
-    for the underlying neutral band still swallowing most ordinary turning points. Use it for sizing partial
-    trims/adds, not as a standalone reason to trade. Not financial advice &mdash; run
-    <code>st_current_status.py</code> for a live check.
+    rare blow-off/capitulation days.
+    <b>Sell threshold moved from 70 to 60 (buy stays at 30), by request</b>, after noticing sell almost never
+    triggered while buy did &mdash; real, not perception: at 30/70 the composite spent 15.5% of days at/below 30
+    but only 12.1% at/above 70 (full history), and far worse recently (last 12 months: 20.5% buy vs. just 3.3%
+    sell). The cause traces to the two most heavily-weighted inputs (50-day MA distance, Fear &amp; Greed) sitting
+    below-50 medians and crossing the low side roughly twice as often as the high side. Moving sell to 60 flips
+    the imbalance the right way (28.0% of days at/above 60 vs. 15.5% at/below 30, full history) rather than
+    splitting the difference with a symmetric 60/40, and better matches real turning points (60 catches 57% of
+    real local price peaks vs. 31% at 70). The cost: confirmed signal frequency rises to ~15-16/year from the
+    original ~9/year design target. Not separately walk-forward validated as an improvement &mdash; the
+    justification is distributional/descriptive accuracy against real peaks and troughs, not a forward-return
+    claim; see the repo README for the full numbers. Use it for sizing partial trims/adds, not as a standalone
+    reason to trade. Not financial advice &mdash; run <code>st_current_status.py</code> for a live check.
   </footer>
 </div>
 

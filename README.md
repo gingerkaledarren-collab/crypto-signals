@@ -702,8 +702,9 @@ the same statistical bar as the long-term system, the second dashboard
 now uses `st_backtest.py`'s symmetric buy/sell-zone composite --
 50-day MA distance, daily RSI(14), Bollinger %B(20), MACD histogram
 (12/26/9), and Fear & Greed (5d smoothed, 30% weight, `ST_DEFAULT_WEIGHTS`),
-at sell>=70/buy<=30/confirm=3d/cooldown=14d, tuned to land at ~9
-signals/year. This is a **technicals-based practical tool, not a
+at sell>=60/buy<=30/confirm=3d/cooldown=14d (originally sell>=70,
+tuned to land at ~9 signals/year; sell_threshold later moved to 60 --
+see "Five-tier zones" below for both changes). This is a **technicals-based practical tool, not a
 separately validated signal** -- the same momentum indicators that
 failed as a contrarian signal in points 1-3 above are its core inputs,
 used here by deliberate choice rather than as a claim they predict
@@ -728,23 +729,61 @@ under the sell threshold -- the same near-miss pattern found earlier for
 the long-term dashboard's 200-week MA distance removal, but here it's the
 zone width itself, not a missing indicator.
 
-Given that, adding `extreme_buy`/`extreme_sell` tiers *outside* the
-existing 30/70 boundary (rather than moving 30/70 itself, which is the
-one config `st_walkforward.py`'s TRAIN sweep ranks best among those
-tested, despite every config still coming back negative-spread -- see
-above) doesn't fix "neutral at real peaks" -- it adds a rarer, louder tier
-for genuine blow-off/capitulation days on top of an unchanged base
-signal. Implemented via `scoring.flag_five_zones()` (already built and
-used by the long-term dashboard) reusing the same shared
-`EXTREME_LOW_THRESHOLD`/`EXTREME_HIGH_THRESHOLD` (20/80) rather than
-inventing a second "extreme" definition -- checked that these land at a
-similar rarity for THIS composite too (~4.7% of days <=20, ~4.8% >=80,
-~9.5% combined, roughly 5-6 episodes/year per side, a similar cadence to
-the long-term dashboard's extreme zones). Not separately walk-forward
-validated for this composite (scoring.py's own five-zone check was run
-against the long-term composite, not this one) -- a display-granularity
-addition on top of the already-disclosed, already-negative-spread
-short-term signal, not a new edge.
+Adding `extreme_buy`/`extreme_sell` tiers *outside* the existing 30/70
+boundary doesn't by itself fix "neutral at real peaks" -- it adds a
+rarer, louder tier for genuine blow-off/capitulation days on top of an
+unchanged base signal. Implemented via `scoring.flag_five_zones()`
+(already built and used by the long-term dashboard) reusing the same
+shared `EXTREME_LOW_THRESHOLD`/`EXTREME_HIGH_THRESHOLD` (20/80) rather
+than inventing a second "extreme" definition -- checked that these land
+at a similar rarity for THIS composite too (~4.7% of days <=20, ~4.8%
+>=80, ~9.5% combined, roughly 5-6 episodes/year per side, a similar
+cadence to the long-term dashboard's extreme zones). Not separately
+walk-forward validated for this composite (scoring.py's own five-zone
+check was run against the long-term composite, not this one) -- a
+display-granularity addition on top of the already-disclosed,
+already-negative-spread short-term signal, not a new edge.
+
+**sell_threshold moved from 70 to 60 (buy_threshold left at 30), by
+request**, after a follow-up observation: the sell zone almost never
+triggered while the buy zone did. Checked directly and it's real:
+
+| | days &lt;=30 (buy) | days &gt;=70 (sell, old) | days &gt;=60 (sell, new) |
+|---|---|---|---|
+| Full history (2018-2026) | 15.5% | 12.1% | 28.0% |
+| Last 24 months | 12.3% | 6.8% | 24.8% |
+| Last 12 months | 20.5% | 3.3% | 15.3% |
+
+The cause traces to the underlying indicators, not the thresholds:
+`ma50_score` and `fng_st_score` -- the two most heavily-weighted inputs
+in `ST_DEFAULT_WEIGHTS` -- both have a full-history median well below 50
+(~41, ~43) and cross <=30 roughly twice as often as they cross >=70,
+pulling the whole composite's distribution left. A symmetric fix (moving
+both to 60/40) was considered and rejected: it walk-forward tested as the
+least-bad TRAIN config among round-number candidates, but that's not
+meaningful evidence here -- re-running the sweep across the whole 52/48
+to 75/25 range shows the spread improves smoothly and monotonically as
+the thresholds narrow toward 50/50 (70/30: -10.3pp, 60/40: -7.3pp, 52/48:
+-4.4pp on TRAIN), which is what you'd expect from an already-disclosed
+backwards-spread composite diluting toward zero as its "extreme" tiers
+shrink -- not evidence that any particular narrower threshold is more
+predictive. It would also have pushed confirmed signal frequency to
+~20/year, well past the ~9/year design target.
+
+Moving sell_threshold alone to 60 was chosen instead because it fixes
+the actual complaint directionally rather than symmetrically: sell's
+trigger rate becomes 28.0%/24.8% (full-history/24mo) -- now MORE common
+than buy's 15.5%/12.3%, correcting which side was starved rather than
+just splitting the difference. It also better matches real turning
+points: sell>=60 catches 57% of real local price peaks (vs. 31% at 70),
+while buy<=30 (unchanged) still catches 50% of real local troughs.
+Confirmed signal frequency rises to ~15-16/year -- a real, disclosed
+cost, not a free win. As with the five-zone addition, the justification
+here is distributional/descriptive accuracy against real peaks and
+troughs, not a forward-return claim; the walk-forward number is
+mentioned above specifically to explain why it does NOT support this
+change (or any narrower threshold), so it isn't overstated as validation
+it isn't.
 
 ## Keeping the dashboards current
 

@@ -34,7 +34,7 @@ ST_DEFAULT_WEIGHTS = {
 }
 
 
-def run_st_backtest(weights: dict = None, sell_threshold: float = 70, buy_threshold: float = 30,
+def run_st_backtest(weights: dict = None, sell_threshold: float = 60, buy_threshold: float = 30,
                      min_confirm_days: int = 3, cooldown_days: int = 14):
     if weights is None:
         weights = ST_DEFAULT_WEIGHTS
