@@ -709,6 +709,43 @@ failed as a contrarian signal in points 1-3 above are its core inputs,
 used here by deliberate choice rather than as a claim they predict
 reversals. Run `python st_current_status.py` for today's reading.
 
+**Five-tier zones added, by request**, after noticing the plain 3-zone
+version (buy_zone/neutral/sell_zone at 30/70) spends **~72% of days in
+"neutral"** even though the composite legitimately ranges from single
+digits to the high 90s. Checked directly rather than assumed: taking
+every real local price peak/trough (a 10-day window local max/min) since
+2018 and reading the composite's own score there --
+
+| | median composite | % that never even cross the 30/70 boundary |
+|---|---|---|
+| At real local peaks (n=98) | ~64 (inside "neutral") | 69% stay below sell_threshold (70) |
+| At real local troughs (n=101) | ~31 (right at the boundary) | 50% stay above buy_threshold (30) |
+
+-- confirming the complaint: the wide neutral band is already swallowing
+most genuine turning points, not just a display gap. The literal October
+2025 all-time high ($124,777) scored **69.5** on this composite, a hair
+under the sell threshold -- the same near-miss pattern found earlier for
+the long-term dashboard's 200-week MA distance removal, but here it's the
+zone width itself, not a missing indicator.
+
+Given that, adding `extreme_buy`/`extreme_sell` tiers *outside* the
+existing 30/70 boundary (rather than moving 30/70 itself, which is the
+one config `st_walkforward.py`'s TRAIN sweep ranks best among those
+tested, despite every config still coming back negative-spread -- see
+above) doesn't fix "neutral at real peaks" -- it adds a rarer, louder tier
+for genuine blow-off/capitulation days on top of an unchanged base
+signal. Implemented via `scoring.flag_five_zones()` (already built and
+used by the long-term dashboard) reusing the same shared
+`EXTREME_LOW_THRESHOLD`/`EXTREME_HIGH_THRESHOLD` (20/80) rather than
+inventing a second "extreme" definition -- checked that these land at a
+similar rarity for THIS composite too (~4.7% of days <=20, ~4.8% >=80,
+~9.5% combined, roughly 5-6 episodes/year per side, a similar cadence to
+the long-term dashboard's extreme zones). Not separately walk-forward
+validated for this composite (scoring.py's own five-zone check was run
+against the long-term composite, not this one) -- a display-granularity
+addition on top of the already-disclosed, already-negative-spread
+short-term signal, not a new edge.
+
 ## Keeping the dashboards current
 
 The two published Artifacts ("Signal Dashboard" and "Short-Term Signal")

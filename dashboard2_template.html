@@ -19,10 +19,12 @@
     --alert-strong: #953523;
     --alert-tint: rgba(193, 68, 45, 0.10);
     --alert-band: rgba(193, 68, 45, 0.14);
+    --alert-band-strong: rgba(193, 68, 45, 0.30);
     --buy: #2E8F6E;
     --buy-strong: #1F6B51;
     --buy-tint: rgba(46, 143, 110, 0.10);
     --buy-band: rgba(46, 143, 110, 0.14);
+    --buy-band-strong: rgba(46, 143, 110, 0.30);
     --neutral: #8A8377;
     --neutral-band: rgba(138, 131, 119, 0.08);
     --st-accent: #2E8F6E;
@@ -46,10 +48,12 @@
       --alert-strong: #F0876A;
       --alert-tint: rgba(219, 100, 72, 0.15);
       --alert-band: rgba(219, 100, 72, 0.18);
+      --alert-band-strong: rgba(219, 100, 72, 0.34);
       --buy: #3FAB84;
       --buy-strong: #6AC3A2;
       --buy-tint: rgba(63, 171, 132, 0.15);
       --buy-band: rgba(63, 171, 132, 0.18);
+      --buy-band-strong: rgba(63, 171, 132, 0.34);
       --neutral: #938A78;
       --neutral-band: rgba(147, 138, 120, 0.12);
       --st-accent: #3FAB84;
@@ -73,10 +77,12 @@
     --alert-strong: #F0876A;
     --alert-tint: rgba(219, 100, 72, 0.15);
     --alert-band: rgba(219, 100, 72, 0.18);
+    --alert-band-strong: rgba(219, 100, 72, 0.34);
     --buy: #3FAB84;
     --buy-strong: #6AC3A2;
     --buy-tint: rgba(63, 171, 132, 0.15);
     --buy-band: rgba(63, 171, 132, 0.18);
+    --buy-band-strong: rgba(63, 171, 132, 0.34);
     --neutral: #938A78;
     --neutral-band: rgba(147, 138, 120, 0.12);
     --st-accent: #3FAB84;
@@ -188,6 +194,11 @@
   .zone-badge.buy_zone { background: var(--buy-tint); color: var(--buy-strong); border: 1px solid var(--buy); }
   .zone-badge.sell_zone { background: var(--alert-tint); color: var(--alert-strong); border: 1px solid var(--alert); }
   .zone-badge.neutral { background: var(--neutral-band); color: var(--ink-2); border: 1px solid var(--border); }
+  /* Extreme tiers get a solid fill (vs. the tint used for plain buy/sell)
+     so they read as visually "louder" -- a stronger call, not just a
+     different color -- same convention as the long-term dashboard. */
+  .zone-badge.extreme_buy { background: var(--buy); color: var(--surface); border: 1px solid var(--buy-strong); }
+  .zone-badge.extreme_sell { background: var(--alert); color: var(--surface); border: 1px solid var(--alert-strong); }
   .zone-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 
   .hero-score {
@@ -344,6 +355,13 @@
   .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
   .pill.buy_zone { background: var(--buy-tint); color: var(--buy-strong); }
   .pill.sell_zone { background: var(--alert-tint); color: var(--alert-strong); }
+  /* Solid-filled, like the hero badge's extreme tiers -- distinct from the
+     OUTLINED extreme_low/extreme_high pills below (a separate, no-
+     confirmation-delay rarity stat, not a signal tier -- see dashboard 1). */
+  .pill.extreme_buy { background: var(--buy); color: var(--surface); }
+  .pill.extreme_sell { background: var(--alert); color: var(--surface); }
+  .pill.extreme_low { background: transparent; color: var(--buy-strong); border: 1.5px solid var(--buy); }
+  .pill.extreme_high { background: transparent; color: var(--alert-strong); border: 1.5px solid var(--alert); }
 
   footer {
     font-size: 12px;
@@ -381,8 +399,10 @@
       </div>
       <div class="gauge-ticks">
         <span>0 &mdash; oversold</span>
+        <span id="extreme-buy-th-label">20</span>
         <span id="buy-th-label">30</span>
         <span id="sell-th-label">70</span>
+        <span id="extreme-sell-th-label">80</span>
         <span>100 &mdash; overbought</span>
       </div>
       <div class="caveat" id="caveat-text"></div>
@@ -402,9 +422,11 @@
       <h2>Last 24 months</h2>
       <div class="legend">
         <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Composite score</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy)"></span>Extreme Buy</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--neutral)"></span>Neutral</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--alert-band)"></span>Sell zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert)"></span>Extreme Sell</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap">
@@ -500,13 +522,34 @@
     </div>
   </section>
 
+  <section class="card">
+    <div class="section-head">
+      <h2>Extreme zone history</h2>
+      <span class="section-sub" id="extreme-sub"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Period</th><th>Days</th><th>Zone</th><th>Price start &rarr; end</th><th>Composite range</th></tr></thead>
+        <tbody id="extreme-body"></tbody>
+      </table>
+    </div>
+  </section>
+
   <footer>
     Data: blockchain.info (BTC price), alternative.me (Fear &amp; Greed Index). This composite blends 50-day MA
     distance, 5-day-smoothed Fear &amp; Greed, daily RSI(14), Bollinger %B(20), and MACD histogram (12/26/9) into
     one 0-100 score, tuned for roughly 8-10 repositioning signals a year. It's a practical technicals-based tool,
     not a separately back-tested edge like the long-term dashboard &mdash; earlier testing found these short-lookback
     indicators tend to confirm trend rather than call reversals (see the repo README for that finding in full).
-    Use it for sizing partial trims/adds, not as a standalone reason to trade. Not financial advice &mdash; run
+    <b>Five-tier zones (Extreme Buy/Buy/Neutral/Sell/Extreme Sell), by request</b> &mdash; the plain 3-zone
+    version spends ~72% of days in "neutral" (30-70) even though the composite legitimately swings from single
+    digits to the high 90s; checked directly, real local price peaks score a median of only ~64 (already inside
+    "neutral"), and the literal October 2025 all-time high scored 69.5, a hair under the sell threshold.
+    Extreme Buy/Extreme Sell reuse the same &le;20 / &ge;80 rarity cutoffs the long-term dashboard uses (roughly
+    the rarest 5% on each side for this composite too), added purely for display granularity on the genuinely
+    rare blow-off/capitulation days &mdash; not separately walk-forward tested for this composite, and not a fix
+    for the underlying neutral band still swallowing most ordinary turning points. Use it for sizing partial
+    trims/adds, not as a standalone reason to trade. Not financial advice &mdash; run
     <code>st_current_status.py</code> for a live check.
   </footer>
 </div>
@@ -533,32 +576,44 @@ __DATA_JSON__
 
   document.getElementById("as-of-date").textContent = DATA.as_of;
   document.getElementById("hero-price").textContent = fmtUSD(DATA.price);
+  document.getElementById("extreme-buy-th-label").textContent = DATA.extreme_low_threshold;
   document.getElementById("buy-th-label").textContent = DATA.buy_threshold;
   document.getElementById("sell-th-label").textContent = DATA.sell_threshold;
+  document.getElementById("extreme-sell-th-label").textContent = DATA.extreme_high_threshold;
 
   const zone = DATA.confirmed_zone;
   const badge = document.getElementById("zone-badge");
   badge.classList.add(zone);
-  const badgeLabels = { buy_zone: "Buy zone", sell_zone: "Sell zone", neutral: "Neutral" };
+  const badgeLabels = {
+    extreme_buy: "Extreme Buy", buy_zone: "Buy zone", neutral: "Neutral",
+    sell_zone: "Sell zone", extreme_sell: "Extreme Sell",
+  };
   document.getElementById("zone-badge-text").textContent = badgeLabels[zone];
 
   document.getElementById("hero-score").firstChild.textContent = DATA.composite.toFixed(1);
   document.getElementById("gauge-marker").style.left = DATA.composite + "%";
-  // The CSS gauge-track gradient is hardcoded at 30%/70% as a static
-  // fallback -- override it here so the color transition actually lines
-  // up with DATA's real thresholds if they're ever tuned away from 30/70
+  // The CSS gauge-track gradient is hardcoded as a static fallback --
+  // override it here so the color transition actually lines up with
+  // DATA's real thresholds if they're ever tuned away from the defaults
   // (same latent bug dashboard1_template.html had until fixed).
   document.querySelector(".gauge-track").style.background =
-    `linear-gradient(to right, var(--buy) 0%, var(--buy) ${DATA.buy_threshold}%, var(--neutral) 50%, ` +
-    `var(--alert) ${DATA.sell_threshold}%, var(--alert) 100%)`;
+    `linear-gradient(to right, var(--buy) 0%, var(--buy) ${DATA.extreme_low_threshold}%, ` +
+    `var(--buy) ${DATA.buy_threshold}%, var(--neutral) 50%, ` +
+    `var(--alert) ${DATA.sell_threshold}%, var(--alert) ${DATA.extreme_high_threshold}%, var(--alert) 100%)`;
 
   let caption;
-  if (zone === "buy_zone") {
+  if (zone === "extreme_buy") {
+    caption = `Extreme buy, day ${DATA.run_length} of this run &mdash; composite has held at/below ` +
+      `${DATA.extreme_low_threshold} for at least ${DATA.confirm_days} days, the rarest ~5% of readings.`;
+  } else if (zone === "buy_zone") {
     caption = `Confirmed buy zone, day ${DATA.run_length} of this run &mdash; composite has held at/below ` +
       `${DATA.buy_threshold} for at least ${DATA.confirm_days} days.`;
   } else if (zone === "sell_zone") {
     caption = `Confirmed sell zone, day ${DATA.run_length} of this run &mdash; composite has held at/above ` +
       `${DATA.sell_threshold} for at least ${DATA.confirm_days} days.`;
+  } else if (zone === "extreme_sell") {
+    caption = `Extreme sell, day ${DATA.run_length} of this run &mdash; composite has held at/above ` +
+      `${DATA.extreme_high_threshold} for at least ${DATA.confirm_days} days, the rarest ~5% of readings.`;
   } else {
     caption = `Neutral &mdash; composite is between the ${DATA.buy_threshold}/${DATA.sell_threshold} bands, ` +
       `or hasn't cleared one long enough to confirm.`;
@@ -591,15 +646,42 @@ __DATA_JSON__
     grid.appendChild(card);
   });
 
+  const zoneLabel = (z) => ({
+    extreme_buy: "Extreme Buy", buy_zone: "Buy zone", neutral: "Neutral",
+    sell_zone: "Sell zone", extreme_sell: "Extreme Sell",
+    extreme_low: "Extreme low (bottom decile)", extreme_high: "Extreme high (top decile)",
+  }[z] || z);
+
   document.getElementById("signals-sub").textContent =
     `${DATA.signals.length} signals over ${DATA.years} years (~${DATA.per_year}/year)`;
   const signalsBody = document.getElementById("signals-body");
   DATA.signals.slice().reverse().forEach((s) => {
     const tr = document.createElement("tr");
     tr.innerHTML = `<td>${s.date}</td><td>${fmtUSD(s.price)}</td><td>${s.composite.toFixed(1)}</td>` +
-      `<td class="zone-cell"><span class="pill ${s.zone}">${s.zone.replace("_", " ")}</span></td>`;
+      `<td class="zone-cell"><span class="pill ${s.zone}">${zoneLabel(s.zone)}</span></td>`;
     signalsBody.appendChild(tr);
   });
+
+  document.getElementById("extreme-sub").textContent =
+    `Composite ≤ ${DATA.extreme_low_threshold} or ≥ ${DATA.extreme_high_threshold} — roughly the ` +
+    `rarest 5% of readings on each side (~9-10% of days combined). A statistical fact about the score, not a ` +
+    `fear/greed sentiment claim.`;
+
+  const extremeBody = document.getElementById("extreme-body");
+  DATA.extreme_periods.forEach((p) => {
+    const tr = document.createElement("tr");
+    const period = p.start_date === p.end_date ? p.start_date : `${p.start_date} → ${p.end_date}`;
+    tr.innerHTML = `
+      <td>${period}</td>
+      <td>${p.days}</td>
+      <td class="zone-cell"><span class="pill ${p.zone}">${zoneLabel(p.zone)}</span></td>
+      <td>${fmtUSD(p.start_price)} → ${fmtUSD(p.end_price)}</td>
+      <td>${p.min_composite.toFixed(1)}–${p.max_composite.toFixed(1)}</td>`;
+    extremeBody.appendChild(tr);
+  });
+  if (DATA.extreme_periods.length === 0) {
+    extremeBody.innerHTML = `<tr><td colspan="5" style="font-family:'Work Sans',sans-serif;color:var(--ink-muted)">No extreme-zone episodes in this history.</td></tr>`;
+  }
 
   // ---------- Chart: price (top) + composite (bottom) + buy/sell zone bands ----------
   function renderChart(wrapId, tooltipId, series) {
@@ -661,6 +743,10 @@ __DATA_JSON__
       const panelTop = compPlotTop, panelBottom = compPlotTop + compPlotH;
       drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.sell_threshold, 100, panelTop, panelBottom, "var(--alert-band)");
       drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, 0, DATA.buy_threshold, panelTop, panelBottom, "var(--buy-band)");
+      // Extreme sub-bands, stronger tint, layered on top of the plain
+      // buy/sell bands above -- the rarer, louder tier (see footer).
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.extreme_high_threshold, 100, panelTop, panelBottom, "var(--alert-band-strong)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, 0, DATA.extreme_low_threshold, panelTop, panelBottom, "var(--buy-band-strong)");
     }
 
     [0, 50, 100].forEach((v) => {
@@ -677,7 +763,10 @@ __DATA_JSON__
     const compPath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yComposite(d.composite).toFixed(1)}`).join(" ");
     svg.appendChild(el("path", { class: "composite-line", d: compPath }));
 
-    [[DATA.buy_threshold, "buy<=" + DATA.buy_threshold], [DATA.sell_threshold, "sell>=" + DATA.sell_threshold]].forEach(([th, label]) => {
+    [[DATA.extreme_low_threshold, "extreme buy<=" + DATA.extreme_low_threshold],
+     [DATA.buy_threshold, "buy<=" + DATA.buy_threshold],
+     [DATA.sell_threshold, "sell>=" + DATA.sell_threshold],
+     [DATA.extreme_high_threshold, "extreme sell>=" + DATA.extreme_high_threshold]].forEach(([th, label]) => {
       const y = yComposite(th);
       svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
       const t = el("text", { class: "axis-label", x: W - PAD_R, y: y - 4, "text-anchor": "end" });

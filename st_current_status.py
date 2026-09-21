@@ -3,13 +3,17 @@ st_current_status.py
 
 "Where does the short-term signal stand today" -- mirrors current_status.py's
 role for the long-term system, but for st_backtest.py's symmetric buy/sell
-composite.
+composite. Uses five-tier zones (extreme_buy/buy_zone/neutral/sell_zone/
+extreme_sell), by request -- see build_dashboard2_data.py's module
+docstring for why (the plain 3-zone version spends ~72% of days in
+"neutral" even at real peaks/troughs).
 """
 
 import argparse
 from fetch_data import fetch_btc_price_history, fetch_fear_greed_history
 from st_indicators import build_st_indicator_table
-from scoring import compute_composite_score, flag_zones, apply_confirmation, extract_zone_transitions
+from scoring import (compute_composite_score, flag_five_zones, apply_confirmation, extract_zone_transitions,
+                     flag_extreme_zones, EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
 from st_backtest import ST_DEFAULT_WEIGHTS
 
 DEFAULT_SELL_THRESHOLD = 70
@@ -32,8 +36,9 @@ def print_report(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: 
     table = build_st_indicator_table(price_df, fng_df)
 
     scored = compute_composite_score(table, weights=ST_DEFAULT_WEIGHTS)
-    zoned = flag_zones(scored, sell_threshold=sell_threshold, buy_threshold=buy_threshold)
+    zoned = flag_five_zones(scored, buy_threshold=buy_threshold, sell_threshold=sell_threshold)
     zoned = apply_confirmation(zoned, min_days=confirm_days)
+    zoned = flag_extreme_zones(zoned)
 
     latest = zoned.iloc[-1]
     zone = zoned["zone"]
@@ -52,9 +57,11 @@ def print_report(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: 
         print(f"  {label:<28} {latest[col]:5.1f}")
     print(f"  {'Composite score':<28} {latest['composite_score']:5.1f}")
     print()
-    print(f"Thresholds: sell >= {sell_threshold}, buy <= {buy_threshold}, confirm after {confirm_days} days")
+    print(f"Thresholds: extreme_sell >= {EXTREME_HIGH_THRESHOLD}, sell >= {sell_threshold}, "
+          f"buy <= {buy_threshold}, extreme_buy <= {EXTREME_LOW_THRESHOLD}, confirm after {confirm_days} days")
     print(f"Raw zone today: {latest['zone']}  (day {current_run_length} of this run)")
     print(f"Confirmed zone: {latest['confirmed_zone']}")
+    print(f"Extreme rarity flag: {latest['extreme_zone']}")
     print()
 
     if len(history) > 0:
