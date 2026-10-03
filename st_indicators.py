@@ -31,12 +31,33 @@ BB_CLIP_RANGE = (-15, 115)
 # hardcoding the calibration twice.
 MACD_CLIP_RANGE = (-1.9, 1.83)
 
+# Changed from 5 to 1 (i.e. unsmoothed daily F&G), by request, after F&G
+# was found to be the single biggest drag on the composite reaching
+# extreme_sell at real local peaks -- at the 89 real peaks that fell short
+# of extreme_sell, F&G's 5-day-smoothed median was a flat 50 (neutral),
+# the largest weighted contributor to the shortfall of any of the five
+# inputs (see the conversation record / README's "Fear & Greed smoothing
+# window" section). Checked directly before changing: window=1 raises
+# F&G's own median at real peaks from 51.0 to 55.0 (% of peaks with
+# fng_st_score>=80 roughly doubles, 8%->13%), and the composite's own
+# extreme_sell catch rate at real peaks from 10% to 13%. Walk-forward
+# effect is a wash, not a validated improvement (TRAIN -6.3pp->-7.0pp,
+# TEST -5.8pp->-5.5pp) -- same "distributional accuracy, not a forward-
+# return claim" caveat as the sell-threshold and five-zone changes.
+FNG_SHORT_WINDOW = 1
+
 
 def compute_fng_short_smoothed(fng_df: pd.DataFrame, window: int = 5) -> pd.DataFrame:
     """
-    Lightly-smoothed Fear & Greed Index (5-day, vs. 30-day in the
-    long-term system) -- responsive enough to catch a week-long spike
-    into "Greed" territory instead of averaging it away.
+    Fear & Greed Index smoothing for the short-term system. window is a
+    parameter (not hardcoded) so callers can compare settings -- the live
+    short-term composite (build_st_indicator_table() below) passes
+    FNG_SHORT_WINDOW (1, i.e. unsmoothed) explicitly rather than relying
+    on this function's own default of 5, which exists for backward
+    compatibility with code/tests written against the original 5-day
+    choice (e.g. st_indicators_fast.py's comparison dashboard, whose
+    already-published walk-forward numbers assumed 5-day F&G and
+    shouldn't silently change underneath it).
 
     Returns df with columns: date, fng_value, fng_short_smoothed
     """
@@ -179,7 +200,7 @@ def build_st_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd
     ma_df = compute_ma50_distance(price_df)
     ma_df["ma50_score"] = normalize_ma50_distance(ma_df["pct_distance_50"])
 
-    fng_short_df = compute_fng_short_smoothed(fng_df)
+    fng_short_df = compute_fng_short_smoothed(fng_df, window=FNG_SHORT_WINDOW)
     fng_short_df["fng_st_score"] = fng_short_df["fng_short_smoothed"]  # already 0-100
 
     merged = pd.merge(ma_df, fng_short_df, on="date", how="inner")

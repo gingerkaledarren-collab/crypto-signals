@@ -451,7 +451,7 @@
 
   <section class="card">
     <div class="section-head">
-      <h2>Fear &amp; Greed (5D smoothed) vs price</h2>
+      <h2>Fear &amp; Greed (1D, unsmoothed) vs price</h2>
       <div class="legend">
         <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Fear &amp; Greed</span>
@@ -537,7 +537,7 @@
 
   <footer>
     Data: blockchain.info (BTC price), alternative.me (Fear &amp; Greed Index). This composite blends 50-day MA
-    distance, 5-day-smoothed Fear &amp; Greed, daily RSI(14), Bollinger %B(20), and MACD histogram (12/26/9) into
+    distance, 1-day (unsmoothed) Fear &amp; Greed, daily RSI(14), Bollinger %B(20), and MACD histogram (12/26/9) into
     one 0-100 score. It's a practical technicals-based tool, not a separately back-tested edge like the long-term
     dashboard &mdash; earlier testing found these short-lookback indicators tend to confirm trend rather than call
     reversals (see the repo README for that finding in full).
@@ -558,8 +558,17 @@
     real local price peaks vs. 31% at 70). The cost: confirmed signal frequency rises to ~15-16/year from the
     original ~9/year design target. Not separately walk-forward validated as an improvement &mdash; the
     justification is distributional/descriptive accuracy against real peaks and troughs, not a forward-return
-    claim; see the repo README for the full numbers. Use it for sizing partial trims/adds, not as a standalone
-    reason to trade. Not financial advice &mdash; run <code>st_current_status.py</code> for a live check.
+    claim; see the repo README for the full numbers.
+    <b>Fear &amp; Greed smoothing changed from 5-day to 1-day (unsmoothed), by request</b>, after it was found to
+    be the single biggest drag on the composite reaching extreme_sell at real local peaks: across the peaks that
+    fell short of extreme_sell, 5-day F&amp;G's median was a flat 50 (neutral) and contributed roughly half the
+    composite's average shortfall from the 80 threshold &mdash; more than any other input, despite being the
+    most heavily weighted (30%). Unsmoothed F&amp;G lifts its own median at real peaks from 51.0 to 55.0 (share
+    of peaks with F&amp;G&ge;80 roughly doubles, 8%&rarr;13%) and the composite's own extreme_sell catch rate at
+    real peaks from 10% to 13%. Walk-forward effect is a wash (TRAIN -6.3pp&rarr;-7.0pp, TEST -5.8pp&rarr;-5.5pp)
+    &mdash; same distributional-accuracy-not-forward-return caveat as above.
+    Use it for sizing partial trims/adds, not as a standalone reason to trade. Not financial advice &mdash; run
+    <code>st_current_status.py</code> for a live check.
   </footer>
 </div>
 
@@ -1004,7 +1013,7 @@ __DATA_JSON__
     });
   }
 
-  // ---------- Fear & Greed (5D smoothed) vs price ----------
+  // ---------- Fear & Greed (1D, unsmoothed) vs price ----------
   function renderFngChart(wrapId, tooltipId, series) {
     const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
     const x0 = dates[0], x1 = dates[dates.length - 1];

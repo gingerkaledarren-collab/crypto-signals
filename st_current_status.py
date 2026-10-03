@@ -12,6 +12,11 @@ sell_threshold moved from 70 to 60, by request, after noticing the sell
 zone almost never triggered while the buy zone did -- see
 build_dashboard2_data.py's module docstring for the asymmetry that caused
 that and why 60/30 (not a symmetric 60/40) was chosen.
+
+Fear & Greed smoothing changed from 5-day to 1-day (unsmoothed), by
+request, after it was found to be the single biggest drag on the
+composite reaching extreme_sell at real local peaks -- see
+st_indicators.py's FNG_SHORT_WINDOW for the full numbers.
 """
 
 import argparse
@@ -27,7 +32,7 @@ DEFAULT_CONFIRM_DAYS = 3
 
 INDICATOR_LABELS = {
     "ma50_score": "50-day MA distance",
-    "fng_st_score": "Fear & Greed (5d smoothed)",
+    "fng_st_score": "Fear & Greed (1D, unsmoothed)",
     "rsi_st_score": "Daily RSI(14)",
     "bb_score": "Bollinger %B (20d)",
     "macd_score": "MACD histogram (12/26/9)",
