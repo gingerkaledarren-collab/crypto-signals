@@ -576,6 +576,17 @@
     better (less-negative) spread &mdash; de-weighting it trades one for the other, not a free improvement. Kept
     as requested; this is the configuration currently shown above.
     <br><br>
+    <b>Extreme thresholds recalibrated for this composite specifically, by request</b> &mdash; the long-term
+    dashboard's shared 20/80 cutoffs (calibrated to catch the rarest ~10% of ITS OWN readings) badly undershot
+    this composite's own distribution, only firing on 4.6% of days instead of the intended ~10%. Moved to
+    <b>extreme_buy&le;30 / extreme_sell&ge;70</b> here (an explicit choice over the better-10%-calibrated 25/75,
+    trading rarity for sensitivity): peak catch-rate 18%&rarr;52%, trough catch-rate 32%&rarr;73%, roughly doubling
+    episodes/year on both sides, now closer to ~16% of days each side rather than a rare ~10% event.
+    The plain buy_threshold also moved from 30 to <b>40</b> so it stays distinct from the new extreme_buy=30 (they'd
+    otherwise coincide and silently erase the plain buy_zone tier) &mdash; the result is a symmetric structure:
+    neutral 40-60, buy_zone 30-40 / sell_zone 60-70 (10 points each), extreme outside that. sell_threshold is
+    unchanged at 60.
+    <br><br>
     None of this produces a positive walk-forward spread at any point &mdash; it's all still negative, same
     disclosed trend-confirming-not-reversal-predicting problem as the live system. Data: blockchain.info (BTC
     price), alternative.me (Fear &amp; Greed Index). Not financial advice &mdash; the live short-term system

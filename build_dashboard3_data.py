@@ -119,12 +119,34 @@ import pandas as pd
 from fetch_data import fetch_btc_price_history, fetch_fear_greed_history
 from st_indicators_fast import build_st_indicator_table_fast, BB10_CLIP_RANGE, MACD_FAST_CLIP_RANGE
 from scoring import (compute_composite_score, flag_five_zones, apply_confirmation, extract_zone_transitions,
-                     apply_signal_cooldown, flag_extreme_zones, extract_extreme_periods,
-                     EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
-from st_current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEFAULT_CONFIRM_DAYS
+                     apply_signal_cooldown, flag_extreme_zones, extract_extreme_periods)
+from st_current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_CONFIRM_DAYS
 
 COOLDOWN_DAYS = 14
 SERIES_MONTHS = 24
+
+# Extreme thresholds recalibrated for THIS composite specifically, by
+# request -- the shared scoring.EXTREME_LOW_THRESHOLD/EXTREME_HIGH_THRESHOLD
+# (20/80) were calibrated against the long-term composite's distribution
+# and, reused here unmodified, badly undershot this composite's own "top
+# ~10% of readings" design intent (only 4.6% of days at 20/80, vs. the
+# ~9.5% that 25/75 or the ~16% that 30/70 actually give this composite).
+# 30/70 was chosen over the better-calibrated-to-10% 25/75 anyway, by
+# request, trading rarity for sensitivity (peak catch-rate 18%->52%,
+# trough catch-rate 32%->73%, episodes/year roughly double).
+#
+# buy_threshold also moves from the shared DEFAULT_BUY_THRESHOLD (30) to
+# 40 -- otherwise it would exactly coincide with extreme_buy_threshold
+# (30), and flag_five_zones() applies buy_zone before extreme_buy, so an
+# identical pair of cutoffs would silently erase the plain buy_zone tier
+# (every buy_zone day would get immediately overwritten to extreme_buy).
+# sell_threshold stays at the shared 60 -- 70 is still safely above it,
+# so sell_zone/extreme_sell stay distinct without any change there. The
+# result is a symmetric structure: neutral 40-60 (20pp wide, centered on
+# 50), buy_zone 30-40 and sell_zone 60-70 (10pp each), extreme outside that.
+FAST_BUY_THRESHOLD = 40
+FAST_EXTREME_LOW_THRESHOLD = 30
+FAST_EXTREME_HIGH_THRESHOLD = 70
 
 # 20-day MA distance and MACD(8/17/9) both removed by request (see module
 # docstring) -- compute_composite_score() normalizes by the total, so
@@ -145,7 +167,9 @@ INDICATOR_LABELS_FAST = {
 }
 
 
-def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = DEFAULT_BUY_THRESHOLD,
+def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = FAST_BUY_THRESHOLD,
+               extreme_low_threshold: float = FAST_EXTREME_LOW_THRESHOLD,
+               extreme_high_threshold: float = FAST_EXTREME_HIGH_THRESHOLD,
                confirm_days: int = DEFAULT_CONFIRM_DAYS, cooldown_days: int = COOLDOWN_DAYS,
                force_refresh: bool = False) -> dict:
     price_df = fetch_btc_price_history(force_refresh=force_refresh)
@@ -153,9 +177,12 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
     table = build_st_indicator_table_fast(price_df, fng_df)
 
     scored = compute_composite_score(table, weights=ST_FAST_WEIGHTS)
-    zoned = flag_five_zones(scored, buy_threshold=buy_threshold, sell_threshold=sell_threshold)
+    zoned = flag_five_zones(scored, buy_threshold=buy_threshold, sell_threshold=sell_threshold,
+                             extreme_buy_threshold=extreme_low_threshold,
+                             extreme_sell_threshold=extreme_high_threshold)
     zoned = apply_confirmation(zoned, min_days=confirm_days)
-    zoned = flag_extreme_zones(zoned)
+    zoned = flag_extreme_zones(zoned, extreme_low_threshold=extreme_low_threshold,
+                               extreme_high_threshold=extreme_high_threshold)
 
     confirmed_transitions = extract_zone_transitions(zoned, zone_col="confirmed_zone")
     signals = apply_signal_cooldown(confirmed_transitions, min_gap_days=cooldown_days)
@@ -181,8 +208,8 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
         "run_length": current_run_length,
         "sell_threshold": sell_threshold,
         "buy_threshold": buy_threshold,
-        "extreme_low_threshold": EXTREME_LOW_THRESHOLD,
-        "extreme_high_threshold": EXTREME_HIGH_THRESHOLD,
+        "extreme_low_threshold": extreme_low_threshold,
+        "extreme_high_threshold": extreme_high_threshold,
         "current_extreme_zone": latest["extreme_zone"],
         "confirm_days": confirm_days,
         "cooldown_days": cooldown_days,
