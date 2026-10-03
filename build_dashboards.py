@@ -18,14 +18,17 @@ import os
 import build_dashboard1_data
 import build_dashboard2_data
 import build_dashboard1_altweights_data
+import build_dashboard3_data
 
 TEMPLATE_1 = "dashboard1_template.html"
 TEMPLATE_2 = "dashboard2_template.html"
 TEMPLATE_1_ALT = "dashboard1_altweights_template.html"
+TEMPLATE_3 = "dashboard3_template.html"
 OUTPUT_DIR = "dashboard_output"
 OUTPUT_1 = os.path.join(OUTPUT_DIR, "dashboard1.html")
 OUTPUT_2 = os.path.join(OUTPUT_DIR, "dashboard2.html")
 OUTPUT_1_ALT = os.path.join(OUTPUT_DIR, "dashboard1_altweights.html")
+OUTPUT_3 = os.path.join(OUTPUT_DIR, "dashboard3.html")
 
 
 def render(template_path: str, placeholder: str, data: dict, output_path: str):
@@ -53,6 +56,13 @@ def main(force_refresh: bool = False):
     data1_alt = build_dashboard1_altweights_data.build_alt_data(force_refresh=force_refresh)
     render(TEMPLATE_1_ALT, "__DASHBOARD1_DATA_JSON__", data1_alt, OUTPUT_1_ALT)
     print(f"Wrote {OUTPUT_1_ALT} -- as of {data1_alt['as_of']}, composite {data1_alt['composite']}, zone {data1_alt['confirmed_zone']}")
+
+    # Fast-indicator comparison variant of Dashboard 2 (RSI(7)/MA20/BB10/
+    # MACD8-17-9) -- see build_dashboard3_data.py's docstring. Not part of
+    # the automated daily-refresh trigger, which only publishes dashboard1/2.
+    data3 = build_dashboard3_data.build_data(force_refresh=force_refresh)
+    render(TEMPLATE_3, "__DASHBOARD3_DATA_JSON__", data3, OUTPUT_3)
+    print(f"Wrote {OUTPUT_3} -- as of {data3['as_of']}, composite {data3['composite']}, zone {data3['confirmed_zone']}")
 
 
 if __name__ == "__main__":
