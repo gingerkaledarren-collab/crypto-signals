@@ -386,7 +386,7 @@
   .crosshair-line { stroke: var(--ink-muted); stroke-width: 1; pointer-events: none; opacity: 0; }
   .crosshair-dot { pointer-events: none; opacity: 0; }
 
-  #tooltip, #tooltip-recent, #tooltip-ma200w, #tooltip-ema, #tooltip-rsi, #tooltip-fng, #tooltip-supplyloss, #tooltip-mvrv, #tooltip-cycle, #tooltip-elliott {
+  #tooltip, #tooltip-recent, #tooltip-ma200w, #tooltip-ema, #tooltip-ema-recent, #tooltip-rsi, #tooltip-fng, #tooltip-supplyloss, #tooltip-mvrv, #tooltip-cycle, #tooltip-elliott {
     position: absolute;
     pointer-events: none;
     background: var(--ink);
@@ -600,6 +600,22 @@
     </div>
     <div class="chart-wrap" id="chart-wrap-ema">
       <div id="tooltip-ema"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>21w/34w EMA structure vs price — last 24 months</h2>
+      <span class="section-sub">Same data, zoomed in — the full-history view above compresses recent retests
+        into a few pixels on a log scale spanning 8+ years.</span>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--buy)"></span>21w EMA</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--accent)"></span>34w EMA</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-ema-recent">
+      <div id="tooltip-ema-recent"></div>
     </div>
   </section>
 
@@ -2227,6 +2243,9 @@
 
   const emaSeries = DATA.series.filter((d) => d.ema21 != null);
   renderEmaChart("chart-wrap-ema", "tooltip-ema", emaSeries);
+
+  const emaRecentSeries = emaSeries.filter((d) => new Date(d.date + "T00:00:00Z") >= recentCutoff);
+  renderEmaChart("chart-wrap-ema-recent", "tooltip-ema-recent", emaRecentSeries);
   renderRsiChart("chart-wrap-rsi", "tooltip-rsi", DATA.series);
   renderFngChart("chart-wrap-fng", "tooltip-fng", DATA.series);
   const supplyLossSeries = DATA.series.filter((d) => d.supply_in_loss_pct != null);
