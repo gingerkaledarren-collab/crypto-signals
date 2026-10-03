@@ -378,13 +378,15 @@
   .ema-line.ema34 { stroke: var(--ink-muted); stroke-dasharray: 1 3; }
   .composite-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .ma200w-line { fill: none; stroke: var(--buy); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ema21-line { fill: none; stroke: var(--buy); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ema34-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 6 4; }
   .rsi-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .chart-title { font-family: "Big Shoulders Display", sans-serif; font-size: 14px; font-weight: 700; fill: var(--ink-2); text-transform: uppercase; letter-spacing: 0.04em; }
 
   .crosshair-line { stroke: var(--ink-muted); stroke-width: 1; pointer-events: none; opacity: 0; }
   .crosshair-dot { pointer-events: none; opacity: 0; }
 
-  #tooltip, #tooltip-recent, #tooltip-ma200w, #tooltip-rsi, #tooltip-fng, #tooltip-supplyloss, #tooltip-mvrv, #tooltip-cycle, #tooltip-elliott {
+  #tooltip, #tooltip-recent, #tooltip-ma200w, #tooltip-ema, #tooltip-rsi, #tooltip-fng, #tooltip-supplyloss, #tooltip-mvrv, #tooltip-cycle, #tooltip-elliott {
     position: absolute;
     pointer-events: none;
     background: var(--ink);
@@ -579,6 +581,25 @@
     </div>
     <div class="chart-wrap" id="chart-wrap-ma200w">
       <div id="tooltip-ma200w"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>21w/34w EMA structure vs price (context only)</h2>
+      <span class="section-sub">Not in the composite — walk-forward tested and found not to improve the
+        signal (it behaves as trend-confirming, not reversal-predicting, like the short-term system's momentum
+        indicators). Shown because price retests the 21w EMA far more often than the 200w MA above: 11 separate
+        retest episodes since 2023 vs. effectively one for the 200w MA. A Rastani-style read: is price still
+        holding its bull-market support structure, not a buy/sell call.</span>
+      <div class="legend">
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--buy)"></span>21w EMA</span>
+        <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--accent)"></span>34w EMA</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-ema">
+      <div id="tooltip-ema"></div>
     </div>
   </section>
 
@@ -1459,6 +1480,129 @@
     });
   }
 
+  function renderEmaChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const H = 260;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const allValues = series.flatMap((d) => [d.price, d.ema21, d.ema34]).filter((v) => v != null);
+    const logMin = Math.log10(Math.min(...allValues) * 0.9);
+    const logMax = Math.log10(Math.max(...allValues) * 1.08);
+    const yPrice = (p) => PAD_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * (H - PAD_TOP);
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    svg.appendChild(el("text", { class: "chart-title", x: PAD_L, y: 10 }));
+    svg.querySelector("text.chart-title").textContent = "BTC price vs 21w/34w EMA (log scale)";
+    [Math.min(...allValues), Math.max(...allValues)].forEach((v) => {
+      const y = yPrice(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(v).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+
+    function buildPath(valueFn) {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        const v = valueFn(pt);
+        if (v === null || v === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yPrice(v).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+
+    svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price) }));
+    svg.appendChild(el("path", { class: "ema34-line", d: buildPath((d) => d.ema34) }));
+    svg.appendChild(el("path", { class: "ema21-line", d: buildPath((d) => d.ema21) }));
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((y) => {
+      const first = series.find((d) => d.date.slice(0, 4) === y);
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: H + 14, "text-anchor": "middle" });
+      t.textContent = y;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: H });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dot21 = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--buy)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dot34 = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--accent)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dot21);
+    svg.appendChild(dot34);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: H });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      dotPrice.style.opacity = 1;
+      crossLine.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      let emaLines = "";
+      if (d.ema21 != null) {
+        dot21.style.opacity = 1;
+        dot21.setAttribute("cx", px); dot21.setAttribute("cy", yPrice(d.ema21));
+        const pctDist = ((d.price - d.ema21) / d.ema21 * 100).toFixed(1);
+        const holding = d.price >= d.ema21 ? "holding" : "lost";
+        emaLines += `<div style="color:var(--buy-strong)">21w EMA ${fmtUSD(d.ema21)} (${pctDist > 0 ? "+" : ""}${pctDist}%, ${holding})</div>`;
+      } else {
+        dot21.style.opacity = 0;
+      }
+      if (d.ema34 != null) {
+        dot34.style.opacity = 1;
+        dot34.setAttribute("cx", px); dot34.setAttribute("cy", yPrice(d.ema34));
+        emaLines += `<div style="color:var(--accent-strong)">34w EMA ${fmtUSD(d.ema34)}</div>`;
+      } else {
+        dot34.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (H + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${emaLines}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dot21, dot34].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
   // ---------- Weekly RSI vs price (price panel + RSI panel) ----------
   function renderRsiChart(wrapId, tooltipId, series) {
     const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
@@ -2080,6 +2224,9 @@
   renderElliottChart("chart-wrap-elliott", "tooltip-elliott", DATA.elliott_wave);
   const ma200wSeries = DATA.series.filter((d) => d.ma_200w != null);
   renderMaChart("chart-wrap-ma200w", "tooltip-ma200w", ma200wSeries);
+
+  const emaSeries = DATA.series.filter((d) => d.ema21 != null);
+  renderEmaChart("chart-wrap-ema", "tooltip-ema", emaSeries);
   renderRsiChart("chart-wrap-rsi", "tooltip-rsi", DATA.series);
   renderFngChart("chart-wrap-fng", "tooltip-fng", DATA.series);
   const supplyLossSeries = DATA.series.filter((d) => d.supply_in_loss_pct != null);
