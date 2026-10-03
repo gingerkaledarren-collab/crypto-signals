@@ -63,6 +63,52 @@ TEST, noise-level given how few confirmed signals this composite produces
 per split. Same caveat as every other change here: not a validated
 improvement, applied because requested and reported honestly either way.
 
+**MACD(8/17/9) removed from the composite entirely, by request**, after
+analysis found it was the second-biggest drag after Fear & Greed (3.4 of
+a 16.2-point average shortfall from 80 at real peaks that missed
+extreme_sell, ~21% of the total) AND largely redundant with what's
+already in the mix -- correlated 0.67 with both RSI(7) and Bollinger
+%B(10) across full history (vs. 0.06 for F&G), i.e. a third vote on the
+same short-term momentum those two already cover, not an independent
+signal. Unlike the MA20 removal, dropping MACD improved EVERY metric
+checked, not a mixed result:
+
+    variant (4-input, with MA20 already removed)   TRAIN     TEST    peaks>=80  days>=80
+    with MACD                                      -8.0pp    -5.4pp    8%        2.8%
+    MACD removed (3-input: F&G/RSI7/BB10)          -6.7pp    -3.8pp   13%        3.2%
+
+**Fear & Greed also changed from 5-day smoothed to 1-day (unsmoothed),
+by request** -- same change, same rationale as the live short-term
+composite's (st_indicators.py's FNG_SHORT_WINDOW). Combined with the
+MACD removal above, the final 3-input composite (F&G 1D / RSI(7) /
+Bollinger %B(10,2)) scores:
+
+    TRAIN spread=-6.3pp, TEST spread=-3.5pp, peaks>=80: 15%, days>=80: 4.2%
+
+Still negative walk-forward spread -- this doesn't fix the composite's
+core problem, it's not a validated edge -- but it's the least-negative,
+highest-extreme-catch-rate version of this composite found so far, via
+two independently-reasoned removals (redundancy + drag) stacking
+cleanly rather than fighting each other.
+
+**Remaining three inputs (F&G 1D / RSI(7) / Bollinger %B(10,2)) changed
+from weighted (46%/27%/27% after normalization) to EQUAL (1/3 each), by
+request**, to see what de-emphasizing F&G's dominance does. Mixed, not a
+clean win this time -- unlike the MACD removal, the two metrics move in
+OPPOSITE directions:
+
+    variant                        TRAIN     TEST     peaks>=80   days>=80
+    weighted (46/27/27)            -6.3pp    -3.7pp     15%         4.2%
+    equal (1/3 each)               -6.8pp    -5.0pp     18%         4.6%
+
+Equal weighting catches MORE real extremes (18% of peaks vs. 15%, more
+days spent extreme) but the walk-forward spread gets WORSE on both
+splits. Read together with the F&G-drag finding earlier: F&G's heavier
+weight was directly responsible for both the lower extreme-catch-rate
+AND the better (less-negative) walk-forward spread -- de-weighting it
+trades one for the other rather than being a free improvement. Kept
+as requested; this is the config this dashboard currently ships.
+
 Run standalone to print the JSON to stdout, or import build_data() and
 call it from build_dashboards.py.
 """
@@ -80,22 +126,22 @@ from st_current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEF
 COOLDOWN_DAYS = 14
 SERIES_MONTHS = 24
 
-# 20-day MA distance removed by request (see module docstring) -- the
-# remaining three weights are unchanged from their original values;
-# compute_composite_score() normalizes by the total, so dropping this
-# entry alone is enough to redistribute its 17.5% proportionally.
+# 20-day MA distance and MACD(8/17/9) both removed by request (see module
+# docstring) -- compute_composite_score() normalizes by the total, so
+# just deleting those two dict entries redistributes their weight
+# proportionally. The remaining three were then changed from weighted
+# (30/17.5/17.5) to EQUAL (1/3 each), also by request -- see the mixed
+# result (catches more extremes, worse walk-forward spread) above.
 ST_FAST_WEIGHTS = {
-    "fng_st_score": 0.30,
-    "rsi7_score": 0.175,
-    "bb10_score": 0.175,
-    "macdfast_score": 0.175,
+    "fng_st_score": 1 / 3,
+    "rsi7_score": 1 / 3,
+    "bb10_score": 1 / 3,
 }
 
 INDICATOR_LABELS_FAST = {
-    "fng_st_score": "Fear & Greed (5d smoothed)",
+    "fng_st_score": "Fear & Greed (1D, unsmoothed)",
     "rsi7_score": "RSI(7)",
     "bb10_score": "Bollinger %B (10d)",
-    "macdfast_score": "MACD histogram (8/17/9)",
 }
 
 

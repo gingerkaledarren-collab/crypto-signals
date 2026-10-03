@@ -12,12 +12,17 @@ calibration bounds in st_indicators.py were fit to THAT file's windows
 different lookback, since the underlying raw-value distribution changes
 with it.
 
-Fear & Greed is UNCHANGED (still 5-day smoothed, fng_st_score) -- only
-the four technical indicators are swapped for faster settings:
-  - 50-day MA distance  -> 20-day MA distance
+Fear & Greed now uses FNG_SHORT_WINDOW (1-day, unsmoothed) -- same
+change and same rationale as the live short-term composite's, see
+st_indicators.py's FNG_SHORT_WINDOW docstring. The four technical
+indicators are swapped for faster settings:
+  - 50-day MA distance  -> 20-day MA distance (computed here, but
+    removed from the live composite's weights -- see
+    build_dashboard3_data.py)
   - RSI(14)             -> RSI(7)
   - Bollinger %B(20,2)  -> Bollinger %B(10,2)
-  - MACD(12,26,9)       -> MACD(8,17,9)
+  - MACD(12,26,9)       -> MACD(8,17,9) (also computed, also removed
+    from the weights -- see build_dashboard3_data.py)
 
 This is a comparison/test system, not a proposed replacement for the
 live short-term composite in st_indicators.py/st_backtest.py -- see
@@ -26,7 +31,7 @@ build_dashboard3_data.py and the README for the walk-forward numbers.
 
 import pandas as pd
 from st_indicators import (compute_fng_short_smoothed, compute_ma50_distance, compute_daily_rsi,
-                           compute_bollinger_pct_b, compute_macd)
+                           compute_bollinger_pct_b, compute_macd, FNG_SHORT_WINDOW)
 
 # Clip bounds below are the 2018-present ~5th/95th percentiles (~1st/99th
 # for Bollinger %B, matching st_indicators.py's own convention) of each
@@ -56,7 +61,7 @@ def build_st_indicator_table_fast(price_df: pd.DataFrame, fng_df: pd.DataFrame) 
         columns={"ma50": "ma20", "pct_distance_50": "pct_distance_20"})
     ma_df["ma20_score"] = _normalize(ma_df["pct_distance_20"], MA20_CLIP_RANGE)
 
-    fng_short_df = compute_fng_short_smoothed(fng_df)
+    fng_short_df = compute_fng_short_smoothed(fng_df, window=FNG_SHORT_WINDOW)
     fng_short_df["fng_st_score"] = fng_short_df["fng_short_smoothed"]
     merged = pd.merge(ma_df, fng_short_df, on="date", how="inner")
 
