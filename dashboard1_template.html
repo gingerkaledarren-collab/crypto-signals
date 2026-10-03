@@ -380,6 +380,8 @@
   .ma200w-line { fill: none; stroke: var(--buy); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .ema21-line { fill: none; stroke: var(--buy); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .ema34-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 6 4; }
+  .ema-fill-above { fill: var(--phase-accum); stroke: none; }
+  .ema-fill-below { fill: var(--phase-markdown); stroke: none; }
   .rsi-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .chart-title { font-family: "Big Shoulders Display", sans-serif; font-size: 14px; font-weight: 700; fill: var(--ink-2); text-transform: uppercase; letter-spacing: 0.04em; }
 
@@ -607,11 +609,14 @@
     <div class="section-head">
       <h2>21w/34w EMA structure vs price — last 24 months</h2>
       <span class="section-sub">Same data, zoomed in — the full-history view above compresses recent retests
-        into a few pixels on a log scale spanning 8+ years.</span>
+        into a few pixels on a log scale spanning 8+ years. Deviation-style fill: shaded by whether price is
+        above or below the 21w EMA, not a separate value.</span>
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--buy)"></span>21w EMA</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--accent)"></span>34w EMA</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--phase-accum)"></span>Above 21w EMA</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--phase-markdown)"></span>Below 21w EMA</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-ema-recent">
@@ -1496,7 +1501,7 @@
     });
   }
 
-  function renderEmaChart(wrapId, tooltipId, series) {
+  function renderEmaChart(wrapId, tooltipId, series, shaded) {
     const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
     const x0 = dates[0], x1 = dates[dates.length - 1];
 
@@ -1542,6 +1547,52 @@
         started = true;
       });
       return d.trim();
+    }
+
+    if (shaded) {
+      // Soft green where price sits above the 21w EMA, soft red where it's
+      // below -- split into per-segment ribbon polygons (price curve one
+      // way, EMA curve back the other way), with a linearly-interpolated
+      // crossing point wherever the sign of (price - ema21) flips, so the
+      // color switches exactly where the two lines actually cross rather
+      // than at the nearest data point.
+      let segPts = null, segSign = null;
+      const flush = () => {
+        if (!segPts || segPts.length < 2) { segPts = null; return; }
+        let d = `M${segPts[0][0].toFixed(1)},${segPts[0][1].toFixed(1)} `;
+        for (let i = 1; i < segPts.length; i++) d += `L${segPts[i][0].toFixed(1)},${segPts[i][1].toFixed(1)} `;
+        for (let i = segPts.length - 1; i >= 0; i--) d += `L${segPts[i][0].toFixed(1)},${segPts[i][2].toFixed(1)} `;
+        d += "Z";
+        svg.appendChild(el("path", { class: segSign > 0 ? "ema-fill-above" : "ema-fill-below", d }));
+        segPts = null;
+      };
+      for (let i = 0; i < series.length; i++) {
+        const d = series[i];
+        if (d.price == null || d.ema21 == null) { flush(); segSign = null; continue; }
+        const sign = d.price >= d.ema21 ? 1 : -1;
+        const x = xScale(dates[i]);
+        const yA = yPrice(d.price), yB = yPrice(d.ema21);
+        if (segSign === null) {
+          segSign = sign;
+          segPts = [[x, yA, yB]];
+        } else if (sign === segSign) {
+          segPts.push([x, yA, yB]);
+        } else {
+          const prev = series[i - 1];
+          const prevDiff = prev.price - prev.ema21;
+          const diff = d.price - d.ema21;
+          const frac = prevDiff / (prevDiff - diff);
+          const prevX = xScale(dates[i - 1]);
+          const crossX = prevX + frac * (x - prevX);
+          const crossVal = prev.price + frac * (d.price - prev.price);
+          const crossY = yPrice(crossVal);
+          segPts.push([crossX, crossY, crossY]);
+          flush();
+          segSign = sign;
+          segPts = [[crossX, crossY, crossY], [x, yA, yB]];
+        }
+      }
+      flush();
     }
 
     svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price) }));
@@ -2245,7 +2296,7 @@
   renderEmaChart("chart-wrap-ema", "tooltip-ema", emaSeries);
 
   const emaRecentSeries = emaSeries.filter((d) => new Date(d.date + "T00:00:00Z") >= recentCutoff);
-  renderEmaChart("chart-wrap-ema-recent", "tooltip-ema-recent", emaRecentSeries);
+  renderEmaChart("chart-wrap-ema-recent", "tooltip-ema-recent", emaRecentSeries, true);
   renderRsiChart("chart-wrap-rsi", "tooltip-rsi", DATA.series);
   renderFngChart("chart-wrap-fng", "tooltip-fng", DATA.series);
   const supplyLossSeries = DATA.series.filter((d) => d.supply_in_loss_pct != null);
