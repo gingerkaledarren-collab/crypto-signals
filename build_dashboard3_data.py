@@ -47,6 +47,22 @@ comparison dashboard rather than silently adopted, same as the Dashboard
 1 alt-weights comparison -- not a proposed replacement for the live
 short-term composite in st_indicators.py/st_backtest.py.
 
+**20-day MA distance removed from the composite entirely, by request**
+(weight redistributed proportionally to the remaining four via
+compute_composite_score()'s own normalization -- just deleting the dict
+entry is enough). Still computed and charted below as context only
+(same treatment as the long-term dashboard's EMA-structure/MVRV charts),
+just not scored. Re-ran the same walk-forward comparison with it removed:
+
+    variant                                TRAIN spread   TEST spread
+    5-input (with MA20, 17.5%)             -7.4pp         -7.2pp
+    4-input (MA20 removed, reweighted)     -8.0pp         -5.4pp
+
+Mixed, not a clear win either way -- slightly worse on TRAIN, better on
+TEST, noise-level given how few confirmed signals this composite produces
+per split. Same caveat as every other change here: not a validated
+improvement, applied because requested and reported honestly either way.
+
 Run standalone to print the JSON to stdout, or import build_data() and
 call it from build_dashboards.py.
 """
@@ -64,16 +80,18 @@ from st_current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEF
 COOLDOWN_DAYS = 14
 SERIES_MONTHS = 24
 
+# 20-day MA distance removed by request (see module docstring) -- the
+# remaining three weights are unchanged from their original values;
+# compute_composite_score() normalizes by the total, so dropping this
+# entry alone is enough to redistribute its 17.5% proportionally.
 ST_FAST_WEIGHTS = {
     "fng_st_score": 0.30,
-    "ma20_score": 0.175,
     "rsi7_score": 0.175,
     "bb10_score": 0.175,
     "macdfast_score": 0.175,
 }
 
 INDICATOR_LABELS_FAST = {
-    "ma20_score": "20-day MA distance",
     "fng_st_score": "Fear & Greed (5d smoothed)",
     "rsi7_score": "RSI(7)",
     "bb10_score": "Bollinger %B (10d)",

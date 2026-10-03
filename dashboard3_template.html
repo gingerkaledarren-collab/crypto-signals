@@ -481,7 +481,7 @@
 
   <section class="card">
     <div class="section-head">
-      <h2>20-day MA vs price</h2>
+      <h2>20-day MA vs price (context only, not in composite)</h2>
       <div class="legend">
         <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="legend-line" style="border-color:var(--calm)"></span>20-day MA</span>
@@ -557,6 +557,13 @@
     time there overall (3.2% of all days vs. 4.8%). Individually-faster, noisier components apparently need to
     align for a composite to sit at a true extreme for long enough to clear confirmation, and that's harder when
     each one is also flipping back and forth faster on its own.
+    (Those numbers above are from the original 5-input version of this composite.)
+    <b>20-day MA distance has since been removed from the composite entirely, by request</b> &mdash; its 17.5%
+    weight redistributes proportionally to the other four. Still computed and charted below as context only
+    (not scored), same treatment as the long-term dashboard's EMA-structure chart. Re-ran the same walk-forward
+    comparison with it out: TRAIN spread -8.0pp, TEST -5.4pp (vs. -7.4pp/-7.2pp with it in) &mdash; mixed, slightly
+    worse on TRAIN, better on TEST, not a clear win either way given how few confirmed signals this composite
+    produces per split.
     Data: blockchain.info (BTC price), alternative.me (Fear &amp; Greed Index). Not financial advice &mdash; the
     live short-term system (<code>st_current_status.py</code>) remains the one actually used; this exists purely
     to show the comparison honestly.
