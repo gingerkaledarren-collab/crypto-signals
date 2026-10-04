@@ -559,8 +559,9 @@ __DASHBOARD4_DATA_JSON__
     const priceY = (p) => PRICE_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * PRICE_H;
 
     const ratios = series.map((d) => d.lth_mvrv);
-    const rMin = 0, rMax = Math.max(...ratios) * 1.1;
-    const lthY = (v) => LTH_TOP + (1 - (v - rMin) / (rMax - rMin)) * LTH_H;
+    const logRMin = Math.log10(Math.min(...ratios) * 0.85);
+    const logRMax = Math.log10(Math.max(...ratios) * 1.15);
+    const lthY = (v) => LTH_TOP + (1 - (Math.log10(v) - logRMin) / (logRMax - logRMin)) * LTH_H;
 
     const svg = document.createElementNS(svgNS, "svg");
     svg.setAttribute("class", "chart");
@@ -568,7 +569,7 @@ __DASHBOARD4_DATA_JSON__
     document.getElementById("chart-wrap-lth").prepend(svg);
 
     const pLabel = el("text", { class: "panel-label", x: PAD_L, y: PRICE_TOP - 4 }); pLabel.textContent = "Price (log)"; svg.appendChild(pLabel);
-    const lLabel = el("text", { class: "panel-label", x: PAD_L, y: LTH_TOP - 4 }); lLabel.textContent = "LTH-MVRV"; svg.appendChild(lLabel);
+    const lLabel = el("text", { class: "panel-label", x: PAD_L, y: LTH_TOP - 4 }); lLabel.textContent = "LTH-MVRV (log)"; svg.appendChild(lLabel);
 
     [1000, 10000, 100000].forEach((v) => {
       if (v < Math.pow(10, logMin) || v > Math.pow(10, logMax)) return;
@@ -616,8 +617,9 @@ __DASHBOARD4_DATA_JSON__
     svg.appendChild(el("line", { class: "ref-line", x1: PAD_L, x2: W - PAD_R, y1: yOne, y2: yOne }));
     const oneLabel = el("text", { class: "axis-label", x: PAD_L - 8, y: yOne + 3, "text-anchor": "end" });
     oneLabel.textContent = "1.0"; svg.appendChild(oneLabel);
-    [Math.round(rMax * 0.5), Math.round(rMax)].forEach((v) => {
-      if (v <= 1) return;
+    const rMinData = Math.min(...ratios), rMaxData = Math.max(...ratios);
+    [0.8, 2, 3, 4, 5, 7, 10, 15, 20].forEach((v) => {
+      if (Math.abs(v - 1) < 0.05 || v < rMinData * 0.85 || v > rMaxData * 1.15) return;
       const y = lthY(v);
       const t = el("text", { class: "axis-label", x: PAD_L - 8, y: y + 3, "text-anchor": "end" });
       t.textContent = v; svg.appendChild(t);
