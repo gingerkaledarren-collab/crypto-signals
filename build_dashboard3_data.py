@@ -193,6 +193,40 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
     run_id = (zone_series != zone_series.shift(1)).cumsum()
     current_run_length = int((run_id == run_id.iloc[-1]).sum())
 
+    # "Today's recommended action" under the backtested sizing rule
+    # (euro1,500 every day in extreme_sell; euro5,000 once per NEW
+    # extreme_buy episode) -- a position-sizing rule layered on top of
+    # this composite's own extreme_zone, never separately walk-forward
+    # validated itself (see the scenario-testing conversation record /
+    # README). extreme_zone has no confirmation delay, same basis the
+    # backtests used. Episode-based (not calendar-run-length-of-`zone`)
+    # so a fresh extreme_buy triggers once even if the plain zone/
+    # confirmed_zone run already started earlier.
+    extreme_series = zoned["extreme_zone"]
+    extreme_run_id = (extreme_series != extreme_series.shift(1)).cumsum()
+    extreme_run_length = int((extreme_run_id == extreme_run_id.iloc[-1]).sum())
+    current_extreme = latest["extreme_zone"]
+    if current_extreme == "extreme_high":
+        recommended_action = {
+            "type": "sell", "amount": 1500,
+            "detail": f"Sell €1,500 today — day {extreme_run_length} of this extreme_sell run",
+        }
+    elif current_extreme == "extreme_low" and extreme_run_length == 1:
+        recommended_action = {
+            "type": "buy", "amount": 5000,
+            "detail": "Buy €5,000 today — new extreme_buy signal",
+        }
+    elif current_extreme == "extreme_low":
+        recommended_action = {
+            "type": "none", "amount": 0,
+            "detail": f"No new ST action — day {extreme_run_length} of an extreme_buy run already triggered on day 1",
+        }
+    else:
+        recommended_action = {
+            "type": "none", "amount": 0,
+            "detail": "No action — composite isn't at an ST extreme",
+        }
+
     years = (zoned["date"].max() - zoned["date"].min()).days / 365.25
 
     last_date = zoned["date"].max()
@@ -211,6 +245,8 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
         "extreme_low_threshold": extreme_low_threshold,
         "extreme_high_threshold": extreme_high_threshold,
         "current_extreme_zone": latest["extreme_zone"],
+        "extreme_run_length": extreme_run_length,
+        "recommended_action": recommended_action,
         "confirm_days": confirm_days,
         "cooldown_days": cooldown_days,
         "bb_clip_range": list(BB10_CLIP_RANGE),

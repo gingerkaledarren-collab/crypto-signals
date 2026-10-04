@@ -218,6 +218,22 @@
     line-height: 1.5;
   }
 
+  /* ---- Recommended-action card: a backtested sizing rule layered on
+     this composite's extreme_zone, not a separately validated signal --
+     see the card's own sub-line and the footer. ---- */
+  .action-card { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .action-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border-radius: 999px;
+    font-family: "Space Mono", monospace; font-weight: 700; font-size: 14px;
+    letter-spacing: 0.02em; flex-shrink: 0;
+  }
+  .action-pill.sell { background: var(--alert); color: var(--surface); }
+  .action-pill.buy { background: var(--buy); color: var(--surface); }
+  .action-pill.none { background: var(--neutral-band); color: var(--ink-2); border: 1px solid var(--border); }
+  .action-detail { font-size: 13.5px; color: var(--ink-2); line-height: 1.5; }
+  .action-detail b { color: var(--ink); }
+
   .gauge-track {
     position: relative;
     height: 10px;
@@ -407,6 +423,11 @@
       </div>
       <div class="caveat" id="caveat-text"></div>
     </div>
+  </section>
+
+  <section class="card action-card">
+    <span class="action-pill" id="action-pill"></span>
+    <span class="action-detail" id="action-detail"></span>
   </section>
 
   <section class="card">
@@ -664,6 +685,16 @@ __DASHBOARD3_DATA_JSON__
   document.getElementById("caveat-text").innerHTML =
     `A practical composite (see footer), not a separately validated signal like the long-term dashboard. ` +
     `${DATA.signals.length} signals over ${DATA.years} years (~${DATA.per_year}/year).`;
+
+  const action = DATA.recommended_action;
+  const actionPill = document.getElementById("action-pill");
+  actionPill.classList.add(action.type);
+  const actionLabels = { sell: "Sell today", buy: "Buy today", none: "No action today" };
+  actionPill.textContent = actionLabels[action.type];
+  document.getElementById("action-detail").innerHTML =
+    `<b>${action.detail}</b> &mdash; backtested sizing rule (&euro;1,500/day while in extreme_sell, ` +
+    `&euro;5,000 on a new extreme_buy), not a separately validated signal. The long-term dashboard's ` +
+    `&euro;20,000 sell/buy layer is tracked there, not here.`;
 
   function bucket(v, buy, sell) {
     if (v <= buy) return "buy";
