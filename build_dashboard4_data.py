@@ -158,18 +158,23 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
     min_row = merged.loc[merged["lth_mvrv_ratio"].idxmin()]
 
     # The "green circle" equivalent from the Glassnode chart: the low point
-    # of the most recent SUSTAINED pullback (>=60 days staying above 1.0,
-    # to skip brief noise like the 3-day gap between the two 2022 below-1
-    # periods below) that didn't tip into capitulation -- confirming the
-    # "long-term holders never went underwater this time" read with an
-    # actual marked low, not just a never-breached line.
-    above_run_id = (~below_one != (~below_one).shift(1)).cumsum()
+    # of the MOST RECENT pullback that didn't tip into capitulation --
+    # confirming the "long-term holders never went underwater this time"
+    # read with an actual marked low, not just a never-breached line.
+    #
+    # Deliberately scoped to the trailing RECENT_LOW_WINDOW_DAYS, not the
+    # minimum of the whole multi-year above-1.0 run: since there's been
+    # only one such run in our ~4-year data window (no second capitulation
+    # since early 2023), its global minimum landed on an early, minor dip
+    # (2023-03-10, 1.014) rather than the much deeper and more recent
+    # pullback (2026-06-30, 1.19) that's the one actually worth marking --
+    # same mismatch a human reading the chart would flag.
+    RECENT_LOW_WINDOW_DAYS = 540
     non_capitulation_low = None
-    candidate_runs = [grp for _, grp in merged.groupby(above_run_id)
-                       if bool(grp["lth_mvrv_ratio"].iloc[0] >= 1) and len(grp) >= 60]
-    if candidate_runs:
-        last_run = candidate_runs[-1]
-        low_idx = last_run["lth_mvrv_ratio"].idxmin()
+    recent_window = merged[merged["date"] >= merged["date"].max() - pd.Timedelta(days=RECENT_LOW_WINDOW_DAYS)]
+    recent_above = recent_window[recent_window["lth_mvrv_ratio"] >= 1]
+    if not recent_above.empty:
+        low_idx = recent_above["lth_mvrv_ratio"].idxmin()
         non_capitulation_low = {
             "date": merged.loc[low_idx, "date"].strftime("%Y-%m-%d"),
             "value": round(float(merged.loc[low_idx, "lth_mvrv_ratio"]), 3),
