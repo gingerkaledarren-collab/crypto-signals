@@ -524,7 +524,7 @@ __DASHBOARD4_DATA_JSON__
     });
 
     const tbody = document.getElementById("macd-table-body");
-    divergences.forEach((div) => {
+    [...divergences].reverse().forEach((div) => {
       const pt = series[div.idx_b];
       const color = div.type === "bullish" ? "var(--good)" : "var(--bad)";
       const tr = document.createElement("tr");
