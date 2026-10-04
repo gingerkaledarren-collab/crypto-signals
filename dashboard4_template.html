@@ -187,7 +187,9 @@
     </div>
     <p class="section-sub">Long-Term Holder MVRV &mdash; market cap / realized cap restricted to coins held 155+ days.
       Below 1.0 means long-term holders are in aggregate unrealized LOSS (historically marks capitulation); above 1.0
-      means they're still sitting on profit even through a drawdown.</p>
+      means they're still sitting on profit even through a drawdown. The dashed segment before Oct 2022 is a PROXY
+      (price &divide; 200-week MA, real price data, not invented numbers) standing in for real LTH-MVRV, which free
+      data only covers from Oct 2022 &mdash; see the note below the chart.</p>
     <div class="chart-wrap" id="chart-wrap-lth">
       <div class="tooltip" id="tooltip-lth"></div>
     </div>
@@ -270,7 +272,8 @@ __DASHBOARD4_DATA_JSON__
   `;
   document.getElementById("legend-lth").innerHTML = `
     <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
-    <span class="legend-item"><span class="legend-line" style="border-color:var(--accent)"></span>LTH-MVRV</span>
+    <span class="legend-item"><span class="legend-line" style="border-color:var(--accent)"></span>LTH-MVRV (real)</span>
+    <span class="legend-item"><span class="legend-line" style="border-color:var(--accent);border-top-style:dashed;opacity:0.7"></span>Proxy (pre-Oct 2022)</span>
     <span class="legend-item"><span class="legend-dot" style="background:var(--bad)"></span>Capitulation low</span>
     <span class="legend-item"><span class="legend-dot" style="background:var(--good)"></span>Stayed-in-profit low</span>
   `;
@@ -577,55 +580,29 @@ __DASHBOARD4_DATA_JSON__
     const lLabel = el("text", { class: "panel-label", x: PAD_L, y: TOP - 4 }); lLabel.textContent = "LTH-MVRV (log, left)"; svg.appendChild(lLabel);
     const pLabel = el("text", { class: "panel-label", x: W - PAD_R, y: TOP - 4, "text-anchor": "end" }); pLabel.textContent = "Price (log, right)"; svg.appendChild(pLabel);
 
-    // Deviation-style fill: green between the LTH-MVRV line and 1.0 while
-    // above it (in profit), red while below (capitulating) -- segment by
-    // segment, with the 1.0 crossing linearly interpolated.
+    // Static red band below 1.0 -- not a fill that follows the line, a
+    // fixed "danger zone" background, same device as the reference chart
+    // (no corresponding green shading above; above 1.0 is just blank).
     const yOne = lthY(1);
-    const fillPts = [];
-    series.forEach((pt, idx) => {
-      fillPts.push({ x: xScale(dates[idx]), y: lthY(pt.lth_mvrv), above: pt.lth_mvrv >= 1 });
-      const next = series[idx + 1];
-      if (next && (next.lth_mvrv >= 1) !== (pt.lth_mvrv >= 1)) {
-        const frac = (1 - pt.lth_mvrv) / (next.lth_mvrv - pt.lth_mvrv);
-        const crossX = xScale(dates[idx] + frac * (dates[idx + 1] - dates[idx]));
-        fillPts.push({ x: crossX, y: yOne, above: pt.lth_mvrv >= 1 });
-        fillPts.push({ x: crossX, y: yOne, above: next.lth_mvrv >= 1 });
-      }
-    });
-    function drawLthFillRun(runPts) {
-      if (runPts.length < 2) return;
-      let d = `M${runPts[0].x.toFixed(1)},${yOne.toFixed(1)} `;
-      runPts.forEach((p) => { d += `L${p.x.toFixed(1)},${p.y.toFixed(1)} `; });
-      d += `L${runPts[runPts.length - 1].x.toFixed(1)},${yOne.toFixed(1)} Z`;
-      svg.appendChild(el("path", { d, fill: runPts[0].above ? "var(--good-band)" : "var(--bad-band)", stroke: "none" }));
-    }
-    let lthRun = [fillPts[0]];
-    for (let i = 1; i < fillPts.length; i++) {
-      if (fillPts[i].above === lthRun[0].above) {
-        lthRun.push(fillPts[i]);
-      } else {
-        drawLthFillRun(lthRun);
-        lthRun = [fillPts[i]];
-      }
-    }
-    drawLthFillRun(lthRun);
+    const yFloor = lthY(Math.min(...ratios) * 0.85);
+    svg.appendChild(el("rect", { x: PAD_L, y: yOne, width: plotW, height: yFloor - yOne, fill: "var(--bad-band)" }));
 
     // price drawn first (background), then the 1.0 ref line, then LTH-MVRV
     // on top, so the main series always reads clearly over the price line
-    function buildPath(valueFn, yFn) {
+    function buildPath(pts, valueFn, yFn) {
       let d = "";
-      series.forEach((pt, idx) => {
-        const x = xScale(dates[idx]).toFixed(1);
+      pts.forEach((pt, idx) => {
+        const x = xScale(new Date(pt.date + "T00:00:00Z").getTime()).toFixed(1);
         const y = yFn(valueFn(pt)).toFixed(1);
         d += (idx === 0 ? "M" : "L") + x + "," + y + " ";
       });
       return d;
     }
-    svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price, priceY), opacity: 0.55 }));
+    svg.appendChild(el("path", { class: "price-line", d: buildPath(series, (d) => d.price, priceY), opacity: 0.55 }));
 
     svg.appendChild(el("line", { class: "ref-line", x1: PAD_L, x2: W - PAD_R, y1: yOne, y2: yOne }));
     const oneLabel = el("text", { class: "axis-label", x: PAD_L - 8, y: yOne + 3, "text-anchor": "end" });
-    oneLabel.textContent = "1.0"; svg.appendChild(oneLabel);
+    oneLabel.textContent = "1.0, the LTH cost basis"; svg.appendChild(oneLabel);
 
     const rMinData = Math.min(...ratios), rMaxData = Math.max(...ratios);
     [0.8, 2, 3, 4, 5, 7, 10, 15, 20].forEach((v) => {
@@ -643,40 +620,47 @@ __DASHBOARD4_DATA_JSON__
       svg.appendChild(t);
     });
 
-    svg.appendChild(el("path", { class: "data-line", d: buildPath((d) => d.lth_mvrv, lthY) }));
+    // LTH-MVRV line: dashed + muted for the illustrative proxy portion,
+    // solid + full color for the real data -- split into runs so the
+    // dash style actually changes at the boundary, not just the color.
+    let lineRun = [series[0]];
+    function flushLineRun(run) {
+      if (run.length < 2) return;
+      const isProxy = run[0].is_proxy;
+      svg.appendChild(el("path", {
+        class: "data-line", d: buildPath(run, (d) => d.lth_mvrv, lthY),
+        opacity: isProxy ? 0.55 : 1, "stroke-dasharray": isProxy ? "5 4" : "none",
+      }));
+    }
+    for (let i = 1; i < series.length; i++) {
+      if (series[i].is_proxy === lineRun[0].is_proxy) {
+        lineRun.push(series[i]);
+      } else {
+        flushLineRun(lineRun);
+        lineRun = [series[i - 1], series[i]]; // shared point so the two runs connect
+      }
+    }
+    flushLineRun(lineRun);
+
+    // boundary marker: where real LTH-MVRV data actually starts
+    const boundaryIdx = series.findIndex((d) => !d.is_proxy);
+    if (boundaryIdx > 0) {
+      const bx = xScale(dates[boundaryIdx]);
+      svg.appendChild(el("line", { x1: bx, x2: bx, y1: TOP, y2: TOP + PLOT_H, stroke: "var(--ink-muted)", "stroke-width": 1, "stroke-dasharray": "2 3", opacity: 0.7 }));
+      const bLabel = el("text", { class: "axis-label", x: bx + 4, y: TOP + 10, "text-anchor": "start" });
+      bLabel.textContent = "real data →";
+      svg.appendChild(bLabel);
+    }
 
     // low markers: a hollow ring at the bottom of each capitulation
     // (below-1.0) period, red; and one green ring at the low of the most
     // recent sustained pullback that stayed in profit -- same device as
     // the circled lows in the Glassnode chart this page is modeled on.
-    // A dashed connector down to the price line at that exact date, plus
-    // the price itself labeled there, makes the "indicator low = price
-    // low" correlation explicit instead of asking the reader to cross-
-    // reference two separately-scaled lines by eye.
     function drawLowMarker(dateStr, value, color) {
       const idx = series.findIndex((d) => d.date === dateStr);
       if (idx === -1) return;
-      const pt = series[idx];
-      const cx = xScale(dates[idx]);
-      const ratioY = lthY(value);
-      const priceYPos = priceY(pt.price);
-
-      svg.appendChild(el("line", {
-        x1: cx, y1: Math.min(ratioY, priceYPos), x2: cx, y2: Math.max(ratioY, priceYPos),
-        stroke: color, "stroke-width": 1, "stroke-dasharray": "3 3", opacity: 0.6,
-      }));
-
-      svg.appendChild(el("circle", { cx, cy: ratioY, r: 7, fill: "none", stroke: color, "stroke-width": 2 }));
-      svg.appendChild(el("circle", { cx, cy: ratioY, r: 2.5, fill: color }));
-
-      svg.appendChild(el("circle", { cx, cy: priceYPos, r: 4, fill: color, stroke: "var(--surface)", "stroke-width": 1.5 }));
-      const labelBelow = priceYPos > ratioY;
-      const priceLabel = el("text", {
-        class: "axis-label", x: cx, y: priceYPos + (labelBelow ? 14 : -8), "text-anchor": "middle",
-      });
-      priceLabel.setAttribute("fill", color);
-      priceLabel.textContent = fmtUSD(pt.price);
-      svg.appendChild(priceLabel);
+      const cx = xScale(dates[idx]), cy = lthY(value);
+      svg.appendChild(el("circle", { cx, cy, r: 9, fill: "none", stroke: color, "stroke-width": 2.5 }));
     }
     lth.below_one_periods.forEach((p) => drawLowMarker(p.min_date, p.min_ratio, "var(--bad)"));
     if (lth.non_capitulation_low) {
@@ -716,36 +700,37 @@ __DASHBOARD4_DATA_JSON__
       const wrapRect = wrap.getBoundingClientRect();
       tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
       tooltip.style.top = (rect.top - wrapRect.top + (lthY(d.lth_mvrv) / H) * rect.height) + "px";
-      tooltip.innerHTML = `<div>${d.date}</div><div>Price: ${fmtUSD(d.price)}</div><div>LTH-MVRV: ${d.lth_mvrv.toFixed(2)}${d.lth_mvrv < 1 ? " (capitulating)" : ""}</div>`;
+      const label = d.is_proxy ? "Proxy (price/200w MA)" : "LTH-MVRV";
+      tooltip.innerHTML = `<div>${d.date}</div><div>Price: ${fmtUSD(d.price)}</div><div>${label}: ${d.lth_mvrv.toFixed(2)}${d.lth_mvrv < 1 ? " (below cost basis)" : ""}</div>`;
     });
     hit.addEventListener("mouseleave", () => { crossLine.style.opacity = 0; tooltip.style.opacity = 0; });
 
     const checks = lth.correlation_checks || [];
     if (checks.length > 0) {
       const rows = checks.map((c) =>
-        `${c.date}: ratio ${c.ratio.toFixed(2)} &rarr; price ${fmtUSD(c.price)}, within <b>+${c.pct_above_90d_low.toFixed(1)}%</b> of its own ${lth.correlation_window_days}-day low`
+        `${c.date}${c.is_proxy ? " (proxy)" : ""}: ratio ${c.ratio.toFixed(2)} &rarr; price ${fmtUSD(c.price)}, within <b>+${c.pct_above_90d_low.toFixed(1)}%</b> of its own ${lth.correlation_window_days}-day low`
       ).join("<br>");
       document.getElementById("lth-correlation").innerHTML =
-        `<b style="color:var(--good)">Checked, not assumed:</b> on every date LTH-MVRV hit one of the marked lows above, BTC price was ` +
-        `also at or within ${Math.max(...checks.map((c) => c.pct_above_90d_low)).toFixed(1)}% of its own trailing ` +
-        `${lth.correlation_window_days}-day low &mdash; real correlation, from real data, not an assumption:<br>${rows}`;
+        `<b style="color:var(--good)">Checked, not assumed:</b> on every date LTH-MVRV (or its pre-2022 proxy) hit one of the marked ` +
+        `lows above, BTC price was also at or within ${Math.max(...checks.map((c) => c.pct_above_90d_low)).toFixed(1)}% of its own ` +
+        `trailing ${lth.correlation_window_days}-day low &mdash; true for the 2 real markers AND the 4 proxy ones, real price data ` +
+        `throughout, not an assumption:<br>${rows}`;
     }
 
     const tbody = document.getElementById("lth-table-body");
-    if (lth.below_one_periods.length === 0) {
-      document.getElementById("lth-table-wrap").style.display = "none";
-    } else {
-      lth.below_one_periods.forEach((p) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${p.start_date} &rarr; ${p.end_date}</td><td class="num">${p.days}</td><td class="num">${p.min_ratio.toFixed(2)}</td>`;
-        tbody.appendChild(tr);
-      });
-    }
+    lth.below_one_periods.forEach((p) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${p.start_date} &rarr; ${p.end_date}${p.is_proxy ? ' <span style="color:var(--ink-muted)">(proxy)</span>' : ""}</td><td class="num">${p.days}</td><td class="num">${p.min_ratio.toFixed(2)}</td>`;
+      tbody.appendChild(tr);
+    });
 
     document.getElementById("lth-caveat").innerHTML =
-      `Data from BGeometrics, free tier capped at ~4 years (${lth.data_start} onward) &mdash; the 2015, 2018, and ` +
-      `early-2022 cycle bottoms aren't in this window. All-time low in available data: ${lth.all_time_min.value.toFixed(2)} ` +
-      `on ${lth.all_time_min.date}. ${lth.below_one_periods.length === 0 ? "No below-1.0 period has occurred since this data begins." : ""}`;
+      `Real LTH-MVRV data from BGeometrics starts ${lth.real_data_start} (free-tier cap). Everything before that ` +
+      `(dashed on the chart) is a PROXY &mdash; price &divide; 200-week MA, a real, already-computed metric this ` +
+      `project uses elsewhere, standing in by shape for the missing cohort data, never presented as an actual ` +
+      `LTH-MVRV reading. It won't track the real metric exactly at every turn (it misses the 2018 bottom, for ` +
+      `example, since the 200w MA was still rising early in BTC's history) &mdash; treat the pre-2022 portion as ` +
+      `illustrative, not exact science.`;
   })();
 
   document.getElementById("footnote").innerHTML =

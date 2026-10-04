@@ -54,6 +54,7 @@ import numpy as np
 import pandas as pd
 from fetch_data import fetch_btc_price_history, fetch_lth_mvrv_history, fetch_mvrv_history
 from st_indicators import compute_macd
+from indicators import compute_200w_ma_distance
 
 MOMENTUM_SMOOTH_DAYS = 7     # smooths day-to-day whipsaw around the 1.0 line
 MOMENTUM_MIN_SEGMENT_DAYS = 10  # a crossing only counts as a regime change if it holds this long
@@ -137,25 +138,69 @@ def _build_macd_divergence(price_df: pd.DataFrame) -> dict:
 
 
 def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
-    merged = pd.merge(price_df, lth_df, on="date", how="inner").sort_values("date").reset_index(drop=True)
+    real = pd.merge(price_df, lth_df, on="date", how="inner").sort_values("date").reset_index(drop=True)
+    real_data_start = real["date"].min()
+
+    # PROXY for the period before real LTH-MVRV data exists (BGeometrics'
+    # free tier starts Oct 2022 -- see fetch_lth_mvrv_history docstring).
+    # Uses price / 200-week MA, a REAL, already-computed metric this
+    # project uses elsewhere (indicators.compute_200w_ma_distance), not
+    # invented numbers -- it measures the same basic thing (how stretched
+    # price is from a long-run cost basis) and oscillates around 1.0 the
+    # same way, so it stands in for the missing cohort-specific data by
+    # shape, not by fabricating a fake on-chain reading. Explicitly
+    # flagged is_proxy=True per row so the page can style and label it
+    # differently from the real series, never blending the two silently.
+    ma_table = compute_200w_ma_distance(price_df).dropna(subset=["ma_200w"])
+    ma_table = ma_table[ma_table["date"] < real_data_start].copy()
+    ma_table["lth_mvrv_ratio"] = ma_table["price"] / ma_table["ma_200w"]
+    proxy = ma_table[["date", "price", "lth_mvrv_ratio"]].copy()
+    proxy["is_proxy"] = True
+    real = real.copy()
+    real["is_proxy"] = False
+
+    merged = pd.concat([proxy, real], ignore_index=True).sort_values("date").reset_index(drop=True)
 
     below_one = merged["lth_mvrv_ratio"] < 1
     run_id = (below_one != below_one.shift(1)).cumsum()
-    periods = []
+    raw_periods = []
     for rid, grp in merged.groupby(run_id):
         if not bool(grp["lth_mvrv_ratio"].iloc[0] < 1):
             continue
         min_idx = grp["lth_mvrv_ratio"].idxmin()
-        periods.append({
-            "start_date": grp["date"].iloc[0].strftime("%Y-%m-%d"),
-            "end_date": grp["date"].iloc[-1].strftime("%Y-%m-%d"),
-            "days": len(grp),
-            "min_ratio": round(float(grp["lth_mvrv_ratio"].min()), 3),
-            "min_date": merged.loc[min_idx, "date"].strftime("%Y-%m-%d"),
+        raw_periods.append({
+            "start_date": grp["date"].iloc[0], "end_date": grp["date"].iloc[-1],
+            "days": len(grp), "min_ratio": float(grp["lth_mvrv_ratio"].min()),
+            "min_date": merged.loc[min_idx, "date"], "is_proxy": bool(grp["is_proxy"].iloc[0]),
         })
 
-    latest = merged.iloc[-1]
-    min_row = merged.loc[merged["lth_mvrv_ratio"].idxmin()]
+    # The proxy series is noisier than real LTH-MVRV (13 separate below-1
+    # dips vs. the real data's clean 2), so nearby dips of the SAME kind
+    # (never merged across the real/proxy boundary) within MERGE_GAP_DAYS
+    # are collapsed into one marker at their deepest point -- one circle
+    # per distinct capitulation era, matching how the reference chart
+    # marks cycle bottoms rather than every intra-cycle wiggle.
+    MERGE_GAP_DAYS = 21
+    periods = []
+    for p in raw_periods:
+        if (periods and periods[-1]["is_proxy"] == p["is_proxy"]
+                and (p["start_date"] - periods[-1]["end_date"]).days <= MERGE_GAP_DAYS):
+            prev = periods[-1]
+            prev["end_date"] = p["end_date"]
+            prev["days"] += p["days"]
+            if p["min_ratio"] < prev["min_ratio"]:
+                prev["min_ratio"] = p["min_ratio"]
+                prev["min_date"] = p["min_date"]
+        else:
+            periods.append(dict(p))
+    for p in periods:
+        p["start_date"] = p["start_date"].strftime("%Y-%m-%d")
+        p["end_date"] = p["end_date"].strftime("%Y-%m-%d")
+        p["min_date"] = p["min_date"].strftime("%Y-%m-%d")
+        p["min_ratio"] = round(p["min_ratio"], 3)
+
+    latest = real.iloc[-1]
+    min_row = real.loc[real["lth_mvrv_ratio"].idxmin()]
 
     # The "green circle" equivalent from the Glassnode chart: the low point
     # of the MOST RECENT pullback that didn't tip into capitulation --
@@ -182,7 +227,7 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
 
     series = [
         {"date": row["date"].strftime("%Y-%m-%d"), "price": round(float(row["price"]), 2),
-         "lth_mvrv": round(float(row["lth_mvrv_ratio"]), 3)}
+         "lth_mvrv": round(float(row["lth_mvrv_ratio"]), 3), "is_proxy": bool(row["is_proxy"])}
         for _, row in merged.iterrows()
     ]
 
@@ -205,7 +250,7 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
         pct_above_low = (price_now / trailing_low - 1) * 100
         correlation_checks.append({
             "date": date_str, "ratio": round(ratio_val, 3), "price": round(price_now, 2),
-            "pct_above_90d_low": round(pct_above_low, 1),
+            "pct_above_90d_low": round(pct_above_low, 1), "is_proxy": bool(merged.loc[idx, "is_proxy"]),
         })
 
     return {
@@ -214,6 +259,7 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
         "as_of": latest["date"].strftime("%Y-%m-%d"),
         "current": round(float(latest["lth_mvrv_ratio"]), 3),
         "data_start": merged["date"].min().strftime("%Y-%m-%d"),
+        "real_data_start": real_data_start.strftime("%Y-%m-%d"),
         "all_time_min": {
             "date": min_row["date"].strftime("%Y-%m-%d"),
             "value": round(float(min_row["lth_mvrv_ratio"]), 3),
