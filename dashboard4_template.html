@@ -648,12 +648,34 @@ __DASHBOARD4_DATA_JSON__
     // (below-1.0) period, red; and one green ring at the low of the most
     // recent sustained pullback that stayed in profit -- same device as
     // the circled lows in the Glassnode chart this page is modeled on.
+    // A dashed connector down to the price line at that exact date, plus
+    // the price itself labeled there, makes the "indicator low = price
+    // low" correlation explicit instead of asking the reader to cross-
+    // reference two separately-scaled lines by eye.
     function drawLowMarker(dateStr, value, color) {
       const idx = series.findIndex((d) => d.date === dateStr);
       if (idx === -1) return;
-      const cx = xScale(dates[idx]), cy = lthY(value);
-      svg.appendChild(el("circle", { cx, cy, r: 7, fill: "none", stroke: color, "stroke-width": 2 }));
-      svg.appendChild(el("circle", { cx, cy, r: 2.5, fill: color }));
+      const pt = series[idx];
+      const cx = xScale(dates[idx]);
+      const ratioY = lthY(value);
+      const priceYPos = priceY(pt.price);
+
+      svg.appendChild(el("line", {
+        x1: cx, y1: Math.min(ratioY, priceYPos), x2: cx, y2: Math.max(ratioY, priceYPos),
+        stroke: color, "stroke-width": 1, "stroke-dasharray": "3 3", opacity: 0.6,
+      }));
+
+      svg.appendChild(el("circle", { cx, cy: ratioY, r: 7, fill: "none", stroke: color, "stroke-width": 2 }));
+      svg.appendChild(el("circle", { cx, cy: ratioY, r: 2.5, fill: color }));
+
+      svg.appendChild(el("circle", { cx, cy: priceYPos, r: 4, fill: color, stroke: "var(--surface)", "stroke-width": 1.5 }));
+      const labelBelow = priceYPos > ratioY;
+      const priceLabel = el("text", {
+        class: "axis-label", x: cx, y: priceYPos + (labelBelow ? 14 : -8), "text-anchor": "middle",
+      });
+      priceLabel.setAttribute("fill", color);
+      priceLabel.textContent = fmtUSD(pt.price);
+      svg.appendChild(priceLabel);
     }
     lth.below_one_periods.forEach((p) => drawLowMarker(p.min_date, p.min_ratio, "var(--bad)"));
     if (lth.non_capitulation_low) {
