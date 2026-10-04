@@ -145,15 +145,35 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
     for rid, grp in merged.groupby(run_id):
         if not bool(grp["lth_mvrv_ratio"].iloc[0] < 1):
             continue
+        min_idx = grp["lth_mvrv_ratio"].idxmin()
         periods.append({
             "start_date": grp["date"].iloc[0].strftime("%Y-%m-%d"),
             "end_date": grp["date"].iloc[-1].strftime("%Y-%m-%d"),
             "days": len(grp),
             "min_ratio": round(float(grp["lth_mvrv_ratio"].min()), 3),
+            "min_date": merged.loc[min_idx, "date"].strftime("%Y-%m-%d"),
         })
 
     latest = merged.iloc[-1]
     min_row = merged.loc[merged["lth_mvrv_ratio"].idxmin()]
+
+    # The "green circle" equivalent from the Glassnode chart: the low point
+    # of the most recent SUSTAINED pullback (>=60 days staying above 1.0,
+    # to skip brief noise like the 3-day gap between the two 2022 below-1
+    # periods below) that didn't tip into capitulation -- confirming the
+    # "long-term holders never went underwater this time" read with an
+    # actual marked low, not just a never-breached line.
+    above_run_id = (~below_one != (~below_one).shift(1)).cumsum()
+    non_capitulation_low = None
+    candidate_runs = [grp for _, grp in merged.groupby(above_run_id)
+                       if bool(grp["lth_mvrv_ratio"].iloc[0] >= 1) and len(grp) >= 60]
+    if candidate_runs:
+        last_run = candidate_runs[-1]
+        low_idx = last_run["lth_mvrv_ratio"].idxmin()
+        non_capitulation_low = {
+            "date": merged.loc[low_idx, "date"].strftime("%Y-%m-%d"),
+            "value": round(float(merged.loc[low_idx, "lth_mvrv_ratio"]), 3),
+        }
 
     series = [
         {"date": row["date"].strftime("%Y-%m-%d"), "price": round(float(row["price"]), 2),
@@ -171,6 +191,7 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
             "date": min_row["date"].strftime("%Y-%m-%d"),
             "value": round(float(min_row["lth_mvrv_ratio"]), 3),
         },
+        "non_capitulation_low": non_capitulation_low,
     }
 
 

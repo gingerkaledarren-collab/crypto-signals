@@ -270,7 +270,8 @@ __DASHBOARD4_DATA_JSON__
   document.getElementById("legend-lth").innerHTML = `
     <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
     <span class="legend-item"><span class="legend-line" style="border-color:var(--accent)"></span>LTH-MVRV</span>
-    <span class="legend-item"><span class="legend-dot" style="background:var(--bad)"></span>Below 1.0 (capitulation)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--bad)"></span>Capitulation low</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--good)"></span>Stayed-in-profit low</span>
   `;
 
   // ======================= MVRV MOMENTUM CHART =======================
@@ -313,8 +314,44 @@ __DASHBOARD4_DATA_JSON__
     });
 
     const yOne = momY(1);
-    const yFloor = momY(mMin);
-    svg.appendChild(el("rect", { x: PAD_L, y: yOne, width: plotW, height: yFloor - yOne, fill: "var(--bad-band)" }));
+
+    // Deviation-style fill: green between the line and 1.0 while momentum
+    // is above it, red while below -- same technique as the 21w EMA chart
+    // on the long-term dashboard. Build a flat list of {x, y, above} points
+    // (pixel coords, already including interpolated crossing points where
+    // the line passes through 1.0), then emit one filled polygon per
+    // consecutive same-side run.
+    const pts = [];
+    series.forEach((pt, idx) => {
+      pts.push({ x: xScale(dates[idx]), y: momY(pt.momentum), above: pt.momentum >= 1 });
+      const next = series[idx + 1];
+      if (next && (next.momentum >= 1) !== (pt.momentum >= 1)) {
+        const frac = (1 - pt.momentum) / (next.momentum - pt.momentum);
+        const crossX = xScale(dates[idx] + frac * (dates[idx + 1] - dates[idx]));
+        pts.push({ x: crossX, y: yOne, above: pt.momentum >= 1 }); // ends this run
+        pts.push({ x: crossX, y: yOne, above: next.momentum >= 1 }); // starts next run
+      }
+    });
+
+    let run = [pts[0]];
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i].above === run[0].above) {
+        run.push(pts[i]);
+      } else {
+        drawFillRun(run);
+        run = [pts[i]];
+      }
+    }
+    drawFillRun(run);
+
+    function drawFillRun(runPts) {
+      if (runPts.length < 2) return;
+      let d = `M${runPts[0].x.toFixed(1)},${yOne.toFixed(1)} `;
+      runPts.forEach((p) => { d += `L${p.x.toFixed(1)},${p.y.toFixed(1)} `; });
+      d += `L${runPts[runPts.length - 1].x.toFixed(1)},${yOne.toFixed(1)} Z`;
+      svg.appendChild(el("path", { d, fill: runPts[0].above ? "var(--good-band)" : "var(--bad-band)", stroke: "none" }));
+    }
+
     svg.appendChild(el("line", { class: "ref-line", x1: PAD_L, x2: W - PAD_R, y1: yOne, y2: yOne }));
     const oneLabel = el("text", { class: "axis-label", x: PAD_L - 8, y: yOne + 3, "text-anchor": "end" });
     oneLabel.textContent = "1.0"; svg.appendChild(oneLabel);
@@ -542,10 +579,40 @@ __DASHBOARD4_DATA_JSON__
       svg.appendChild(t);
     });
 
-    // shade below-1.0 band in the LTH panel
+    // Deviation-style fill: green between the line and 1.0 while LTH-MVRV
+    // is above it (in profit), red while below (capitulating) -- same
+    // technique as the MVRV momentum chart and the 21w EMA chart on the
+    // long-term dashboard.
     const yOne = lthY(1);
-    const yFloor = lthY(rMin);
-    svg.appendChild(el("rect", { x: PAD_L, y: yOne, width: plotW, height: yFloor - yOne, fill: "var(--bad-band)" }));
+    const fillPts = [];
+    series.forEach((pt, idx) => {
+      fillPts.push({ x: xScale(dates[idx]), y: lthY(pt.lth_mvrv), above: pt.lth_mvrv >= 1 });
+      const next = series[idx + 1];
+      if (next && (next.lth_mvrv >= 1) !== (pt.lth_mvrv >= 1)) {
+        const frac = (1 - pt.lth_mvrv) / (next.lth_mvrv - pt.lth_mvrv);
+        const crossX = xScale(dates[idx] + frac * (dates[idx + 1] - dates[idx]));
+        fillPts.push({ x: crossX, y: yOne, above: pt.lth_mvrv >= 1 });
+        fillPts.push({ x: crossX, y: yOne, above: next.lth_mvrv >= 1 });
+      }
+    });
+    function drawLthFillRun(runPts) {
+      if (runPts.length < 2) return;
+      let d = `M${runPts[0].x.toFixed(1)},${yOne.toFixed(1)} `;
+      runPts.forEach((p) => { d += `L${p.x.toFixed(1)},${p.y.toFixed(1)} `; });
+      d += `L${runPts[runPts.length - 1].x.toFixed(1)},${yOne.toFixed(1)} Z`;
+      svg.appendChild(el("path", { d, fill: runPts[0].above ? "var(--good-band)" : "var(--bad-band)", stroke: "none" }));
+    }
+    let lthRun = [fillPts[0]];
+    for (let i = 1; i < fillPts.length; i++) {
+      if (fillPts[i].above === lthRun[0].above) {
+        lthRun.push(fillPts[i]);
+      } else {
+        drawLthFillRun(lthRun);
+        lthRun = [fillPts[i]];
+      }
+    }
+    drawLthFillRun(lthRun);
+
     svg.appendChild(el("line", { class: "ref-line", x1: PAD_L, x2: W - PAD_R, y1: yOne, y2: yOne }));
     const oneLabel = el("text", { class: "axis-label", x: PAD_L - 8, y: yOne + 3, "text-anchor": "end" });
     oneLabel.textContent = "1.0"; svg.appendChild(oneLabel);
@@ -567,6 +634,22 @@ __DASHBOARD4_DATA_JSON__
     }
     svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price, priceY) }));
     svg.appendChild(el("path", { class: "data-line", d: buildPath((d) => d.lth_mvrv, lthY) }));
+
+    // low markers: a hollow ring at the bottom of each capitulation
+    // (below-1.0) period, red; and one green ring at the low of the most
+    // recent sustained pullback that stayed in profit -- same device as
+    // the circled lows in the Glassnode chart this page is modeled on.
+    function drawLowMarker(dateStr, value, color) {
+      const idx = series.findIndex((d) => d.date === dateStr);
+      if (idx === -1) return;
+      const cx = xScale(dates[idx]), cy = lthY(value);
+      svg.appendChild(el("circle", { cx, cy, r: 7, fill: "none", stroke: color, "stroke-width": 2 }));
+      svg.appendChild(el("circle", { cx, cy, r: 2.5, fill: color }));
+    }
+    lth.below_one_periods.forEach((p) => drawLowMarker(p.min_date, p.min_ratio, "var(--bad)"));
+    if (lth.non_capitulation_low) {
+      drawLowMarker(lth.non_capitulation_low.date, lth.non_capitulation_low.value, "var(--good)");
+    }
 
     const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
     years.forEach((yr) => {
