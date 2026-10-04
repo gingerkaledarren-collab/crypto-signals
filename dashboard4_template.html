@@ -1,0 +1,630 @@
+<title>Signal Research</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  /* Layout: header -> stat row (last signal / current LTH-MVRV) -> MACD
+     divergence chart+table -> LTH-MVRV chart+table -> footer. Palette:
+     violet accent (unused by dashboards 1-3) on a cool slate surface, to
+     read as a distinct "research notebook" product, not a fourth copy of
+     the composite-score dashboards. */
+  :root {
+    --bg: #F4F3F9; --surface: #FFFFFF; --surface-2: #ECEAF5; --border: #DAD7EA;
+    --ink: #17152B; --ink-2: #4F4C6B; --ink-muted: #837FA0;
+    --accent: #4A3AA7; --accent-strong: #352876;
+    --good: #1BAF7A; --good-tint: rgba(27, 175, 122, 0.12); --good-band: rgba(27, 175, 122, 0.16);
+    --bad: #E34948; --bad-tint: rgba(227, 73, 72, 0.10); --bad-band: rgba(227, 73, 72, 0.16);
+    --neutral: #837FA0; --neutral-band: rgba(131, 127, 160, 0.08);
+    --shadow: 0 1px 2px rgba(23, 21, 43, 0.05), 0 10px 28px -14px rgba(23, 21, 43, 0.22);
+    --grid-line: #E3E1EF;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121022; --surface: #1A1830; --surface-2: #221F3C; --border: #322E52;
+      --ink: #F2F1FA; --ink-2: #C4C1DC; --ink-muted: #8D89AD;
+      --accent: #9085E9; --accent-strong: #B0A7F2;
+      --good: #3FC797; --good-tint: rgba(63, 199, 151, 0.14); --good-band: rgba(63, 199, 151, 0.18);
+      --bad: #E66767; --bad-tint: rgba(230, 103, 103, 0.14); --bad-band: rgba(230, 103, 103, 0.18);
+      --neutral: #8D89AD; --neutral-band: rgba(141, 137, 173, 0.12);
+      --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 14px 34px -14px rgba(0,0,0,0.55);
+      --grid-line: #2A2748;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121022; --surface: #1A1830; --surface-2: #221F3C; --border: #322E52;
+    --ink: #F2F1FA; --ink-2: #C4C1DC; --ink-muted: #8D89AD;
+    --accent: #9085E9; --accent-strong: #B0A7F2;
+    --good: #3FC797; --good-tint: rgba(63, 199, 151, 0.14); --good-band: rgba(63, 199, 151, 0.18);
+    --bad: #E66767; --bad-tint: rgba(230, 103, 103, 0.14); --bad-band: rgba(230, 103, 103, 0.18);
+    --neutral: #8D89AD; --neutral-band: rgba(141, 137, 173, 0.12);
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 14px 34px -14px rgba(0,0,0,0.55);
+    --grid-line: #2A2748;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: clamp(16px, 4vw, 48px); padding-block: clamp(16px, 4vw, 48px);
+  }
+  .page { max-width: 1060px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink-muted); }
+  h1 { font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: clamp(26px, 4.2vw, 36px); line-height: 1.05; letter-spacing: -0.01em; margin: 4px 0 0; text-wrap: balance; }
+  h2 { font-family: "Space Grotesk", sans-serif; font-weight: 600; font-size: 18px; margin: 0; color: var(--ink); }
+  p { line-height: 1.55; color: var(--ink-2); margin: 0; max-width: 72ch; }
+
+  header.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 18px; }
+  .top-meta { text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
+  .top-meta .price { font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 24px; color: var(--ink); display: block; margin-top: 2px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 20px 22px; }
+
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 640px) { .stat-row { grid-template-columns: 1fr; } }
+  .stat-card { display: flex; flex-direction: column; gap: 8px; }
+  .stat-label { font-size: 12.5px; color: var(--ink-2); font-weight: 600; }
+  .stat-value-row { display: flex; align-items: center; gap: 10px; }
+  .stat-pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px;
+    font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 12.5px; letter-spacing: 0.02em;
+  }
+  .stat-pill.bullish, .stat-pill.above { background: var(--good-tint); color: var(--good); border: 1px solid var(--good); }
+  .stat-pill.bearish, .stat-pill.below { background: var(--bad-tint); color: var(--bad); border: 1px solid var(--bad); }
+  .stat-value { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat-sub { font-size: 12.5px; color: var(--ink-muted); line-height: 1.5; }
+
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .section-sub { font-size: 12.5px; color: var(--ink-muted); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .legend-line { width: 16px; height: 0; border-top: 2px solid; }
+
+  .chart-wrap { margin-top: 14px; position: relative; }
+  svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
+  .axis-label { font-family: "IBM Plex Mono", monospace; font-size: 10px; fill: var(--ink-muted); }
+  .panel-label { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; fill: var(--ink-muted); }
+  .grid-line { stroke: var(--grid-line); stroke-width: 1; }
+  .zero-line { stroke: var(--ink-muted); stroke-width: 1; }
+  .price-line { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .data-line { fill: none; stroke: var(--accent); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .div-connector { stroke-width: 2; }
+  .div-dot { stroke: var(--surface); stroke-width: 2; }
+  .ref-line { stroke: var(--ink-muted); stroke-width: 1; stroke-dasharray: 3 4; }
+
+  .tooltip {
+    position: absolute; pointer-events: none;
+    background: var(--ink); color: var(--bg);
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; line-height: 1.6;
+    padding: 8px 10px; border-radius: 8px; box-shadow: var(--shadow);
+    opacity: 0; transform: translate(-50%, -110%); white-space: nowrap; z-index: 5;
+    transition: opacity 0.08s ease;
+  }
+  .chart-hit { fill: transparent; cursor: crosshair; }
+  .crosshair-line { stroke: var(--ink-muted); stroke-width: 1; pointer-events: none; opacity: 0; }
+
+  .table-wrap { overflow-x: auto; margin-top: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 520px; }
+  th { text-align: left; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-muted); font-weight: 600; padding: 0 10px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th.num, td.num { text-align: right; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .type-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 7px; }
+
+  .caveat { font-size: 12.5px; color: var(--ink-muted); line-height: 1.55; border-top: 1px dashed var(--border); padding-top: 12px; margin-top: 14px; }
+
+  footer { font-size: 12px; color: var(--ink-muted); line-height: 1.65; padding: 4px 4px 0; }
+  footer b { color: var(--ink-2); }
+
+  @media (max-width: 620px) { .hero { grid-template-columns: 1fr; } }
+</style>
+
+<div class="page">
+  <header class="top">
+    <div>
+      <div class="eyebrow">BTC positioning signal &middot; research dashboard</div>
+      <h1>Signal Research</h1>
+    </div>
+    <div class="top-meta">
+      As of <span id="as-of-date"></span>
+      <span class="price" id="hero-price"></span>
+    </div>
+  </header>
+
+  <div class="stat-row" id="stat-row"></div>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>MVRV momentum</h2>
+      <div class="legend" id="legend-mom"></div>
+    </div>
+    <p class="section-sub">MVRV ratio vs. its own 365-day rolling mean. Crossing back above 1.0 is the pattern
+      claimed to have marked the start of the 2019 and 2023 bull markets &mdash; our free data can't actually
+      confirm either of those (see caveat below), so this only shows what the signal is doing right now.</p>
+    <div class="chart-wrap" id="chart-wrap-mom">
+      <div class="tooltip" id="tooltip-mom"></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Regime (&ge;10 days)</th><th>Momentum</th><th class="num">Days</th></tr></thead>
+        <tbody id="mom-table-body"></tbody>
+      </table>
+    </div>
+    <div class="caveat" id="mom-caveat"></div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Weekly MACD divergence</h2>
+      <div class="legend" id="legend-macd"></div>
+    </div>
+    <p class="section-sub">Price makes a new swing high/low that weekly MACD doesn't confirm &mdash; a reversal-type
+      signal, structurally different from every trend-confirming indicator in dashboards 1&ndash;3. Connector lines
+      link each divergence's two swing points; opposite slopes between the price and MACD panels is the divergence.</p>
+    <div class="chart-wrap" id="chart-wrap-macd">
+      <div class="tooltip" id="tooltip-macd"></div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Type</th><th class="num">Price</th><th class="num">MACD</th></tr></thead>
+        <tbody id="macd-table-body"></tbody>
+      </table>
+    </div>
+    <div class="caveat" id="macd-caveat"></div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>LTH-MVRV</h2>
+      <div class="legend" id="legend-lth"></div>
+    </div>
+    <p class="section-sub">Long-Term Holder MVRV &mdash; market cap / realized cap restricted to coins held 155+ days.
+      Below 1.0 means long-term holders are in aggregate unrealized LOSS (historically marks capitulation); above 1.0
+      means they're still sitting on profit even through a drawdown.</p>
+    <div class="chart-wrap" id="chart-wrap-lth">
+      <div class="tooltip" id="tooltip-lth"></div>
+    </div>
+    <div class="table-wrap" id="lth-table-wrap">
+      <table>
+        <thead><tr><th>Below-1.0 (capitulation) period</th><th class="num">Days</th><th class="num">Min ratio</th></tr></thead>
+        <tbody id="lth-table-body"></tbody>
+      </table>
+    </div>
+    <div class="caveat" id="lth-caveat"></div>
+  </section>
+
+  <footer id="footnote"></footer>
+</div>
+
+<script id="dashboard-data" type="application/json">
+__DASHBOARD4_DATA_JSON__
+</script>
+
+<script>
+(function () {
+  const DATA = JSON.parse(document.getElementById("dashboard-data").textContent);
+  const fmtUSD = (n) => "$" + Math.round(n).toLocaleString("en-US");
+
+  document.getElementById("as-of-date").textContent = DATA.as_of;
+  document.getElementById("hero-price").textContent = fmtUSD(DATA.price);
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs) {
+    const e = document.createElementNS(svgNS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  // ======================= STAT ROW =======================
+  const md = DATA.macd_divergence;
+  const lth = DATA.lth_mvrv;
+  const mom = DATA.mvrv_momentum;
+  const lastSig = md.last_signal;
+  const lthAbove = lth.current >= 1;
+  const momAbove = mom.current >= 1;
+
+  document.getElementById("stat-row").innerHTML = `
+    <div class="stat-card">
+      <span class="stat-label">MVRV momentum now</span>
+      <div class="stat-value-row">
+        <span class="stat-pill ${momAbove ? "above" : "below"}">${momAbove ? "bullish" : "bearish"}</span>
+        <span class="stat-value">${mom.current.toFixed(2)}</span>
+      </div>
+      <span class="stat-sub">${mom.as_of} &mdash; ${mom.smooth_days}d-smoothed, data from ${mom.data_start}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Last MACD divergence</span>
+      <div class="stat-value-row">
+        <span class="stat-pill ${lastSig.type}">${lastSig.type}</span>
+        <span class="stat-value">${fmtUSD(lastSig.price)}</span>
+      </div>
+      <span class="stat-sub">${lastSig.date} &mdash; ${md.divergences.length} signals total in ${md.weeks} weeks (2010&ndash;present)</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">LTH-MVRV now</span>
+      <div class="stat-value-row">
+        <span class="stat-pill ${lthAbove ? "above" : "below"}">${lthAbove ? "in profit" : "capitulating"}</span>
+        <span class="stat-value">${lth.current.toFixed(2)}</span>
+      </div>
+      <span class="stat-sub">${lth.as_of} &mdash; data from ${lth.data_start} (BGeometrics free-tier limit)</span>
+    </div>
+  `;
+
+  document.getElementById("legend-mom").innerHTML = `
+    <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
+    <span class="legend-item"><span class="legend-line" style="border-color:var(--accent)"></span>MVRV / 365d mean</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--bad)"></span>Below 1.0 (bearish)</span>
+  `;
+  document.getElementById("legend-macd").innerHTML = `
+    <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>Price / MACD</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--good)"></span>Bullish divergence</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--bad)"></span>Bearish divergence</span>
+  `;
+  document.getElementById("legend-lth").innerHTML = `
+    <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
+    <span class="legend-item"><span class="legend-line" style="border-color:var(--accent)"></span>LTH-MVRV</span>
+    <span class="legend-item"><span class="legend-dot" style="background:var(--bad)"></span>Below 1.0 (capitulation)</span>
+  `;
+
+  // ======================= MVRV MOMENTUM CHART =======================
+  (function renderMomChart() {
+    const series = mom.series;
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 58, PAD_R = 14;
+    const PRICE_TOP = 16, PRICE_H = 200, GAP = 26;
+    const MOM_TOP = PRICE_TOP + PRICE_H + GAP, MOM_H = 150;
+    const H = MOM_TOP + MOM_H + 30;
+    const plotW = W - PAD_L - PAD_R;
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.9);
+    const logMax = Math.log10(Math.max(...prices) * 1.1);
+    const priceY = (p) => PRICE_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * PRICE_H;
+
+    const moms = series.map((d) => d.momentum);
+    const mMin = Math.min(0.8, Math.min(...moms) * 0.95), mMax = Math.max(...moms) * 1.1;
+    const momY = (v) => MOM_TOP + (1 - (v - mMin) / (mMax - mMin)) * MOM_H;
+
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    document.getElementById("chart-wrap-mom").prepend(svg);
+
+    const pLabel = el("text", { class: "panel-label", x: PAD_L, y: PRICE_TOP - 4 }); pLabel.textContent = "Price (log)"; svg.appendChild(pLabel);
+    const mLabel = el("text", { class: "panel-label", x: PAD_L, y: MOM_TOP - 4 }); mLabel.textContent = "MVRV / 365d mean"; svg.appendChild(mLabel);
+
+    [1000, 10000, 100000].forEach((v) => {
+      if (v < Math.pow(10, logMin) || v > Math.pow(10, logMax)) return;
+      const y = priceY(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 8, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + (v / 1000) + "k";
+      svg.appendChild(t);
+    });
+
+    const yOne = momY(1);
+    const yFloor = momY(mMin);
+    svg.appendChild(el("rect", { x: PAD_L, y: yOne, width: plotW, height: yFloor - yOne, fill: "var(--bad-band)" }));
+    svg.appendChild(el("line", { class: "ref-line", x1: PAD_L, x2: W - PAD_R, y1: yOne, y2: yOne }));
+    const oneLabel = el("text", { class: "axis-label", x: PAD_L - 8, y: yOne + 3, "text-anchor": "end" });
+    oneLabel.textContent = "1.0"; svg.appendChild(oneLabel);
+    [mMin, mMax].forEach((v) => {
+      if (Math.abs(v - 1) < 0.05) return;
+      const y = momY(v);
+      const t = el("text", { class: "axis-label", x: PAD_L - 8, y: y + 3, "text-anchor": "end" });
+      t.textContent = v.toFixed(1); svg.appendChild(t);
+    });
+
+    function buildPath(valueFn, yFn) {
+      let d = "";
+      series.forEach((pt, idx) => {
+        const x = xScale(dates[idx]).toFixed(1);
+        const y = yFn(valueFn(pt)).toFixed(1);
+        d += (idx === 0 ? "M" : "L") + x + "," + y + " ";
+      });
+      return d;
+    }
+    svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price, priceY) }));
+    svg.appendChild(el("path", { class: "data-line", d: buildPath((d) => d.momentum, momY) }));
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((yr) => {
+      const first = series.find((d) => d.date.startsWith(yr));
+      const x = xScale(new Date(first.date + "T00:00:00Z").getTime());
+      const t = el("text", { class: "axis-label", x, y: H - 4, "text-anchor": "middle" });
+      t.textContent = yr;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PRICE_TOP, y2: MOM_TOP + MOM_H });
+    svg.appendChild(crossLine);
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: H });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById("tooltip-mom");
+    const wrap = document.getElementById("chart-wrap-mom");
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+      crossLine.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (priceY(d.price) / H) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>Price: ${fmtUSD(d.price)}</div><div>Momentum: ${d.momentum.toFixed(2)}${d.momentum < 1 ? " (bearish)" : " (bullish)"}</div>`;
+    });
+    hit.addEventListener("mouseleave", () => { crossLine.style.opacity = 0; tooltip.style.opacity = 0; });
+
+    const tbody = document.getElementById("mom-table-body");
+    mom.segments.slice(-10).reverse().forEach((s) => {
+      const color = s.above ? "var(--good)" : "var(--bad)";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${s.start_date} &rarr; ${s.end_date}</td>
+        <td><span class="type-dot" style="background:${color}"></span>${s.above ? "bullish" : "bearish"}</td>
+        <td class="num">${s.days}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("mom-caveat").innerHTML =
+      `Data starts ${mom.data_start} (BGeometrics free-tier cap) &mdash; the 2019 crossing this pattern is named for ` +
+      `is entirely outside this window, and the 2023 one sits right at the edge of the 365-day lead-in a rolling ` +
+      `mean needs, so neither historical comparison can be confirmed or refuted here. Shown ${mom.smooth_days}-day ` +
+      `smoothed with a 10-day minimum hold to count as a regime change (the raw daily ratio whipsaws across 1.0 ` +
+      `dozens of times a year on this short baseline) &mdash; context only, not a validated signal.`;
+  })();
+
+  // ======================= MACD DIVERGENCE CHART =======================
+  (function renderMacdChart() {
+    const series = md.series;
+    const divergences = md.divergences;
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 58, PAD_R = 14;
+    const PRICE_TOP = 16, PRICE_H = 230, GAP = 26;
+    const MACD_TOP = PRICE_TOP + PRICE_H + GAP, MACD_H = 110;
+    const H = MACD_TOP + MACD_H + 30;
+    const plotW = W - PAD_L - PAD_R;
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.8);
+    const logMax = Math.log10(Math.max(...prices) * 1.15);
+    const priceY = (p) => PRICE_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * PRICE_H;
+
+    const macds = series.map((d) => d.macd);
+    const macdMin = Math.min(...macds) * 1.1, macdMax = Math.max(...macds) * 1.1;
+    const macdY = (v) => MACD_TOP + (1 - (v - macdMin) / (macdMax - macdMin)) * MACD_H;
+
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    document.getElementById("chart-wrap-macd").prepend(svg);
+
+    const pLabel = el("text", { class: "panel-label", x: PAD_L, y: PRICE_TOP - 4 }); pLabel.textContent = "Price (log)"; svg.appendChild(pLabel);
+    const mLabel = el("text", { class: "panel-label", x: PAD_L, y: MACD_TOP - 4 }); mLabel.textContent = "MACD line"; svg.appendChild(mLabel);
+
+    [1, 10, 100, 1000, 10000, 100000].forEach((v) => {
+      if (v < Math.pow(10, logMin) || v > Math.pow(10, logMax)) return;
+      const y = priceY(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 8, y: y + 3, "text-anchor": "end" });
+      t.textContent = v >= 1000 ? "$" + (v / 1000) + "k" : "$" + v;
+      svg.appendChild(t);
+    });
+
+    svg.appendChild(el("line", { class: "zero-line", x1: PAD_L, x2: W - PAD_R, y1: macdY(0), y2: macdY(0) }));
+    const t0 = el("text", { class: "axis-label", x: PAD_L - 8, y: macdY(0) + 3, "text-anchor": "end" });
+    t0.textContent = "0"; svg.appendChild(t0);
+
+    function buildPath(valueFn, yFn) {
+      let d = "";
+      series.forEach((pt, idx) => {
+        const x = xScale(dates[idx]).toFixed(1);
+        const y = yFn(valueFn(pt)).toFixed(1);
+        d += (idx === 0 ? "M" : "L") + x + "," + y + " ";
+      });
+      return d;
+    }
+    svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price, priceY) }));
+    svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.macd, macdY) }));
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))].filter((y, i) => i % 2 === 0);
+    years.forEach((yr) => {
+      const first = series.find((d) => d.date.startsWith(yr));
+      const x = xScale(new Date(first.date + "T00:00:00Z").getTime());
+      const t = el("text", { class: "axis-label", x, y: H - 4, "text-anchor": "middle" });
+      t.textContent = yr;
+      svg.appendChild(t);
+    });
+
+    const tooltip = document.getElementById("tooltip-macd");
+    const wrap = document.getElementById("chart-wrap-macd");
+
+    divergences.forEach((div) => {
+      const color = div.type === "bullish" ? "var(--good)" : "var(--bad)";
+      const a = series[div.idx_a], b = series[div.idx_b];
+      const xa = xScale(dates[div.idx_a]), xb = xScale(dates[div.idx_b]);
+
+      svg.appendChild(el("line", { class: "div-connector", x1: xa, y1: priceY(a.price), x2: xb, y2: priceY(b.price), stroke: color }));
+      svg.appendChild(el("line", { class: "div-connector", x1: xa, y1: macdY(a.macd), x2: xb, y2: macdY(b.macd), stroke: color }));
+
+      [[xa, priceY(a.price), a], [xb, priceY(b.price), b]].forEach(([cx, cy, pt]) => {
+        const dot = el("circle", { class: "div-dot", cx, cy, r: 4, fill: color });
+        svg.appendChild(dot);
+        dot.addEventListener("mouseenter", () => {
+          const wrapRect = wrap.getBoundingClientRect();
+          const dotBox = dot.getBoundingClientRect();
+          tooltip.style.opacity = 1;
+          tooltip.style.left = (dotBox.left - wrapRect.left + dotBox.width / 2) + "px";
+          tooltip.style.top = (dotBox.top - wrapRect.top) + "px";
+          tooltip.innerHTML = `<div>${pt.date}</div><div>${div.type} divergence</div><div>Price: ${fmtUSD(pt.price)}</div><div>MACD: ${pt.macd.toLocaleString()}</div>`;
+        });
+        dot.addEventListener("mouseleave", () => { tooltip.style.opacity = 0; });
+      });
+      [[xa, macdY(a.macd)], [xb, macdY(b.macd)]].forEach(([cx, cy]) => {
+        svg.appendChild(el("circle", { class: "div-dot", cx, cy, r: 3.5, fill: color }));
+      });
+    });
+
+    const tbody = document.getElementById("macd-table-body");
+    divergences.forEach((div) => {
+      const pt = series[div.idx_b];
+      const color = div.type === "bullish" ? "var(--good)" : "var(--bad)";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${pt.date}</td><td><span class="type-dot" style="background:${color}"></span>${div.type}</td>
+        <td class="num">${fmtUSD(pt.price)}</td><td class="num">${pt.macd.toLocaleString()}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById("macd-caveat").innerHTML =
+      `${md.divergences.length} signals in ${md.weeks} weeks is a very small sample. Directional follow-through ` +
+      `(&ge;10% move within 12wk): bullish ${md.hits_bull}/${md.total_bull}, bearish ${md.hits_bear}/${md.total_bear} ` +
+      `&mdash; NOT distinguishable from BTC's own baseline (any random week already has a ~66%/48% chance of a ` +
+      `&ge;10% rally/drop within 12 weeks regardless of any signal). Treat this as a rare "pay attention" flag, not a validated edge.`;
+  })();
+
+  // ======================= LTH-MVRV CHART =======================
+  (function renderLthChart() {
+    const series = lth.series;
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 58, PAD_R = 14;
+    const PRICE_TOP = 16, PRICE_H = 200, GAP = 26;
+    const LTH_TOP = PRICE_TOP + PRICE_H + GAP, LTH_H = 150;
+    const H = LTH_TOP + LTH_H + 30;
+    const plotW = W - PAD_L - PAD_R;
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const logMin = Math.log10(Math.min(...prices) * 0.9);
+    const logMax = Math.log10(Math.max(...prices) * 1.1);
+    const priceY = (p) => PRICE_TOP + (1 - (Math.log10(p) - logMin) / (logMax - logMin)) * PRICE_H;
+
+    const ratios = series.map((d) => d.lth_mvrv);
+    const rMin = 0, rMax = Math.max(...ratios) * 1.1;
+    const lthY = (v) => LTH_TOP + (1 - (v - rMin) / (rMax - rMin)) * LTH_H;
+
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    document.getElementById("chart-wrap-lth").prepend(svg);
+
+    const pLabel = el("text", { class: "panel-label", x: PAD_L, y: PRICE_TOP - 4 }); pLabel.textContent = "Price (log)"; svg.appendChild(pLabel);
+    const lLabel = el("text", { class: "panel-label", x: PAD_L, y: LTH_TOP - 4 }); lLabel.textContent = "LTH-MVRV"; svg.appendChild(lLabel);
+
+    [1000, 10000, 100000].forEach((v) => {
+      if (v < Math.pow(10, logMin) || v > Math.pow(10, logMax)) return;
+      const y = priceY(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 8, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + (v / 1000) + "k";
+      svg.appendChild(t);
+    });
+
+    // shade below-1.0 band in the LTH panel
+    const yOne = lthY(1);
+    const yFloor = lthY(rMin);
+    svg.appendChild(el("rect", { x: PAD_L, y: yOne, width: plotW, height: yFloor - yOne, fill: "var(--bad-band)" }));
+    svg.appendChild(el("line", { class: "ref-line", x1: PAD_L, x2: W - PAD_R, y1: yOne, y2: yOne }));
+    const oneLabel = el("text", { class: "axis-label", x: PAD_L - 8, y: yOne + 3, "text-anchor": "end" });
+    oneLabel.textContent = "1.0"; svg.appendChild(oneLabel);
+    [Math.round(rMax * 0.5), Math.round(rMax)].forEach((v) => {
+      if (v <= 1) return;
+      const y = lthY(v);
+      const t = el("text", { class: "axis-label", x: PAD_L - 8, y: y + 3, "text-anchor": "end" });
+      t.textContent = v; svg.appendChild(t);
+    });
+
+    function buildPath(valueFn, yFn) {
+      let d = "";
+      series.forEach((pt, idx) => {
+        const x = xScale(dates[idx]).toFixed(1);
+        const y = yFn(valueFn(pt)).toFixed(1);
+        d += (idx === 0 ? "M" : "L") + x + "," + y + " ";
+      });
+      return d;
+    }
+    svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price, priceY) }));
+    svg.appendChild(el("path", { class: "data-line", d: buildPath((d) => d.lth_mvrv, lthY) }));
+
+    const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
+    years.forEach((yr) => {
+      const first = series.find((d) => d.date.startsWith(yr));
+      const x = xScale(new Date(first.date + "T00:00:00Z").getTime());
+      const t = el("text", { class: "axis-label", x, y: H - 4, "text-anchor": "middle" });
+      t.textContent = yr;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PRICE_TOP, y2: LTH_TOP + LTH_H });
+    svg.appendChild(crossLine);
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: H });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById("tooltip-lth");
+    const wrap = document.getElementById("chart-wrap-lth");
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+      crossLine.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (priceY(d.price) / H) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>Price: ${fmtUSD(d.price)}</div><div>LTH-MVRV: ${d.lth_mvrv.toFixed(2)}${d.lth_mvrv < 1 ? " (capitulating)" : ""}</div>`;
+    });
+    hit.addEventListener("mouseleave", () => { crossLine.style.opacity = 0; tooltip.style.opacity = 0; });
+
+    const tbody = document.getElementById("lth-table-body");
+    if (lth.below_one_periods.length === 0) {
+      document.getElementById("lth-table-wrap").style.display = "none";
+    } else {
+      lth.below_one_periods.forEach((p) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${p.start_date} &rarr; ${p.end_date}</td><td class="num">${p.days}</td><td class="num">${p.min_ratio.toFixed(2)}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    document.getElementById("lth-caveat").innerHTML =
+      `Data from BGeometrics, free tier capped at ~4 years (${lth.data_start} onward) &mdash; the 2015, 2018, and ` +
+      `early-2022 cycle bottoms aren't in this window. All-time low in available data: ${lth.all_time_min.value.toFixed(2)} ` +
+      `on ${lth.all_time_min.date}. ${lth.below_one_periods.length === 0 ? "No below-1.0 period has occurred since this data begins." : ""}`;
+  })();
+
+  document.getElementById("footnote").innerHTML =
+    `All three indicators here are context/research only &mdash; none is in any composite on dashboards 1&ndash;3. ` +
+    `Data: blockchain.info (BTC price), BGeometrics (MVRV and LTH-MVRV, unofficial static endpoints, same caveat ` +
+    `as the MVRV chart on the long-term dashboard). Not financial advice.`;
+})();
+</script>

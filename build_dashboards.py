@@ -19,16 +19,19 @@ import build_dashboard1_data
 import build_dashboard2_data
 import build_dashboard1_altweights_data
 import build_dashboard3_data
+import build_dashboard4_data
 
 TEMPLATE_1 = "dashboard1_template.html"
 TEMPLATE_2 = "dashboard2_template.html"
 TEMPLATE_1_ALT = "dashboard1_altweights_template.html"
 TEMPLATE_3 = "dashboard3_template.html"
+TEMPLATE_4 = "dashboard4_template.html"
 OUTPUT_DIR = "dashboard_output"
 OUTPUT_1 = os.path.join(OUTPUT_DIR, "dashboard1.html")
 OUTPUT_2 = os.path.join(OUTPUT_DIR, "dashboard2.html")
 OUTPUT_1_ALT = os.path.join(OUTPUT_DIR, "dashboard1_altweights.html")
 OUTPUT_3 = os.path.join(OUTPUT_DIR, "dashboard3.html")
+OUTPUT_4 = os.path.join(OUTPUT_DIR, "dashboard4.html")
 
 
 def render(template_path: str, placeholder: str, data: dict, output_path: str):
@@ -63,6 +66,17 @@ def main(force_refresh: bool = False):
     data3 = build_dashboard3_data.build_data(force_refresh=force_refresh)
     render(TEMPLATE_3, "__DASHBOARD3_DATA_JSON__", data3, OUTPUT_3)
     print(f"Wrote {OUTPUT_3} -- as of {data3['as_of']}, composite {data3['composite']}, zone {data3['confirmed_zone']}")
+
+    # Research dashboard: weekly MACD divergence, LTH-MVRV, and MVRV
+    # momentum (vs. its own 365-day mean) -- see build_dashboard4_data.py's
+    # docstring. Context-only, nothing here is in any composite. Not part
+    # of the automated daily-refresh trigger, which only publishes
+    # dashboard1/2.
+    data4 = build_dashboard4_data.build_data(force_refresh=force_refresh)
+    render(TEMPLATE_4, "__DASHBOARD4_DATA_JSON__", data4, OUTPUT_4)
+    print(f"Wrote {OUTPUT_4} -- as of {data4['as_of']}, "
+          f"MACD divergences {len(data4['macd_divergence']['divergences'])}, "
+          f"LTH-MVRV {data4['lth_mvrv']['current']}, MVRV momentum {data4['mvrv_momentum']['current']}")
 
 
 if __name__ == "__main__":
