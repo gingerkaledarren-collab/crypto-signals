@@ -186,6 +186,28 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
         for _, row in merged.iterrows()
     ]
 
+    # Quantifies the actual thing this chart is making a claim about: when
+    # LTH-MVRV hits one of its marked lows, is price ALSO near its own
+    # local low on that exact date? Checked against price's own trailing
+    # 90-day low (not just asserted by eye) -- real evidence the indicator
+    # tracks price bottoms, in place of showing pre-2022 history we don't
+    # have real data for.
+    correlation_window = 90
+    all_markers = [(p["min_date"], p["min_ratio"]) for p in periods]
+    if non_capitulation_low:
+        all_markers.append((non_capitulation_low["date"], non_capitulation_low["value"]))
+    correlation_checks = []
+    for date_str, ratio_val in all_markers:
+        idx = merged.index[merged["date"] == date_str][0]
+        price_now = float(merged.loc[idx, "price"])
+        lo = max(0, idx - correlation_window)
+        trailing_low = float(merged["price"].iloc[lo:idx + 1].min())
+        pct_above_low = (price_now / trailing_low - 1) * 100
+        correlation_checks.append({
+            "date": date_str, "ratio": round(ratio_val, 3), "price": round(price_now, 2),
+            "pct_above_90d_low": round(pct_above_low, 1),
+        })
+
     return {
         "series": series,
         "below_one_periods": periods,
@@ -197,6 +219,8 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
             "value": round(float(min_row["lth_mvrv_ratio"]), 3),
         },
         "non_capitulation_low": non_capitulation_low,
+        "correlation_checks": correlation_checks,
+        "correlation_window_days": correlation_window,
     }
 
 

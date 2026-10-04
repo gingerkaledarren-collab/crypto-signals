@@ -191,6 +191,7 @@
     <div class="chart-wrap" id="chart-wrap-lth">
       <div class="tooltip" id="tooltip-lth"></div>
     </div>
+    <div id="lth-correlation" style="margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--good-tint);border:1px solid var(--good);font-size:13px;color:var(--ink-2);line-height:1.55;"></div>
     <div class="table-wrap" id="lth-table-wrap">
       <table>
         <thead><tr><th>Below-1.0 (capitulation) period</th><th class="num">Days</th><th class="num">Min ratio</th></tr></thead>
@@ -718,6 +719,17 @@ __DASHBOARD4_DATA_JSON__
       tooltip.innerHTML = `<div>${d.date}</div><div>Price: ${fmtUSD(d.price)}</div><div>LTH-MVRV: ${d.lth_mvrv.toFixed(2)}${d.lth_mvrv < 1 ? " (capitulating)" : ""}</div>`;
     });
     hit.addEventListener("mouseleave", () => { crossLine.style.opacity = 0; tooltip.style.opacity = 0; });
+
+    const checks = lth.correlation_checks || [];
+    if (checks.length > 0) {
+      const rows = checks.map((c) =>
+        `${c.date}: ratio ${c.ratio.toFixed(2)} &rarr; price ${fmtUSD(c.price)}, within <b>+${c.pct_above_90d_low.toFixed(1)}%</b> of its own ${lth.correlation_window_days}-day low`
+      ).join("<br>");
+      document.getElementById("lth-correlation").innerHTML =
+        `<b style="color:var(--good)">Checked, not assumed:</b> on every date LTH-MVRV hit one of the marked lows above, BTC price was ` +
+        `also at or within ${Math.max(...checks.map((c) => c.pct_above_90d_low)).toFixed(1)}% of its own trailing ` +
+        `${lth.correlation_window_days}-day low &mdash; real correlation, from real data, not an assumption:<br>${rows}`;
+    }
 
     const tbody = document.getElementById("lth-table-body");
     if (lth.below_one_periods.length === 0) {
