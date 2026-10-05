@@ -608,6 +608,15 @@
     neutral 40-60, buy_zone 30-40 / sell_zone 60-70 (10 points each), extreme outside that. sell_threshold is
     unchanged at 60.
     <br><br>
+    <b>The hero badge, caption, and signal history below show the Extreme Buy/Extreme Sell tiers with no
+    confirmation delay</b>, unlike the plain Buy/Sell zone tiers (which still require 3 consecutive days before
+    counting as confirmed). This matches how the Extreme zone history table and the recommended-action card
+    above have always worked &mdash; both read the composite's rarest ~5%-per-side tail directly, the same
+    day it happens, since sitting there is already a rare, meaningful event on its own. Without this, a day
+    that escalates from a confirmed Sell zone into Extreme Sell would briefly show as "Neutral" in the badge
+    (a fresh, unconfirmed run of a new label) while the action card below it says "sell today" &mdash; a
+    contradiction on the same page, not a feature.
+    <br><br>
     None of this produces a positive walk-forward spread at any point &mdash; it's all still negative, same
     disclosed trend-confirming-not-reversal-predicting problem as the live system. Data: blockchain.info (BTC
     price), alternative.me (Fear &amp; Greed Index). Not financial advice &mdash; the live short-term system
@@ -665,8 +674,9 @@ __DASHBOARD3_DATA_JSON__
 
   let caption;
   if (zone === "extreme_buy") {
-    caption = `Extreme buy, day ${DATA.run_length} of this run &mdash; composite has held at/below ` +
-      `${DATA.extreme_low_threshold} for at least ${DATA.confirm_days} days, the rarest ~5% of readings.`;
+    caption = `Extreme buy, day ${DATA.run_length} of this run &mdash; composite is at/below ` +
+      `${DATA.extreme_low_threshold}, the rarest ~5% of readings. No confirmation delay at this tier ` +
+      `(see footer).`;
   } else if (zone === "buy_zone") {
     caption = `Confirmed buy zone, day ${DATA.run_length} of this run &mdash; composite has held at/below ` +
       `${DATA.buy_threshold} for at least ${DATA.confirm_days} days.`;
@@ -674,8 +684,9 @@ __DASHBOARD3_DATA_JSON__
     caption = `Confirmed sell zone, day ${DATA.run_length} of this run &mdash; composite has held at/above ` +
       `${DATA.sell_threshold} for at least ${DATA.confirm_days} days.`;
   } else if (zone === "extreme_sell") {
-    caption = `Extreme sell, day ${DATA.run_length} of this run &mdash; composite has held at/above ` +
-      `${DATA.extreme_high_threshold} for at least ${DATA.confirm_days} days, the rarest ~5% of readings.`;
+    caption = `Extreme sell, day ${DATA.run_length} of this run &mdash; composite is at/above ` +
+      `${DATA.extreme_high_threshold}, the rarest ~5% of readings. No confirmation delay at this tier ` +
+      `(see footer).`;
   } else {
     caption = `Neutral &mdash; composite is between the ${DATA.buy_threshold}/${DATA.sell_threshold} bands, ` +
       `or hasn't cleared one long enough to confirm.`;
@@ -740,7 +751,7 @@ __DASHBOARD3_DATA_JSON__
     `fear/greed sentiment claim.`;
 
   const extremeBody = document.getElementById("extreme-body");
-  DATA.extreme_periods.forEach((p) => {
+  DATA.extreme_periods.slice().reverse().forEach((p) => {
     const tr = document.createElement("tr");
     const period = p.start_date === p.end_date ? p.start_date : `${p.start_date} → ${p.end_date}`;
     tr.innerHTML = `

@@ -184,6 +184,26 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
     zoned = flag_extreme_zones(zoned, extreme_low_threshold=extreme_low_threshold,
                                extreme_high_threshold=extreme_high_threshold)
 
+    # apply_confirmation() tracks each of the five zone LABELS separately --
+    # a day that escalates from a confirmed sell_zone into extreme_sell
+    # starts a brand-new "extreme_sell" run at length 1, which (correctly
+    # for the plain buy/sell tiers) gets downgraded to 'neutral' until it
+    # holds confirm_days. That's wrong for the extreme tier specifically:
+    # flag_extreme_zones()'s own extreme_zone column is deliberately NOT
+    # confirmation-gated (an extreme reading is already rare/meaningful on
+    # day 1 -- see its docstring), and extract_extreme_periods()/the
+    # recommended_action logic below both already treat it that way. Having
+    # confirmed_zone silently report 'neutral' on day 1 of a fresh extreme
+    # run -- while the page's own action card says "sell today" -- is a
+    # contradiction on the same dashboard, not a feature. Override
+    # confirmed_zone with the extreme label whenever extreme_zone fires, so
+    # the hero badge and signal history agree with the action card and the
+    # extreme-zone table on what "right now" means. Ordinary buy_zone/
+    # sell_zone/neutral days are untouched -- the 3-day hold still applies
+    # there.
+    extreme_to_zone = {"extreme_high": "extreme_sell", "extreme_low": "extreme_buy"}
+    zoned["confirmed_zone"] = zoned["extreme_zone"].map(extreme_to_zone).fillna(zoned["confirmed_zone"])
+
     confirmed_transitions = extract_zone_transitions(zoned, zone_col="confirmed_zone")
     signals = apply_signal_cooldown(confirmed_transitions, min_gap_days=cooldown_days)
     extreme_periods = extract_extreme_periods(zoned)
