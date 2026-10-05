@@ -1,13 +1,15 @@
 # Crypto Long-Term Signal System (Starter)
 
 A minimal starting point for a long-term BTC positioning signal system.
-Currently combines two indicators:
+Currently combines three indicators:
 
 1. **200-week moving average distance** — how far price is above/below
    its 200-week MA, as a proxy for long-term valuation.
-2. **Fear & Greed Index** (30-day smoothed) — sentiment extremes.
+2. **Weekly MACD** (12/26/9 weeks) — trend momentum, scored on MACD as
+   a % of the slow EMA so readings are comparable across price eras.
+3. **Fear & Greed Index** (30-day smoothed) — sentiment extremes.
 
-Both are normalized to a 0-100 "greed scale" and combined into a
+All are normalized to a 0-100 "greed scale" and combined into a
 composite score. Zone transitions (crossing into buy/sell territory)
 are what you'd actually act on, not the daily noise.
 
@@ -50,13 +52,17 @@ Run `backtest.py` and check two things:
 - **Equal weighting is a placeholder.** You said you want to decide
   weights after seeing backtest results — `scoring.py` is built so you
   can pass any weight dict without touching the underlying logic.
+- **MACD clip bounds (-30% / +60%) are unvalidated guesses.** MACD is
+  also a lagging momentum signal, unlike the other two — check whether
+  it sharpens or just delays signals (compare weights with and without
+  `macd_score`).
 - **Thresholds (75/25) are unvalidated guesses.** The backtest will
   tell you whether these need to move.
 - **No walk-forward / out-of-sample testing yet.** This first pass
   checks the whole history at once, which risks fooling you with
   hindsight bias. Once the basic mechanics look sane, the next step
   is splitting history into a "tune" period and a "blind test" period.
-- **Only 2 of the ~7 indicators discussed.** MVRV Z-Score, Pi Cycle
+- **Only 3 of the ~7 indicators discussed.** MVRV Z-Score, Pi Cycle
   Top, weekly RSI, BTC dominance, and Puell Multiple are natural next
   additions once these two prove out.
 - **CoinGecko's free tier** limits price history granularity/length —

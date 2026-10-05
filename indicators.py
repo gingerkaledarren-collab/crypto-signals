@@ -50,6 +50,60 @@ def normalize_200w_distance(pct_distance: pd.Series, clip_range: tuple = (-40, 1
     return normalized
 
 
+def compute_weekly_macd(price_df: pd.DataFrame, fast_weeks: int = 12,
+                        slow_weeks: int = 26, signal_weeks: int = 9) -> pd.DataFrame:
+    """
+    Computes a weekly-timeframe MACD (default 12/26/9 weeks) on daily data.
+
+    Classic MACD runs on daily candles, which is far too twitchy for a
+    long-term positioning system. Scaling the EMA spans by 7 (84/182/63
+    days) gives the weekly-chart MACD that cycle analysts watch, while
+    staying on the same daily date index as the other indicators. Like
+    the 200w MA, values are NaN until the slow EMA's window has filled.
+
+    Because raw MACD is in dollars, a +$2k reading meant something very
+    different at $10k BTC than at $60k. 'macd_pct' is the scale-free
+    version (MACD as % of the slow EMA, a.k.a. the Percentage Price
+    Oscillator), which is what gets normalized for scoring.
+
+    Returns df with columns:
+      date, macd, macd_signal, macd_hist, macd_pct
+    """
+    df = price_df.copy().sort_values("date").reset_index(drop=True)
+    fast_span, slow_span, signal_span = fast_weeks * 7, slow_weeks * 7, signal_weeks * 7
+
+    ema_fast = df["price"].ewm(span=fast_span, adjust=False, min_periods=slow_span).mean()
+    ema_slow = df["price"].ewm(span=slow_span, adjust=False, min_periods=slow_span).mean()
+
+    df["macd"] = ema_fast - ema_slow
+    df["macd_signal"] = df["macd"].ewm(span=signal_span, adjust=False, min_periods=signal_span).mean()
+    df["macd_hist"] = df["macd"] - df["macd_signal"]
+    df["macd_pct"] = df["macd"] / ema_slow * 100
+
+    return df[["date", "macd", "macd_signal", "macd_hist", "macd_pct"]]
+
+
+def normalize_macd_pct(macd_pct: pd.Series, clip_range: tuple = (-30, 60)) -> pd.Series:
+    """
+    Maps weekly MACD-as-%-of-price to a 0-100 greed scale.
+
+    Calibration note: these bounds are an unvalidated starting guess --
+    deep bear markets should push the weekly fast EMA well below the slow
+    one, and parabolic run-ups (2017, 2021) stretch it far above, with
+    the upside historically more extreme than the downside. As with the
+    200w MA bounds, revisit them using the actual percentile distribution
+    once full-cycle history is available.
+
+    Unlike the other two indicators, MACD measures trend momentum rather
+    than valuation or sentiment, so it tends to lag at turning points --
+    worth checking in the backtest whether it adds signal or just delay.
+    """
+    lo, hi = clip_range
+    clipped = macd_pct.clip(lower=lo, upper=hi)
+    normalized = (clipped - lo) / (hi - lo) * 100
+    return normalized
+
+
 def smooth_fear_greed(fng_df: pd.DataFrame, window: int = 30) -> pd.DataFrame:
     """
     Applies a rolling average to the daily Fear & Greed Index to reduce
@@ -65,15 +119,20 @@ def smooth_fear_greed(fng_df: pd.DataFrame, window: int = 30) -> pd.DataFrame:
 
 def build_indicator_table(price_df: pd.DataFrame, fng_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Joins both indicators into a single date-aligned table, with each
+    Joins all indicators into a single date-aligned table, with each
     indicator normalized to the 0-100 greed scale.
 
     Returns df with columns:
       date, price, ma_200w, pct_distance, ma_200w_score,
+      macd, macd_signal, macd_hist, macd_pct, macd_score,
       fng_value, fng_smoothed, fng_score
     """
     ma_df = compute_200w_ma_distance(price_df)
     ma_df["ma_200w_score"] = normalize_200w_distance(ma_df["pct_distance"])
+
+    macd_df = compute_weekly_macd(price_df)
+    macd_df["macd_score"] = normalize_macd_pct(macd_df["macd_pct"])
+    ma_df = pd.merge(ma_df, macd_df, on="date", how="left")
 
     fng_smooth_df = smooth_fear_greed(fng_df)
     fng_smooth_df["fng_score"] = fng_smooth_df["fng_smoothed"]  # already 0-100
@@ -92,3 +151,4 @@ if __name__ == "__main__":
     print(table.tail(10))
     print(f"\n{len(table)} aligned rows, from {table['date'].min().date()} to {table['date'].max().date()}")
     print(f"Rows with valid 200w MA: {table['ma_200w'].notna().sum()}")
+    print(f"Rows with valid weekly MACD: {table['macd'].notna().sum()}")
