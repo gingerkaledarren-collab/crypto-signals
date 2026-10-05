@@ -1,0 +1,87 @@
+"""
+build_dashboards.py
+
+Regenerates both dashboard HTML files from their templates and today's
+data, writing them to dashboard_output/. This is the "recompute the
+numbers" half of a daily refresh -- publishing the resulting files to
+the live Artifact URLs is a separate step (the Artifact tool isn't
+available from plain Python, only from a Claude session), documented in
+README.md's "Keeping the dashboards current" section.
+
+Usage: python build_dashboards.py [--refresh]
+"""
+
+import argparse
+import json
+import os
+
+import build_dashboard1_data
+import build_dashboard2_data
+import build_dashboard1_altweights_data
+import build_dashboard3_data
+import build_dashboard4_data
+
+TEMPLATE_1 = "dashboard1_template.html"
+TEMPLATE_2 = "dashboard2_template.html"
+TEMPLATE_1_ALT = "dashboard1_altweights_template.html"
+TEMPLATE_3 = "dashboard3_template.html"
+TEMPLATE_4 = "dashboard4_template.html"
+OUTPUT_DIR = "dashboard_output"
+OUTPUT_1 = os.path.join(OUTPUT_DIR, "dashboard1.html")
+OUTPUT_2 = os.path.join(OUTPUT_DIR, "dashboard2.html")
+OUTPUT_1_ALT = os.path.join(OUTPUT_DIR, "dashboard1_altweights.html")
+OUTPUT_3 = os.path.join(OUTPUT_DIR, "dashboard3.html")
+OUTPUT_4 = os.path.join(OUTPUT_DIR, "dashboard4.html")
+
+
+def render(template_path: str, placeholder: str, data: dict, output_path: str):
+    with open(template_path) as f:
+        html = f.read()
+    html = html.replace(placeholder, json.dumps(data))
+    with open(output_path, "w") as f:
+        f.write(html)
+
+
+def main(force_refresh: bool = False):
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    data1 = build_dashboard1_data.build_data(force_refresh=force_refresh)
+    render(TEMPLATE_1, "__DASHBOARD1_DATA_JSON__", data1, OUTPUT_1)
+    print(f"Wrote {OUTPUT_1} -- as of {data1['as_of']}, composite {data1['composite']}, zone {data1['confirmed_zone']}")
+
+    data2 = build_dashboard2_data.build_data(force_refresh=force_refresh)
+    render(TEMPLATE_2, "__DATA_JSON__", data2, OUTPUT_2)
+    print(f"Wrote {OUTPUT_2} -- as of {data2['as_of']}, composite {data2['composite']}, zone {data2['confirmed_zone']}")
+
+    # Side-by-side comparison variant (40/40/20 weighting) -- see
+    # build_dashboard1_altweights_data.py's docstring. Not part of the
+    # automated daily-refresh trigger, which only publishes dashboard1/2.
+    data1_alt = build_dashboard1_altweights_data.build_alt_data(force_refresh=force_refresh)
+    render(TEMPLATE_1_ALT, "__DASHBOARD1_DATA_JSON__", data1_alt, OUTPUT_1_ALT)
+    print(f"Wrote {OUTPUT_1_ALT} -- as of {data1_alt['as_of']}, composite {data1_alt['composite']}, zone {data1_alt['confirmed_zone']}")
+
+    # Fast-indicator comparison variant of Dashboard 2 (RSI(7)/MA20/BB10/
+    # MACD8-17-9) -- see build_dashboard3_data.py's docstring. Not part of
+    # the automated daily-refresh trigger, which only publishes dashboard1/2.
+    data3 = build_dashboard3_data.build_data(force_refresh=force_refresh)
+    render(TEMPLATE_3, "__DASHBOARD3_DATA_JSON__", data3, OUTPUT_3)
+    print(f"Wrote {OUTPUT_3} -- as of {data3['as_of']}, composite {data3['composite']}, zone {data3['confirmed_zone']}")
+
+    # Research dashboard: weekly MACD divergence, LTH-MVRV, and MVRV
+    # momentum (vs. its own 365-day mean) -- see build_dashboard4_data.py's
+    # docstring. Context-only, nothing here is in any composite. Not part
+    # of the automated daily-refresh trigger, which only publishes
+    # dashboard1/2.
+    data4 = build_dashboard4_data.build_data(force_refresh=force_refresh)
+    render(TEMPLATE_4, "__DASHBOARD4_DATA_JSON__", data4, OUTPUT_4)
+    print(f"Wrote {OUTPUT_4} -- as of {data4['as_of']}, "
+          f"MACD divergences {len(data4['macd_divergence']['divergences'])}, "
+          f"LTH-MVRV {data4['lth_mvrv']['current']}, MVRV momentum {data4['mvrv_momentum']['current']}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--refresh", action="store_true", help="force-refresh cached price/F&G data")
+    args = parser.parse_args()
+
+    main(force_refresh=args.refresh)
