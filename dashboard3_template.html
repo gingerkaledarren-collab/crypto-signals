@@ -440,6 +440,23 @@
 
   <section class="card">
     <div class="section-head">
+      <h2>Last 3 months</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Composite score</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy)"></span>Extreme Buy</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--neutral)"></span>Neutral</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert-band)"></span>Sell zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert)"></span>Extreme Sell</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-3mo">
+      <div id="tooltip-3mo" class="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
       <h2>Last 24 months</h2>
       <div class="legend">
         <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Composite score</span>
@@ -928,6 +945,16 @@ __DASHBOARD3_DATA_JSON__
     });
   }
 
+  {
+    // Last 3 months is a client-side slice of the same 24-month series
+    // the server already sends -- no new data needed, just a narrower
+    // window on it, same renderChart() used for the 24-month view below.
+    const lastDate = new Date(DATA.series[DATA.series.length - 1].date + "T00:00:00Z");
+    const cutoff3mo = new Date(lastDate);
+    cutoff3mo.setUTCMonth(cutoff3mo.getUTCMonth() - 3);
+    const series3mo = DATA.series.filter((d) => new Date(d.date + "T00:00:00Z") >= cutoff3mo);
+    renderChart("chart-wrap-3mo", "tooltip-3mo", series3mo);
+  }
   renderChart("chart-wrap", "tooltip", DATA.series);
 
   // ---------- RSI(7) vs price (price panel + RSI panel) ----------
