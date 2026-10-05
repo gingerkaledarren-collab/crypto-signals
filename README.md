@@ -36,6 +36,102 @@ changes improved on the original's validated forward-return signal.
 It's live anyway, the same way Dashboard 2 already ships a composite
 that isn't separately validated.
 
+## Where things stand (read this first in a new chat)
+
+This project is now being worked on across multiple chats, one indicator
+or topic at a time, all committed to the same branch
+(`claude/crypto-positioning-signals-rrd7mv`). Sequencing, not parallel
+work: finish, confirm, and push one chat's change before starting the
+next one, so nobody's working from a stale checkout. A new chat should
+read this section plus whatever source file/README section is linked
+below for its topic before proposing changes -- a lot of indicators here
+have already been tried and rejected with numbers to show why, and
+re-proposing them from scratch wastes a round trip.
+
+**The 4 live dashboards:**
+
+| # | Dashboard | URL | What it is |
+|---|---|---|---|
+| 1 | Signal Dashboard | https://claude.ai/artifact/MX4PwRKuTpCA7wRESF3Jsf | Long-term, validated-methodology composite (~3-5 signals/yr) |
+| 2 | Short-Term Signal | https://claude.ai/artifact/QWsoPGMiq9NFpwDmsCUJXB | Faster, practical composite (~8-10 signals/yr), not separately validated |
+| 3 | Short-Term Signal (Fast Variant) | https://claude.ai/artifact/7rAU6LKKKGX1UG8gpYdFxe | Comparison dashboard testing shorter lookbacks on #2's inputs |
+| 4 | Signal Research | https://claude.ai/artifact/9bsjjaucft4C3bfA226MFa | Context-only research charts, nothing here is in any composite |
+
+Refresh + republish steps are in "Keeping the dashboards current" below.
+
+**Per-indicator status** (what's live, what's context-only, what's been
+tried and dropped, and where the detail lives):
+
+*Live in a composite:*
+- 200-week MA distance -- Dashboard 1 (both the validated and live
+  composite). See "200-week MA distance: the same maturity check,
+  different answer" below -- validated by ablation, load-bearing.
+- Fear & Greed Index -- Dashboard 1 (30d or 7d smoothed) and
+  Dashboards 2/3 (1D unsmoothed). Core input everywhere.
+- Weekly RSI -- Dashboard 1, core input, part of the original validated
+  composite.
+- Pi Cycle Top ratio -- only in the *originally validated* composite
+  (`scoring.DEFAULT_WEIGHTS`), removed from the *live* dashboard 1
+  composite in favor of Supply in Loss %. See "Removing Pi Cycle Top,
+  adding Supply in Loss %".
+- Bitcoin Supply in Loss % -- live Dashboard 1 composite only, replacing
+  Pi Cycle Top, by request -- not a validated improvement, disclosed.
+- 50-day MA distance, daily RSI(14), Bollinger %B(20), MACD
+  histogram(12/26/9) -- Dashboard 2 composite. Practical tool, NOT a
+  validated reversal signal -- tested as a standalone contrarian signal
+  and failed backwards (see "The second system: short-term signal").
+- Fear & Greed (1D) / RSI(7) / Bollinger %B(10) -- Dashboard 3's current
+  composite, equal-weighted. Same "practical, not validated" caveat.
+
+*Tried in a composite, then dropped (still shown as context-only charts):*
+- MVRV Ratio -- tried in Dashboard 1, dropped after its cycle-top ceiling
+  was found to be structurally declining. See "MVRV's declining ceiling".
+- 21w/34w EMA structure -- tested for Dashboard 1, weakens out-of-sample
+  performance. See "Why the EMA structure indicator isn't in the default
+  weighting".
+- 20-day MA distance, MACD(8/17/9) fast -- tested in Dashboard 3's
+  composite; removed (see `build_dashboard3_data.py`'s module docstring
+  for the full before/after numbers).
+- Elliott Wave swing counter, Wyckoff phase shading -- Dashboard 1,
+  explicitly illustrative/mechanical, never scored.
+
+*Research-only, Dashboard 4, not in any composite:*
+- Weekly MACD divergence -- tested; small sample, roughly chance-level
+  significance once checked against BTC's own baseline volatility.
+- LTH-MVRV -- real data from Oct 2022 on; proxied via price/200-week MA
+  before that (clearly flagged `is_proxy` everywhere). Confirms
+  correlation with real price lows, not wired into any signal.
+- MVRV momentum (vs. its own 365-day mean) -- shown; the historical
+  bull-market-start claim is only partially checkable with ~4yr of free
+  data.
+
+*Tested and rejected, no dashboard presence (see conversation record --
+not yet written up in this README; ask before re-testing):*
+- ADX regime filter (close-only approximation, no intraday high/low
+  available) -- tested twice: against the backtested €1,500/day sell-
+  ladder rule (weak, inconsistent support) and as a gate on Dashboard 3's
+  own composite (made its walk-forward spread worse, not better). Not
+  implemented anywhere.
+- Golden/death cross (50-day vs. 200-day SMA) -- tested against the
+  "more reliable near a recent ATH" claim; mixed, weak results.
+
+*Never sourced (open todo, bigger lift):*
+- Funding rates, open interest, volume, exchange netflow, stablecoin
+  supply ratio -- zero data sourced anywhere in this project (price +
+  Fear & Greed + a few BGeometrics on-chain series is the entire data
+  diet). Would need a derivatives/exchange data source, not just a new
+  computation on data already in hand.
+
+**The backtested position-sizing rule** (separate from any dashboard's
+own zone thresholds): ST sell €1,500/day while Dashboard 3 sits in
+extreme_sell; ST buy €5,000 flat once per extreme_buy episode; LT sell
+€20,000 once per episode on Dashboard 1's extreme_sell; LT buy €20,000
+once per episode on Dashboard 1's extreme_buy. **Only the ST sell/buy
+amounts are wired up anywhere** -- as a descriptive "recommended action"
+card on Dashboard 3 (`build_dashboard3_data.py`'s `recommended_action`
+field). The LT amounts exist only as backtested analysis; no dashboard
+computes or displays them yet.
+
 ## Data sources
 
 BTC price comes from blockchain.info's charts API (free, no key, full
