@@ -626,8 +626,10 @@
     unchanged at 60.
     <br><br>
     <b>The hero badge, caption, and signal history below show the Extreme Buy/Extreme Sell tiers with no
-    confirmation delay</b>, unlike the plain Buy/Sell zone tiers (which still require 3 consecutive days before
-    counting as confirmed). This matches how the Extreme zone history table and the recommended-action card
+    confirmation delay</b>. <b>Since 7 Oct 2026 the plain Buy/Sell zone tiers don't wait either, by request</b>
+    &mdash; they used to need 3 consecutive days before counting as confirmed, which left the badge reading
+    "Neutral" while the composite sat in the sell range; they now show the same day too, at the cost of the
+    whipsaw filter (more one-day flips). The extreme-tier rule matches how the Extreme zone history table and the recommended-action card
     above have always worked &mdash; both read the composite's rarest ~5%-per-side tail directly, the same
     day it happens, since sitting there is already a rare, meaningful event on its own. Without this, a day
     that escalates from a confirmed Sell zone into Extreme Sell would briefly show as "Neutral" in the badge
@@ -696,10 +698,10 @@ __DASHBOARD3_DATA_JSON__
       `(see footer).`;
   } else if (zone === "buy_zone") {
     caption = `Confirmed buy zone, day ${DATA.run_length} of this run &mdash; composite has held at/below ` +
-      `${DATA.buy_threshold} for at least ${DATA.confirm_days} days.`;
+      `${DATA.buy_threshold} for at least ${DATA.confirm_days} day${DATA.confirm_days === 1 ? "" : "s"}.`;
   } else if (zone === "sell_zone") {
     caption = `Confirmed sell zone, day ${DATA.run_length} of this run &mdash; composite has held at/above ` +
-      `${DATA.sell_threshold} for at least ${DATA.confirm_days} days.`;
+      `${DATA.sell_threshold} for at least ${DATA.confirm_days} day${DATA.confirm_days === 1 ? "" : "s"}.`;
   } else if (zone === "extreme_sell") {
     caption = `Extreme sell, day ${DATA.run_length} of this run &mdash; composite is at/above ` +
       `${DATA.extreme_high_threshold}, the rarest ~5% of readings. No confirmation delay at this tier ` +

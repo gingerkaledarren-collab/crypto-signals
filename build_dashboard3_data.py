@@ -148,6 +148,13 @@ FAST_BUY_THRESHOLD = 40
 FAST_EXTREME_LOW_THRESHOLD = 30
 FAST_EXTREME_HIGH_THRESHOLD = 70
 
+# Plain buy_zone/sell_zone confirmation shortened from the shared
+# DEFAULT_CONFIRM_DAYS (3) to 1 day, by request (2026-10-07) -- the badge
+# showed "Neutral" on day 2 of a raw sell_zone run, which read as wrong.
+# With 1, the confirmed zone is just the raw zone, same-day, matching how
+# the extreme tiers already behave. Trades away the whipsaw filter.
+FAST_CONFIRM_DAYS = 1
+
 # 20-day MA distance and MACD(8/17/9) both removed by request (see module
 # docstring) -- compute_composite_score() normalizes by the total, so
 # just deleting those two dict entries redistributes their weight
@@ -170,7 +177,7 @@ INDICATOR_LABELS_FAST = {
 def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = FAST_BUY_THRESHOLD,
                extreme_low_threshold: float = FAST_EXTREME_LOW_THRESHOLD,
                extreme_high_threshold: float = FAST_EXTREME_HIGH_THRESHOLD,
-               confirm_days: int = DEFAULT_CONFIRM_DAYS, cooldown_days: int = COOLDOWN_DAYS,
+               confirm_days: int = FAST_CONFIRM_DAYS, cooldown_days: int = COOLDOWN_DAYS,
                force_refresh: bool = False) -> dict:
     price_df = fetch_btc_price_history(force_refresh=force_refresh)
     fng_df = fetch_fear_greed_history(force_refresh=force_refresh)
