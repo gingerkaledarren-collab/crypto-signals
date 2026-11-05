@@ -322,6 +322,14 @@ rebalanced then reverted -- 70 had drifted to capturing the top ~22% of
 readings instead of ~10%, caught and fixed by recalibrating to 80, which
 also restores a symmetric 20/80 range.)*
 
+*(2026-10-23: the Signal Dashboard (Dashboard 1) now uses its own wider
+30/70 extreme lines -- `SIGNAL_EXTREME_LOW_THRESHOLD` /
+`SIGNAL_EXTREME_HIGH_THRESHOLD` in `build_dashboard1_data.py` -- by
+Darren's request. Extreme Buy at 20 had drifted to only ~3% of days (11
+episodes since 2018), so the EUR20,000 buy rule had barely ever fired; at
+30/70 the lines cover ~13% (buy) and ~22% (sell) of days. The shared
+20/80 in `scoring.py` is unchanged and still used by Short-Term.)*
+
 **Deliberately not called "extreme fear"/"extreme greed."** The composite
 blends four things — 200w MA distance (valuation), the actual Fear & Greed
 Index (sentiment), weekly RSI (momentum), and Pi Cycle Top ratio (a

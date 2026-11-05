@@ -20,9 +20,16 @@ from indicators import (build_indicator_table, SUPPLY_LOSS_CLIP_RANGE, MVRV_CLIP
                         compute_zigzag_pivots, label_elliott_pivots, ELLIOTT_ZIGZAG_THRESHOLD,
                         MA_200W_LIVE_CLIP_RANGE)
 from scoring import (compute_composite_score, flag_five_zones, apply_confirmation, extract_zone_transitions,
-                     flag_extreme_zones, extract_extreme_periods,
-                     EXTREME_LOW_THRESHOLD, EXTREME_HIGH_THRESHOLD)
+                     flag_extreme_zones, extract_extreme_periods)
 from current_status import DEFAULT_SELL_THRESHOLD, DEFAULT_BUY_THRESHOLD, DEFAULT_CONFIRM_DAYS, INDICATOR_LABELS, LIVE_WEIGHTS
+
+# Signal Dashboard's own Extreme Buy/Sell lines. Widened from the shared
+# 20/80 (scoring.EXTREME_LOW/HIGH_THRESHOLD, still used by Short-Term) to
+# 30/70 on 2026-10-23 at Darren's request: <=20 had drifted to ~3% of days
+# (11 episodes since 2018) against the ~10% the extremes were meant to
+# cover, so the EUR20,000 buy rule had almost never fired.
+SIGNAL_EXTREME_LOW_THRESHOLD = 30
+SIGNAL_EXTREME_HIGH_THRESHOLD = 70
 
 
 def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: float = DEFAULT_BUY_THRESHOLD,
@@ -42,9 +49,12 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
                                    ma_200w_clip_range=MA_200W_LIVE_CLIP_RANGE)
 
     scored = compute_composite_score(table, weights=weights if weights is not None else LIVE_WEIGHTS)
-    zoned = flag_five_zones(scored, buy_threshold=buy_threshold, sell_threshold=sell_threshold)
+    zoned = flag_five_zones(scored, extreme_buy_threshold=SIGNAL_EXTREME_LOW_THRESHOLD,
+                            buy_threshold=buy_threshold, sell_threshold=sell_threshold,
+                            extreme_sell_threshold=SIGNAL_EXTREME_HIGH_THRESHOLD)
     zoned = apply_confirmation(zoned, min_days=confirm_days)
-    zoned = flag_extreme_zones(zoned)
+    zoned = flag_extreme_zones(zoned, extreme_low_threshold=SIGNAL_EXTREME_LOW_THRESHOLD,
+                               extreme_high_threshold=SIGNAL_EXTREME_HIGH_THRESHOLD)
 
     latest = zoned.iloc[-1]
     zone = zoned["zone"]
@@ -64,8 +74,8 @@ def build_data(sell_threshold: float = DEFAULT_SELL_THRESHOLD, buy_threshold: fl
         "sell_threshold": sell_threshold,
         "buy_threshold": buy_threshold,
         "confirm_days": confirm_days,
-        "extreme_low_threshold": EXTREME_LOW_THRESHOLD,
-        "extreme_high_threshold": EXTREME_HIGH_THRESHOLD,
+        "extreme_low_threshold": SIGNAL_EXTREME_LOW_THRESHOLD,
+        "extreme_high_threshold": SIGNAL_EXTREME_HIGH_THRESHOLD,
         "current_extreme_zone": latest["extreme_zone"],
         "data_start": zoned["date"].min().strftime("%Y-%m-%d"),
         "supply_loss_clip_range": list(SUPPLY_LOSS_CLIP_RANGE),

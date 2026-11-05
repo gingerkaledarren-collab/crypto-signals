@@ -137,7 +137,46 @@ def _build_macd_divergence(price_df: pd.DataFrame) -> dict:
     }
 
 
+def _extend_with_estimate(ratio_df: pd.DataFrame, col: str, price_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    BGeometrics' free static files withhold the last ~7 days (their own
+    loader calls it "embargo de la ultima semana"), so on their own these
+    charts always end a week stale. This appends a price-based estimate for
+    each missing day, flagged is_estimate=True so the page draws it dashed
+    and labels it, never passing it off as a real reading:
+
+        est(t) = last_real_ratio * price(t + 1) / price(last_real_date + 1)
+
+    Both ratios are market cap over a cost basis that barely moves in a
+    week, so the ratio moves with price. The +1 day shift lines
+    BGeometrics' dates up with blockchain.info's (backtested: ~0.5% median
+    error over 7 days). Real readings replace the estimates as they arrive.
+    """
+    out = ratio_df.sort_values("date").reset_index(drop=True).copy()
+    out["is_estimate"] = False
+    if out.empty:
+        return out
+    last_date = out["date"].iloc[-1]
+    last_ratio = float(out[col].iloc[-1])
+    prices = price_df.set_index("date")["price"]
+    base_day = last_date + pd.Timedelta(days=1)
+    if base_day not in prices.index:
+        return out
+    base = float(prices.loc[base_day])
+    rows = []
+    for d in prices.index[prices.index > last_date]:
+        nxt = d + pd.Timedelta(days=1)
+        if nxt not in prices.index:
+            break
+        rows.append({"date": d, col: last_ratio * float(prices.loc[nxt]) / base, "is_estimate": True})
+    if rows:
+        out = pd.concat([out, pd.DataFrame(rows)], ignore_index=True)
+    return out
+
+
 def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
+    real_data_end = lth_df["date"].max()
+    lth_df = _extend_with_estimate(lth_df, "lth_mvrv_ratio", price_df)
     real = pd.merge(price_df, lth_df, on="date", how="inner").sort_values("date").reset_index(drop=True)
     real_data_start = real["date"].min()
 
@@ -156,6 +195,7 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
     ma_table["lth_mvrv_ratio"] = ma_table["price"] / ma_table["ma_200w"]
     proxy = ma_table[["date", "price", "lth_mvrv_ratio"]].copy()
     proxy["is_proxy"] = True
+    proxy["is_estimate"] = False
     real = real.copy()
     real["is_proxy"] = False
 
@@ -227,7 +267,8 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
 
     series = [
         {"date": row["date"].strftime("%Y-%m-%d"), "price": round(float(row["price"]), 2),
-         "lth_mvrv": round(float(row["lth_mvrv_ratio"]), 3), "is_proxy": bool(row["is_proxy"])}
+         "lth_mvrv": round(float(row["lth_mvrv_ratio"]), 3), "is_proxy": bool(row["is_proxy"]),
+         "is_estimate": bool(row["is_estimate"])}
         for _, row in merged.iterrows()
     ]
 
@@ -260,6 +301,8 @@ def _build_lth_mvrv(price_df: pd.DataFrame, lth_df: pd.DataFrame) -> dict:
         "current": round(float(latest["lth_mvrv_ratio"]), 3),
         "data_start": merged["date"].min().strftime("%Y-%m-%d"),
         "real_data_start": real_data_start.strftime("%Y-%m-%d"),
+        "real_data_end": real_data_end.strftime("%Y-%m-%d"),
+        "is_estimate": bool(latest["is_estimate"]),
         "all_time_min": {
             "date": min_row["date"].strftime("%Y-%m-%d"),
             "value": round(float(min_row["lth_mvrv_ratio"]), 3),
@@ -288,6 +331,8 @@ def _build_mvrv_momentum(price_df: pd.DataFrame, mvrv_df: pd.DataFrame) -> dict:
     change, same spirit as this project's signal-confirmation logic
     elsewhere (scoring.apply_confirmation).
     """
+    real_data_end = mvrv_df["date"].max()
+    mvrv_df = _extend_with_estimate(mvrv_df, "mvrv_ratio", price_df)
     merged = pd.merge(price_df, mvrv_df, on="date", how="inner").sort_values("date").reset_index(drop=True)
     merged["mvrv_365mean"] = merged["mvrv_ratio"].rolling(365, min_periods=200).mean()
     merged["momentum_raw"] = merged["mvrv_ratio"] / merged["mvrv_365mean"]
@@ -311,7 +356,7 @@ def _build_mvrv_momentum(price_df: pd.DataFrame, mvrv_df: pd.DataFrame) -> dict:
     latest = valid.iloc[-1]
     series = [
         {"date": row["date"].strftime("%Y-%m-%d"), "price": round(float(row["price"]), 2),
-         "momentum": round(float(row["momentum"]), 3)}
+         "momentum": round(float(row["momentum"]), 3), "is_estimate": bool(row["is_estimate"])}
         for _, row in valid.iterrows()
     ]
 
@@ -321,6 +366,8 @@ def _build_mvrv_momentum(price_df: pd.DataFrame, mvrv_df: pd.DataFrame) -> dict:
         "as_of": latest["date"].strftime("%Y-%m-%d"),
         "current": round(float(latest["momentum"]), 3),
         "data_start": valid["date"].min().strftime("%Y-%m-%d"),
+        "real_data_end": real_data_end.strftime("%Y-%m-%d"),
+        "is_estimate": bool(latest["is_estimate"]),
         "smooth_days": MOMENTUM_SMOOTH_DAYS,
     }
 

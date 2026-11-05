@@ -647,10 +647,10 @@
       <div class="legend">
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink-2)"></span>BTC price</span>
         <span class="legend-item"><span class="line-swatch" style="border-top-color:var(--ink)"></span>Fear &amp; Greed</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Extreme Buy (≤20)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Extreme Buy (≤<span class="xb-th">30</span>)</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-tint)"></span>Buy (&lt;45)</span>
         <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-tint)"></span>Sell (≥55)</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Extreme Sell (≥80)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--sell-band)"></span>Extreme Sell (≥<span class="xs-th">70</span>)</span>
       </div>
     </div>
     <div class="chart-wrap" id="chart-wrap-fng">
@@ -866,6 +866,8 @@
   document.getElementById("buy-th-label").textContent = DATA.buy_threshold;
   document.getElementById("sell-th-label").textContent = DATA.sell_threshold;
   document.getElementById("extreme-sell-th-label").textContent = DATA.extreme_high_threshold;
+  document.querySelectorAll(".xb-th").forEach((e) => { e.textContent = DATA.extreme_low_threshold; });
+  document.querySelectorAll(".xs-th").forEach((e) => { e.textContent = DATA.extreme_high_threshold; });
   document.getElementById("gauge-marker").style.left = DATA.composite + "%";
   // The CSS gauge-track gradient is hardcoded as a static fallback --
   // override it here so the 5-tier color transition actually lines up
@@ -943,7 +945,7 @@
   });
 
   document.getElementById("extreme-sub").textContent =
-    `Composite ≤ ${DATA.extreme_low_threshold} or ≥ ${DATA.extreme_high_threshold} — the rarest ~10% of readings since ${DATA.data_start}. A statistical fact about the score, not a fear/greed sentiment claim.`;
+    `Composite ≤ ${DATA.extreme_low_threshold} or ≥ ${DATA.extreme_high_threshold} — readings since ${DATA.data_start} (Extreme Buy/Sell lines widened from 20/80 to 30/70 on 23 Oct 2026, by request). A statistical fact about the score, not a fear/greed sentiment claim.`;
 
   const extremeBody = document.getElementById("extreme-body");
   DATA.extreme_periods.forEach((p) => {

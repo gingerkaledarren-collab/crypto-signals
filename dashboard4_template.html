@@ -240,7 +240,7 @@ __DASHBOARD4_DATA_JSON__
         <span class="stat-pill ${momAbove ? "above" : "below"}">${momAbove ? "bullish" : "bearish"}</span>
         <span class="stat-value">${mom.current.toFixed(2)}</span>
       </div>
-      <span class="stat-sub">${mom.as_of} &mdash; ${mom.smooth_days}d-smoothed, data from ${mom.data_start}</span>
+      <span class="stat-sub">${mom.as_of}${mom.is_estimate ? ` (estimated from price; real data to ${mom.real_data_end})` : ""} &mdash; ${mom.smooth_days}d-smoothed, data from ${mom.data_start}</span>
     </div>
     <div class="stat-card">
       <span class="stat-label">Last MACD divergence</span>
@@ -256,7 +256,7 @@ __DASHBOARD4_DATA_JSON__
         <span class="stat-pill ${lthAbove ? "above" : "below"}">${lthAbove ? "in profit" : "capitulating"}</span>
         <span class="stat-value">${lth.current.toFixed(2)}</span>
       </div>
-      <span class="stat-sub">${lth.as_of} &mdash; data from ${lth.data_start} (BGeometrics free-tier limit)</span>
+      <span class="stat-sub">${lth.as_of}${lth.is_estimate ? ` (estimated from price; real data to ${lth.real_data_end})` : ""} &mdash; data from ${lth.data_start} (BGeometrics free-tier limit)</span>
     </div>
   `;
 
@@ -376,7 +376,18 @@ __DASHBOARD4_DATA_JSON__
       return d;
     }
     svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price, priceY) }));
-    svg.appendChild(el("path", { class: "data-line", d: buildPath((d) => d.momentum, momY) }));
+    // Real data solid; the trailing price-based estimate (BGeometrics'
+    // free files run ~1 week behind) dashed, sharing one point so they join.
+    const estIdx = series.findIndex((d) => d.is_estimate);
+    const realEnd = estIdx === -1 ? series.length : estIdx;
+    svg.appendChild(el("path", { class: "data-line", d: buildPath((d) => d.momentum, momY).split(" ").slice(0, realEnd).join(" ") }));
+    if (estIdx > 0) {
+      let dEst = "";
+      for (let i = estIdx - 1; i < series.length; i++) {
+        dEst += (i === estIdx - 1 ? "M" : "L") + xScale(dates[i]).toFixed(1) + "," + momY(series[i].momentum).toFixed(1) + " ";
+      }
+      svg.appendChild(el("path", { class: "data-line", d: dEst, "stroke-dasharray": "5 4", opacity: 0.8 }));
+    }
 
     const years = [...new Set(series.map((d) => d.date.slice(0, 4)))];
     years.forEach((yr) => {
@@ -411,7 +422,7 @@ __DASHBOARD4_DATA_JSON__
       const wrapRect = wrap.getBoundingClientRect();
       tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
       tooltip.style.top = (rect.top - wrapRect.top + (priceY(d.price) / H) * rect.height) + "px";
-      tooltip.innerHTML = `<div>${d.date}</div><div>Price: ${fmtUSD(d.price)}</div><div>Momentum: ${d.momentum.toFixed(2)}${d.momentum < 1 ? " (bearish)" : " (bullish)"}</div>`;
+      tooltip.innerHTML = `<div>${d.date}</div><div>Price: ${fmtUSD(d.price)}</div><div>Momentum${d.is_estimate ? " (est.)" : ""}: ${d.momentum.toFixed(2)}${d.momentum < 1 ? " (bearish)" : " (bullish)"}</div>`;
     });
     hit.addEventListener("mouseleave", () => { crossLine.style.opacity = 0; tooltip.style.opacity = 0; });
 
@@ -430,7 +441,9 @@ __DASHBOARD4_DATA_JSON__
       `is entirely outside this window, and the 2023 one sits right at the edge of the 365-day lead-in a rolling ` +
       `mean needs, so neither historical comparison can be confirmed or refuted here. Shown ${mom.smooth_days}-day ` +
       `smoothed with a 10-day minimum hold to count as a regime change (the raw daily ratio whipsaws across 1.0 ` +
-      `dozens of times a year on this short baseline) &mdash; context only, not a validated signal.`;
+      `dozens of times a year on this short baseline) &mdash; context only, not a validated signal.` +
+      (mom.is_estimate ? ` BGeometrics' free data runs about a week behind (deliberate embargo), so the days after ` +
+      `${mom.real_data_end} (dashed) are estimated from price and replaced by real readings as they arrive.` : "");
   })();
 
   // ======================= MACD DIVERGENCE CHART =======================
@@ -627,13 +640,14 @@ __DASHBOARD4_DATA_JSON__
     function flushLineRun(run) {
       if (run.length < 2) return;
       const isProxy = run[0].is_proxy;
+      const isEst = run[run.length - 1].is_estimate;
       svg.appendChild(el("path", {
         class: "data-line", d: buildPath(run, (d) => d.lth_mvrv, lthY),
-        opacity: isProxy ? 0.55 : 1, "stroke-dasharray": isProxy ? "5 4" : "none",
+        opacity: isProxy ? 0.55 : isEst ? 0.8 : 1, "stroke-dasharray": isProxy || isEst ? "5 4" : "none",
       }));
     }
     for (let i = 1; i < series.length; i++) {
-      if (series[i].is_proxy === lineRun[0].is_proxy) {
+      if (series[i].is_proxy === lineRun[0].is_proxy && !!series[i].is_estimate === !!lineRun[lineRun.length - 1].is_estimate) {
         lineRun.push(series[i]);
       } else {
         flushLineRun(lineRun);
@@ -700,7 +714,7 @@ __DASHBOARD4_DATA_JSON__
       const wrapRect = wrap.getBoundingClientRect();
       tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
       tooltip.style.top = (rect.top - wrapRect.top + (lthY(d.lth_mvrv) / H) * rect.height) + "px";
-      const label = d.is_proxy ? "Proxy (price/200w MA)" : "LTH-MVRV";
+      const label = d.is_proxy ? "Proxy (price/200w MA)" : d.is_estimate ? "LTH-MVRV (est.)" : "LTH-MVRV";
       tooltip.innerHTML = `<div>${d.date}</div><div>Price: ${fmtUSD(d.price)}</div><div>${label}: ${d.lth_mvrv.toFixed(2)}${d.lth_mvrv < 1 ? " (below cost basis)" : ""}</div>`;
     });
     hit.addEventListener("mouseleave", () => { crossLine.style.opacity = 0; tooltip.style.opacity = 0; });
@@ -730,7 +744,10 @@ __DASHBOARD4_DATA_JSON__
       `project uses elsewhere, standing in by shape for the missing cohort data, never presented as an actual ` +
       `LTH-MVRV reading. It won't track the real metric exactly at every turn (it misses the 2018 bottom, for ` +
       `example, since the 200w MA was still rising early in BTC's history) &mdash; treat the pre-2022 portion as ` +
-      `illustrative, not exact science.`;
+      `illustrative, not exact science.` +
+      (lth.is_estimate ? ` BGeometrics' free data runs about a week behind (deliberate embargo), so the last days ` +
+      `after ${lth.real_data_end} (dashed) are estimated from price, which tracks the ratio closely over a week ` +
+      `(typically within ~0.5%), and are replaced by real readings as they arrive.` : "");
   })();
 
   document.getElementById("footnote").innerHTML =

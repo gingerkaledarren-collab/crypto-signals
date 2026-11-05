@@ -68,9 +68,57 @@ def fetch_btc_price_history(days: int = "max", force_refresh: bool = False) -> p
     df = df.drop_duplicates(subset="date").reset_index(drop=True)
     df = df[df["price"] > 0].reset_index(drop=True)  # drop pre-exchange zero-price rows
     df = df.sort_values("date").reset_index(drop=True)
+    df = _fill_price_gap_from_cmc(df)
 
     df.to_csv(PRICE_CACHE, index=False)
     return df
+
+
+def _fill_price_gap_from_cmc(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Backup for when blockchain.info's market-price chart stops updating
+    (it froze at 15 Oct 2026 for about a week, and again at 29 Oct).
+
+    Fills only the dates *after* blockchain.info's last date, from the
+    internal endpoint CoinMarketCap's own website uses
+    (api.coinmarketcap.com/data-api/v3/cryptocurrency/historical --
+    unofficial, like the CMC Fear & Greed call below). blockchain.info's
+    value for date D matches CMC's daily OPEN for D to ~0.01%, so each
+    missing day gets that day's open, plus the last finished day's close
+    as the next day's price. Any failure here leaves blockchain.info's
+    data untouched, so this can never break the build.
+    """
+    try:
+        last = df["date"].max()
+        today = pd.Timestamp(datetime.now(timezone.utc).date())
+        if last >= today:
+            return df
+        start = int((last - pd.Timedelta(days=2)).tz_localize("UTC").timestamp())
+        end = int(datetime.now(timezone.utc).timestamp())
+        resp = requests.get(
+            "https://api.coinmarketcap.com/data-api/v3/cryptocurrency/historical",
+            params={"id": 1, "convertId": 2781, "interval": "1d", "timeStart": start, "timeEnd": end},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        quotes = resp.json()["data"]["quotes"]
+        rows = {}
+        for q in quotes:
+            day = pd.Timestamp(q["timeOpen"][:10])
+            rows[day] = float(q["quote"]["open"])
+            nxt = day + pd.Timedelta(days=1)
+            rows.setdefault(nxt, float(q["quote"]["close"]))
+        extra = pd.DataFrame(
+            [{"date": d, "price": v} for d, v in sorted(rows.items()) if last < d <= today]
+        )
+        if extra.empty:
+            return df
+        extra["date"] = extra["date"].astype("datetime64[ns]")
+        print(f"blockchain.info ends {last.date()}; filled {len(extra)} day(s) from CoinMarketCap")
+        return pd.concat([df, extra], ignore_index=True).sort_values("date").reset_index(drop=True)
+    except Exception as e:  # noqa: BLE001 -- backup source must never break the build
+        print(f"CoinMarketCap price backup skipped: {e}")
+        return df
 
 
 def _fetch_fear_greed_alternative_me() -> pd.DataFrame:
