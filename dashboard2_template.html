@@ -1,0 +1,1658 @@
+<title>Short-Term Signal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
+
+<style>
+  :root {
+    --bg: #F1EFEA;
+    --surface: #FFFFFF;
+    --surface-2: #E9E4D9;
+    --border: #DCD5C7;
+    --ink: #1C1A17;
+    --ink-2: #57524A;
+    --ink-muted: #8A8377;
+    --calm: #1F6E9C;
+    --calm-tint: rgba(31, 110, 156, 0.10);
+    --alert: #C1442D;
+    --alert-strong: #953523;
+    --alert-tint: rgba(193, 68, 45, 0.10);
+    --alert-band: rgba(193, 68, 45, 0.14);
+    --alert-band-strong: rgba(193, 68, 45, 0.30);
+    --buy: #2E8F6E;
+    --buy-strong: #1F6B51;
+    --buy-tint: rgba(46, 143, 110, 0.10);
+    --buy-band: rgba(46, 143, 110, 0.14);
+    --buy-band-strong: rgba(46, 143, 110, 0.30);
+    --neutral: #8A8377;
+    --neutral-band: rgba(138, 131, 119, 0.08);
+    --st-accent: #2E8F6E;
+    --shadow: 0 1px 2px rgba(28, 26, 23, 0.05), 0 10px 28px -14px rgba(28, 26, 23, 0.22);
+    --grid-line: #E2DCCF;
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17150F;
+      --surface: #201D17;
+      --surface-2: #2A2620;
+      --border: #3A352C;
+      --ink: #F2EEE5;
+      --ink-2: #C7BFAF;
+      --ink-muted: #938A78;
+      --calm: #4396C9;
+      --calm-tint: rgba(67, 150, 201, 0.14);
+      --alert: #DB6448;
+      --alert-strong: #F0876A;
+      --alert-tint: rgba(219, 100, 72, 0.15);
+      --alert-band: rgba(219, 100, 72, 0.18);
+      --alert-band-strong: rgba(219, 100, 72, 0.34);
+      --buy: #3FAB84;
+      --buy-strong: #6AC3A2;
+      --buy-tint: rgba(63, 171, 132, 0.15);
+      --buy-band: rgba(63, 171, 132, 0.18);
+      --buy-band-strong: rgba(63, 171, 132, 0.34);
+      --neutral: #938A78;
+      --neutral-band: rgba(147, 138, 120, 0.12);
+      --st-accent: #3FAB84;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 14px 34px -14px rgba(0, 0, 0, 0.55);
+      --grid-line: #2C2820;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #17150F;
+    --surface: #201D17;
+    --surface-2: #2A2620;
+    --border: #3A352C;
+    --ink: #F2EEE5;
+    --ink-2: #C7BFAF;
+    --ink-muted: #938A78;
+    --calm: #4396C9;
+    --calm-tint: rgba(67, 150, 201, 0.14);
+    --alert: #DB6448;
+    --alert-strong: #F0876A;
+    --alert-tint: rgba(219, 100, 72, 0.15);
+    --alert-band: rgba(219, 100, 72, 0.18);
+    --alert-band-strong: rgba(219, 100, 72, 0.34);
+    --buy: #3FAB84;
+    --buy-strong: #6AC3A2;
+    --buy-tint: rgba(63, 171, 132, 0.15);
+    --buy-band: rgba(63, 171, 132, 0.18);
+    --buy-band-strong: rgba(63, 171, 132, 0.34);
+    --neutral: #938A78;
+    --neutral-band: rgba(147, 138, 120, 0.12);
+    --st-accent: #3FAB84;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 14px 34px -14px rgba(0, 0, 0, 0.55);
+    --grid-line: #2C2820;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Work Sans", -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: clamp(16px, 4vw, 48px);
+  }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .eyebrow {
+    font-family: "Space Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  h1 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700;
+    font-size: clamp(28px, 4.4vw, 40px);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    margin: 4px 0 0;
+    text-wrap: balance;
+  }
+
+  h2 {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700;
+    font-size: 19px;
+    margin: 0;
+    color: var(--ink);
+  }
+
+  header.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 18px;
+  }
+
+  .top-meta {
+    text-align: right;
+    font-family: "Space Mono", monospace;
+    font-size: 13px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .top-meta .price {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700;
+    font-size: 25px;
+    color: var(--ink);
+    display: block;
+    margin-top: 2px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 22px 24px;
+  }
+
+  /* ---- Hero status ---- */
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(220px, 320px) 1fr;
+    gap: 28px;
+    align-items: center;
+  }
+
+  .zone-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-family: "Space Mono", monospace;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    width: fit-content;
+  }
+  .zone-badge.buy_zone { background: var(--buy-tint); color: var(--buy-strong); border: 1px solid var(--buy); }
+  .zone-badge.sell_zone { background: var(--alert-tint); color: var(--alert-strong); border: 1px solid var(--alert); }
+  .zone-badge.neutral { background: var(--neutral-band); color: var(--ink-2); border: 1px solid var(--border); }
+  /* Extreme tiers get a solid fill (vs. the tint used for plain buy/sell)
+     so they read as visually "louder" -- a stronger call, not just a
+     different color -- same convention as the long-term dashboard. */
+  .zone-badge.extreme_buy { background: var(--buy); color: var(--surface); border: 1px solid var(--buy-strong); }
+  .zone-badge.extreme_sell { background: var(--alert); color: var(--surface); border: 1px solid var(--alert-strong); }
+  .zone-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .hero-score {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 800;
+    font-size: 72px;
+    line-height: 0.95;
+    margin: 10px 0 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-score .unit { font-size: 21px; font-weight: 600; color: var(--ink-muted); margin-left: 6px; }
+
+  .hero-caption {
+    font-size: 13.5px;
+    color: var(--ink-2);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+
+  .gauge-track {
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(to right, var(--buy) 0%, var(--buy) 30%, var(--neutral) 50%, var(--alert) 60%, var(--alert) 100%);
+    opacity: 0.85;
+    margin-top: 18px;
+  }
+  .gauge-marker {
+    position: absolute;
+    top: -5px;
+    width: 3px;
+    height: 20px;
+    background: var(--ink);
+    border-radius: 2px;
+    transform: translateX(-50%);
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+  .gauge-ticks {
+    display: flex;
+    justify-content: space-between;
+    font-family: "Space Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-muted);
+    margin-top: 6px;
+  }
+
+  .caveat {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    line-height: 1.55;
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+    margin-top: 16px;
+  }
+
+  /* ---- Indicator grid ---- */
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .section-sub { font-size: 12.5px; color: var(--ink-muted); }
+
+  .indicator-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .indicator-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .indicator-label {
+    font-size: 12.5px;
+    color: var(--ink-2);
+    font-weight: 600;
+  }
+
+  .indicator-value {
+    font-family: "Space Mono", monospace;
+    font-weight: 700;
+    font-size: 22px;
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .indicator-value.v-buy { color: var(--buy-strong); }
+  .indicator-value.v-sell { color: var(--alert-strong); }
+  .indicator-value.v-neutral { color: var(--ink-2); }
+
+  .mini-track {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--border);
+    margin-top: 10px;
+  }
+  .mini-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 999px; }
+  .mini-fill.f-buy { background: var(--buy); }
+  .mini-fill.f-sell { background: var(--alert); }
+  .mini-fill.f-neutral { background: var(--neutral); }
+  .mini-tick { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--ink-muted); opacity: 0.55; }
+
+  /* ---- Chart section ---- */
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 11px; height: 11px; border-radius: 3px; }
+  .legend-line { width: 16px; height: 0; border-top: 2.5px solid; }
+
+  .chart-wrap { margin-top: 16px; position: relative; }
+  svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
+  .axis-label { font-family: "Space Mono", monospace; font-size: 10.5px; fill: var(--ink-muted); }
+  .grid-line { stroke: var(--grid-line); stroke-width: 1; }
+  .threshold-line { stroke: var(--ink-muted); stroke-width: 1; stroke-dasharray: 3 4; }
+  .price-line { fill: none; stroke: var(--ink-2); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .composite-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .rsi-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ma50-line { fill: none; stroke: var(--calm); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .macd-line { fill: none; stroke: var(--calm); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .macd-signal-line { fill: none; stroke: var(--ink-muted); stroke-width: 1.5; stroke-dasharray: 5 3; stroke-linecap: round; stroke-linejoin: round; }
+  .chart-title { font-family: "Bricolage Grotesque", sans-serif; font-size: 13.5px; font-weight: 700; fill: var(--ink-2); text-transform: uppercase; letter-spacing: 0.03em; }
+
+  .crosshair-line { stroke: var(--ink-muted); stroke-width: 1; pointer-events: none; opacity: 0; }
+  .crosshair-dot { pointer-events: none; opacity: 0; }
+  .tooltip {
+    position: absolute; pointer-events: none;
+    background: var(--ink); color: var(--bg);
+    font-family: "Space Mono", monospace; font-size: 11.5px; line-height: 1.6;
+    padding: 8px 10px; border-radius: 8px; box-shadow: var(--shadow);
+    opacity: 0; transform: translate(-50%, -110%); white-space: nowrap; z-index: 5;
+    transition: opacity 0.08s ease;
+  }
+  .chart-hit { fill: transparent; cursor: crosshair; }
+
+  /* ---- Tables ---- */
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }
+  th { text-align: left; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-muted); font-weight: 600; padding: 0 10px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); font-family: "Space Mono", monospace; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  tr:last-child td { border-bottom: none; }
+  td.zone-cell { font-family: "Work Sans", sans-serif; }
+  .table-wrap { overflow-x: auto; max-height: 420px; overflow-y: auto; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+  .pill.buy_zone { background: var(--buy-tint); color: var(--buy-strong); }
+  .pill.sell_zone { background: var(--alert-tint); color: var(--alert-strong); }
+  /* Solid-filled, like the hero badge's extreme tiers -- distinct from the
+     OUTLINED extreme_low/extreme_high pills below (a separate, no-
+     confirmation-delay rarity stat, not a signal tier -- see dashboard 1). */
+  .pill.extreme_buy { background: var(--buy); color: var(--surface); }
+  .pill.extreme_sell { background: var(--alert); color: var(--surface); }
+  .pill.extreme_low { background: transparent; color: var(--buy-strong); border: 1.5px solid var(--buy); }
+  .pill.extreme_high { background: transparent; color: var(--alert-strong); border: 1.5px solid var(--alert); }
+
+  footer {
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.65;
+    padding: 4px 4px 0;
+  }
+
+  @media (max-width: 620px) {
+    .hero { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="page">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Second signal &middot; faster repositioning</div>
+      <h1>Short-Term Signal</h1>
+    </div>
+    <div class="top-meta">
+      As of <span id="as-of-date"></span>
+      <span class="price" id="hero-price"></span>
+    </div>
+  </header>
+
+  <section class="card hero">
+    <div>
+      <span class="zone-badge" id="zone-badge"><span class="dot"></span><span id="zone-badge-text"></span></span>
+      <div class="hero-score" id="hero-score">--<span class="unit">/ 100</span></div>
+      <div class="hero-caption" id="hero-caption"></div>
+    </div>
+    <div>
+      <div class="gauge-track">
+        <div class="gauge-marker" id="gauge-marker"></div>
+      </div>
+      <div class="gauge-ticks">
+        <span>0 &mdash; oversold</span>
+        <span id="extreme-buy-th-label">20</span>
+        <span id="buy-th-label">30</span>
+        <span id="sell-th-label">60</span>
+        <span id="extreme-sell-th-label">80</span>
+        <span>100 &mdash; overbought</span>
+      </div>
+      <div class="caveat" id="caveat-text"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Indicator breakdown</h2>
+      <span class="section-sub">0 = oversold/undervalued, 100 = overbought/overvalued</span>
+    </div>
+    <div class="indicator-grid" id="indicator-grid"></div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Last 24 months</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Composite score</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy)"></span>Extreme Buy</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--neutral)"></span>Neutral</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert-band)"></span>Sell zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert)"></span>Extreme Sell</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap">
+      <div id="tooltip" class="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Daily RSI(14) vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Daily RSI</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Oversold (≤30)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert-band)"></span>Overbought (≥70)</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-rsi">
+      <div id="tooltip-rsi" class="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Fear &amp; Greed (1D, unsmoothed) vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Fear &amp; Greed</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert-band)"></span>Sell zone</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-fng">
+      <div id="tooltip-fng" class="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Bollinger %B (20D) vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Bollinger %B</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert-band)"></span>Sell zone</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-bb">
+      <div id="tooltip-bb" class="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>50-day MA vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--calm)"></span>50-day MA</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-ma50">
+      <div id="tooltip-ma50" class="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>MACD vs price</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-2)"></span>BTC price</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--calm)"></span>MACD line</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink-muted);border-top-style:dashed"></span>Signal line</span>
+        <span class="legend-item"><span class="legend-line" style="border-color:var(--ink)"></span>Histogram (% of price)</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--buy-band)"></span>Buy zone</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:var(--alert-band)"></span>Sell zone</span>
+      </div>
+    </div>
+    <div class="chart-wrap" id="chart-wrap-macd">
+      <div id="tooltip-macd" class="tooltip"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Signal history</h2>
+      <span class="section-sub" id="signals-sub"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Price</th><th>Composite</th><th>Zone</th></tr></thead>
+        <tbody id="signals-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-head">
+      <h2>Extreme zone history</h2>
+      <span class="section-sub" id="extreme-sub"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Period</th><th>Days</th><th>Zone</th><th>Price start &rarr; end</th><th>Composite range</th></tr></thead>
+        <tbody id="extreme-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    Data: blockchain.info (BTC price), alternative.me (Fear &amp; Greed Index). This composite blends 50-day MA
+    distance, 1-day (unsmoothed) Fear &amp; Greed, daily RSI(14), Bollinger %B(20), and MACD histogram (12/26/9) into
+    one 0-100 score. It's a practical technicals-based tool, not a separately back-tested edge like the long-term
+    dashboard &mdash; earlier testing found these short-lookback indicators tend to confirm trend rather than call
+    reversals (see the repo README for that finding in full).
+    <b>Five-tier zones (Extreme Buy/Buy/Neutral/Sell/Extreme Sell), by request</b> &mdash; the plain 3-zone
+    version spends ~72% of days in "neutral" even though the composite legitimately swings from single
+    digits to the high 90s; checked directly, real local price peaks score a median of only ~64 (already inside
+    "neutral"), and the literal October 2025 all-time high scored 69.5, under the old sell threshold of 70.
+    Extreme Buy/Extreme Sell reuse the same &le;20 / &ge;80 rarity cutoffs the long-term dashboard uses (roughly
+    the rarest 5% on each side for this composite too), added purely for display granularity on the genuinely
+    rare blow-off/capitulation days.
+    <b>Sell threshold moved from 70 to 60 (buy stays at 30), by request</b>, after noticing sell almost never
+    triggered while buy did &mdash; real, not perception: at 30/70 the composite spent 15.5% of days at/below 30
+    but only 12.1% at/above 70 (full history), and far worse recently (last 12 months: 20.5% buy vs. just 3.3%
+    sell). The cause traces to the two most heavily-weighted inputs (50-day MA distance, Fear &amp; Greed) sitting
+    below-50 medians and crossing the low side roughly twice as often as the high side. Moving sell to 60 flips
+    the imbalance the right way (28.0% of days at/above 60 vs. 15.5% at/below 30, full history) rather than
+    splitting the difference with a symmetric 60/40, and better matches real turning points (60 catches 57% of
+    real local price peaks vs. 31% at 70). The cost: confirmed signal frequency rises to ~15-16/year from the
+    original ~9/year design target. Not separately walk-forward validated as an improvement &mdash; the
+    justification is distributional/descriptive accuracy against real peaks and troughs, not a forward-return
+    claim; see the repo README for the full numbers.
+    <b>Fear &amp; Greed smoothing changed from 5-day to 1-day (unsmoothed), by request</b>, after it was found to
+    be the single biggest drag on the composite reaching extreme_sell at real local peaks: across the peaks that
+    fell short of extreme_sell, 5-day F&amp;G's median was a flat 50 (neutral) and contributed roughly half the
+    composite's average shortfall from the 80 threshold &mdash; more than any other input, despite being the
+    most heavily weighted (30%). Unsmoothed F&amp;G lifts its own median at real peaks from 51.0 to 55.0 (share
+    of peaks with F&amp;G&ge;80 roughly doubles, 8%&rarr;13%) and the composite's own extreme_sell catch rate at
+    real peaks from 10% to 13%. Walk-forward effect is a wash (TRAIN -6.3pp&rarr;-7.0pp, TEST -5.8pp&rarr;-5.5pp)
+    &mdash; same distributional-accuracy-not-forward-return caveat as above.
+    Use it for sizing partial trims/adds, not as a standalone reason to trade. Not financial advice &mdash; run
+    <code>st_current_status.py</code> for a live check.
+  </footer>
+</div>
+
+<script id="dashboard-data" type="application/json">
+__DATA_JSON__
+</script>
+<script>
+(function () {
+  const DATA = JSON.parse(document.getElementById("dashboard-data").textContent);
+  const fmtUSD = (n) => "$" + Math.round(n).toLocaleString("en-US");
+
+  // Fixed horizontal reference band across the full width of one panel,
+  // covering [valueLo, valueHi] on that panel's own y-scale -- a static
+  // "this value range is this zone" strip, not tied to specific dates.
+  // Mirrors dashboard1_template.html's helper of the same name.
+  function drawHorizontalBand(svg, el, PAD_L, W, PAD_R, valueToY, valueLo, valueHi, panelTop, panelBottom, color) {
+    const yA = valueToY(valueLo), yB = valueToY(valueHi);
+    const yTop = Math.max(Math.min(yA, yB), panelTop);
+    const yBottom = Math.min(Math.max(yA, yB), panelBottom);
+    if (yBottom <= yTop) return;
+    svg.appendChild(el("rect", { x: PAD_L, y: yTop, width: W - PAD_R - PAD_L, height: yBottom - yTop, fill: color }));
+  }
+
+  document.getElementById("as-of-date").textContent = DATA.as_of;
+  document.getElementById("hero-price").textContent = fmtUSD(DATA.price);
+  document.getElementById("extreme-buy-th-label").textContent = DATA.extreme_low_threshold;
+  document.getElementById("buy-th-label").textContent = DATA.buy_threshold;
+  document.getElementById("sell-th-label").textContent = DATA.sell_threshold;
+  document.getElementById("extreme-sell-th-label").textContent = DATA.extreme_high_threshold;
+
+  const zone = DATA.confirmed_zone;
+  const badge = document.getElementById("zone-badge");
+  badge.classList.add(zone);
+  const badgeLabels = {
+    extreme_buy: "Extreme Buy", buy_zone: "Buy zone", neutral: "Neutral",
+    sell_zone: "Sell zone", extreme_sell: "Extreme Sell",
+  };
+  document.getElementById("zone-badge-text").textContent = badgeLabels[zone];
+
+  document.getElementById("hero-score").firstChild.textContent = DATA.composite.toFixed(1);
+  document.getElementById("gauge-marker").style.left = DATA.composite + "%";
+  // The CSS gauge-track gradient is hardcoded as a static fallback --
+  // override it here so the color transition actually lines up with
+  // DATA's real thresholds if they're ever tuned away from the defaults
+  // (same latent bug dashboard1_template.html had until fixed).
+  document.querySelector(".gauge-track").style.background =
+    `linear-gradient(to right, var(--buy) 0%, var(--buy) ${DATA.extreme_low_threshold}%, ` +
+    `var(--buy) ${DATA.buy_threshold}%, var(--neutral) 50%, ` +
+    `var(--alert) ${DATA.sell_threshold}%, var(--alert) ${DATA.extreme_high_threshold}%, var(--alert) 100%)`;
+
+  let caption;
+  if (zone === "extreme_buy") {
+    caption = `Extreme buy, day ${DATA.run_length} of this run &mdash; composite has held at/below ` +
+      `${DATA.extreme_low_threshold} for at least ${DATA.confirm_days} days, the rarest ~5% of readings.`;
+  } else if (zone === "buy_zone") {
+    caption = `Confirmed buy zone, day ${DATA.run_length} of this run &mdash; composite has held at/below ` +
+      `${DATA.buy_threshold} for at least ${DATA.confirm_days} days.`;
+  } else if (zone === "sell_zone") {
+    caption = `Confirmed sell zone, day ${DATA.run_length} of this run &mdash; composite has held at/above ` +
+      `${DATA.sell_threshold} for at least ${DATA.confirm_days} days.`;
+  } else if (zone === "extreme_sell") {
+    caption = `Extreme sell, day ${DATA.run_length} of this run &mdash; composite has held at/above ` +
+      `${DATA.extreme_high_threshold} for at least ${DATA.confirm_days} days, the rarest ~5% of readings.`;
+  } else {
+    caption = `Neutral &mdash; composite is between the ${DATA.buy_threshold}/${DATA.sell_threshold} bands, ` +
+      `or hasn't cleared one long enough to confirm.`;
+  }
+  document.getElementById("hero-caption").innerHTML = caption;
+
+  document.getElementById("caveat-text").innerHTML =
+    `A practical composite (see footer), not a separately validated signal like the long-term dashboard. ` +
+    `${DATA.signals.length} signals over ${DATA.years} years (~${DATA.per_year}/year).`;
+
+  function bucket(v, buy, sell) {
+    if (v <= buy) return "buy";
+    if (v >= sell) return "sell";
+    return "neutral";
+  }
+
+  const grid = document.getElementById("indicator-grid");
+  DATA.indicators.forEach((ind) => {
+    const b = bucket(ind.value, DATA.buy_threshold, DATA.sell_threshold);
+    const card = document.createElement("div");
+    card.className = "indicator-card";
+    card.innerHTML = `
+      <div class="indicator-label">${ind.label}</div>
+      <div class="indicator-value v-${b}">${ind.value.toFixed(1)}</div>
+      <div class="mini-track">
+        <div class="mini-fill f-${b}" style="width:${ind.value}%"></div>
+        <div class="mini-tick" style="left:${DATA.buy_threshold}%"></div>
+        <div class="mini-tick" style="left:${DATA.sell_threshold}%"></div>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  const zoneLabel = (z) => ({
+    extreme_buy: "Extreme Buy", buy_zone: "Buy zone", neutral: "Neutral",
+    sell_zone: "Sell zone", extreme_sell: "Extreme Sell",
+    extreme_low: "Extreme low (bottom decile)", extreme_high: "Extreme high (top decile)",
+  }[z] || z);
+
+  document.getElementById("signals-sub").textContent =
+    `${DATA.signals.length} signals over ${DATA.years} years (~${DATA.per_year}/year)`;
+  const signalsBody = document.getElementById("signals-body");
+  DATA.signals.slice().reverse().forEach((s) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${s.date}</td><td>${fmtUSD(s.price)}</td><td>${s.composite.toFixed(1)}</td>` +
+      `<td class="zone-cell"><span class="pill ${s.zone}">${zoneLabel(s.zone)}</span></td>`;
+    signalsBody.appendChild(tr);
+  });
+
+  document.getElementById("extreme-sub").textContent =
+    `Composite ≤ ${DATA.extreme_low_threshold} or ≥ ${DATA.extreme_high_threshold} — roughly the ` +
+    `rarest 5% of readings on each side (~9-10% of days combined). A statistical fact about the score, not a ` +
+    `fear/greed sentiment claim.`;
+
+  const extremeBody = document.getElementById("extreme-body");
+  DATA.extreme_periods.forEach((p) => {
+    const tr = document.createElement("tr");
+    const period = p.start_date === p.end_date ? p.start_date : `${p.start_date} → ${p.end_date}`;
+    tr.innerHTML = `
+      <td>${period}</td>
+      <td>${p.days}</td>
+      <td class="zone-cell"><span class="pill ${p.zone}">${zoneLabel(p.zone)}</span></td>
+      <td>${fmtUSD(p.start_price)} → ${fmtUSD(p.end_price)}</td>
+      <td>${p.min_composite.toFixed(1)}–${p.max_composite.toFixed(1)}</td>`;
+    extremeBody.appendChild(tr);
+  });
+  if (DATA.extreme_periods.length === 0) {
+    extremeBody.innerHTML = `<tr><td colspan="5" style="font-family:'Work Sans',sans-serif;color:var(--ink-muted)">No extreme-zone episodes in this history.</td></tr>`;
+  }
+
+  // ---------- Chart: price (top) + composite (bottom) + buy/sell zone bands ----------
+  function renderChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22, PAD_BOTTOM = 20;
+    const PRICE_H = 150, COMPOSITE_H = 170, GAP = 26;
+    const plotW = W - PAD_L - PAD_R;
+    const compTop = PRICE_H + GAP;
+    const totalH = compTop + COMPOSITE_H;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const priceMin = Math.min(...prices) * 0.97;
+    const priceMax = Math.max(...prices) * 1.03;
+    const yPrice = (p) => PAD_TOP + (1 - (p - priceMin) / (priceMax - priceMin)) * (PRICE_H - PAD_TOP);
+
+    const compPlotTop = compTop + PAD_TOP * 0.4;
+    const compPlotH = COMPOSITE_H - PAD_TOP * 0.4 - 12;
+    const yComposite = (v) => compPlotTop + (1 - v / 100) * compPlotH;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    // --- price panel ---
+    const priceTitle = el("text", { class: "chart-title", x: PAD_L, y: 10 });
+    priceTitle.textContent = "BTC price";
+    svg.appendChild(priceTitle);
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    // --- composite panel ---
+    const compTitle = el("text", { class: "chart-title", x: PAD_L, y: compTop + 10 });
+    compTitle.textContent = "Composite score (0-100)";
+    svg.appendChild(compTitle);
+
+    // Fixed horizontal reference bands at the composite's own buy/sell
+    // thresholds (same style as dashboard 1), drawn before the
+    // gridlines/labels/line so they sit as background.
+    {
+      const panelTop = compPlotTop, panelBottom = compPlotTop + compPlotH;
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.sell_threshold, 100, panelTop, panelBottom, "var(--alert-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, 0, DATA.buy_threshold, panelTop, panelBottom, "var(--buy-band)");
+      // Extreme sub-bands, stronger tint, layered on top of the plain
+      // buy/sell bands above -- the rarer, louder tier (see footer).
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, DATA.extreme_high_threshold, 100, panelTop, panelBottom, "var(--alert-band-strong)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yComposite, 0, DATA.extreme_low_threshold, panelTop, panelBottom, "var(--buy-band-strong)");
+    }
+
+    [0, 50, 100].forEach((v) => {
+      const y = yComposite(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v;
+      svg.appendChild(t);
+    });
+
+    // Composite line drawn BEFORE its threshold labels so the labels
+    // always render on top and stay legible where the line crosses
+    // behind them.
+    const compPath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yComposite(d.composite).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "composite-line", d: compPath }));
+
+    [[DATA.extreme_low_threshold, "extreme buy<=" + DATA.extreme_low_threshold, "below"],
+     [DATA.buy_threshold, "buy<=" + DATA.buy_threshold, "below"],
+     [DATA.sell_threshold, "sell>=" + DATA.sell_threshold, "above"],
+     [DATA.extreme_high_threshold, "extreme sell>=" + DATA.extreme_high_threshold, "above"]].forEach(([th, label, side]) => {
+      const y = yComposite(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: side === "above" ? y - 4 : y + 13, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+    // "Neutral" has no threshold of its own -- it's the unshaded gap
+    // between buy_threshold and sell_threshold -- so it gets a label
+    // with no dashed line, centered in that gap.
+    {
+      const t = el("text", {
+        class: "axis-label", x: W - PAD_R,
+        y: (yComposite(DATA.buy_threshold) + yComposite(DATA.sell_threshold)) / 2 + 3,
+        "text-anchor": "end",
+      });
+      t.textContent = "neutral";
+      svg.appendChild(t);
+    }
+
+    // --- shared time axis (months, since this is always the 24-month view) ---
+    const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
+    axisKeys.forEach((key) => {
+      const first = series.find((d) => d.date.slice(0, 7) === key);
+      const label = new Date(key + "-01T00:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    // --- crosshair + tooltip ---
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotComp = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotComp);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      [crossLine, dotPrice, dotComp].forEach((n) => (n.style.opacity = 1));
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+      dotComp.setAttribute("cx", px); dotComp.setAttribute("cy", yComposite(d.composite));
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (totalH + 16)) * rect.height) + "px";
+      const dot = (color) => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px"></span>`;
+      let zoneNote = "";
+      if (d.zone === "buy_zone") zoneNote = `<div>${dot("var(--buy)")}BUY ZONE</div>`;
+      if (d.zone === "sell_zone") zoneNote = `<div>${dot("var(--alert)")}SELL ZONE</div>`;
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>` +
+        `<div>${dot("var(--ink)")}Composite ${d.composite.toFixed(1)}</div>${zoneNote}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotComp].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  renderChart("chart-wrap", "tooltip", DATA.series);
+
+  // ---------- Daily RSI(14) vs price (price panel + RSI panel) ----------
+  function renderRsiChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, RSI_H = 170, GAP = 26;
+    const plotW = W - PAD_L - PAD_R;
+    const rsiTop = PRICE_H + GAP;
+    const totalH = rsiTop + RSI_H;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const priceMin = Math.min(...prices) * 0.97;
+    const priceMax = Math.max(...prices) * 1.03;
+    const yPrice = (p) => PAD_TOP + (1 - (p - priceMin) / (priceMax - priceMin)) * (PRICE_H - PAD_TOP);
+
+    const rsiPlotTop = rsiTop + PAD_TOP * 0.4;
+    const rsiPlotH = RSI_H - PAD_TOP * 0.4 - 12;
+    const yRsi = (v) => rsiPlotTop + (1 - v / 100) * rsiPlotH;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    const priceTitle = el("text", { class: "chart-title", x: PAD_L, y: 10 });
+    priceTitle.textContent = "BTC price";
+    svg.appendChild(priceTitle);
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    const rsiTitle = el("text", { class: "chart-title", x: PAD_L, y: rsiTop + 10 });
+    rsiTitle.textContent = "Daily RSI (0-100)";
+    svg.appendChild(rsiTitle);
+
+    {
+      const panelTop = rsiPlotTop, panelBottom = rsiPlotTop + rsiPlotH;
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 70, 100, panelTop, panelBottom, "var(--alert-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yRsi, 0, 30, panelTop, panelBottom, "var(--buy-band)");
+    }
+
+    [0, 50, 100].forEach((v) => {
+      const y = yRsi(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v;
+      svg.appendChild(t);
+    });
+
+    function buildRsiPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.daily_rsi === null || pt.daily_rsi === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yRsi(pt.daily_rsi).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
+    svg.appendChild(el("path", { class: "rsi-line", d: buildRsiPath() }));
+
+    [[70, "overbought ≥ 70", "above"], [30, "oversold ≤ 30", "below"]].forEach(([th, label, side]) => {
+      const y = yRsi(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: side === "above" ? y - 4 : y + 13, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
+    axisKeys.forEach((key) => {
+      const first = series.find((d) => d.date.slice(0, 7) === key);
+      const label = new Date(key + "-01T00:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotRsi = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotRsi);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      const dot = (color) => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px"></span>`;
+      let rsiLine = "";
+      if (d.daily_rsi != null) {
+        dotRsi.style.opacity = 1;
+        dotRsi.setAttribute("cx", px); dotRsi.setAttribute("cy", yRsi(d.daily_rsi));
+        rsiLine = `<div>${dot("var(--ink)")}RSI ${d.daily_rsi.toFixed(1)}</div>`;
+      } else {
+        dotRsi.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (totalH + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${rsiLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotRsi].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- Fear & Greed (1D, unsmoothed) vs price ----------
+  function renderFngChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, FNG_H = 170, GAP = 26;
+    const plotW = W - PAD_L - PAD_R;
+    const fngTop = PRICE_H + GAP;
+    const totalH = fngTop + FNG_H;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const priceMin = Math.min(...prices) * 0.97;
+    const priceMax = Math.max(...prices) * 1.03;
+    const yPrice = (p) => PAD_TOP + (1 - (p - priceMin) / (priceMax - priceMin)) * (PRICE_H - PAD_TOP);
+
+    const fngPlotTop = fngTop + PAD_TOP * 0.4;
+    const fngPlotH = FNG_H - PAD_TOP * 0.4 - 12;
+    const yFng = (v) => fngPlotTop + (1 - v / 100) * fngPlotH;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    const priceTitle = el("text", { class: "chart-title", x: PAD_L, y: 10 });
+    priceTitle.textContent = "BTC price";
+    svg.appendChild(priceTitle);
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    const fngTitle = el("text", { class: "chart-title", x: PAD_L, y: fngTop + 10 });
+    fngTitle.textContent = "Fear & Greed (0-100)";
+    svg.appendChild(fngTitle);
+
+    // fng_st_score IS the raw 5D-smoothed F&G value (no separate
+    // normalization -- see st_indicators.build_st_indicator_table()), so
+    // DATA's own buy/sell thresholds apply directly on this chart's axis.
+    {
+      const panelTop = fngPlotTop, panelBottom = fngPlotTop + fngPlotH;
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yFng, DATA.sell_threshold, 100, panelTop, panelBottom, "var(--alert-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yFng, 0, DATA.buy_threshold, panelTop, panelBottom, "var(--buy-band)");
+    }
+
+    [0, 50, 100].forEach((v) => {
+      const y = yFng(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v;
+      svg.appendChild(t);
+    });
+
+    function buildFngPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.fng_short_smoothed === null || pt.fng_short_smoothed === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yFng(pt.fng_short_smoothed).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
+    svg.appendChild(el("path", { class: "rsi-line", d: buildFngPath() }));
+
+    [[DATA.sell_threshold, `sell zone ≥ ${DATA.sell_threshold}`, "above"], [DATA.buy_threshold, `buy zone ≤ ${DATA.buy_threshold}`, "below"]].forEach(([th, label, side]) => {
+      const y = yFng(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: side === "above" ? y - 4 : y + 13, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
+    axisKeys.forEach((key) => {
+      const first = series.find((d) => d.date.slice(0, 7) === key);
+      const label = new Date(key + "-01T00:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotFng = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotFng);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      const dot = (color) => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px"></span>`;
+      let fngLine = "";
+      if (d.fng_short_smoothed != null) {
+        dotFng.style.opacity = 1;
+        dotFng.setAttribute("cx", px); dotFng.setAttribute("cy", yFng(d.fng_short_smoothed));
+        fngLine = `<div>${dot("var(--ink)")}F&amp;G ${d.fng_short_smoothed.toFixed(1)}</div>`;
+      } else {
+        dotFng.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (totalH + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${fngLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotFng].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- Bollinger %B (20D) vs price ----------
+  function renderBbChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, BB_H = 170, GAP = 26;
+    const plotW = W - PAD_L - PAD_R;
+    const bbTop = PRICE_H + GAP;
+    const totalH = bbTop + BB_H;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const priceMin = Math.min(...prices) * 0.97;
+    const priceMax = Math.max(...prices) * 1.03;
+    const yPrice = (p) => PAD_TOP + (1 - (p - priceMin) / (priceMax - priceMin)) * (PRICE_H - PAD_TOP);
+
+    const pctBValues = series.map((d) => d.pct_b).filter((v) => v != null);
+    const bbMin = Math.min(...pctBValues, 0) - 5;
+    const bbMax = Math.max(...pctBValues, 100) + 5;
+    const bbPlotTop = bbTop + PAD_TOP * 0.4;
+    const bbPlotH = BB_H - PAD_TOP * 0.4 - 12;
+    const yBb = (v) => bbPlotTop + (1 - (v - bbMin) / (bbMax - bbMin)) * bbPlotH;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    const priceTitle = el("text", { class: "chart-title", x: PAD_L, y: 10 });
+    priceTitle.textContent = "BTC price";
+    svg.appendChild(priceTitle);
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    const bbTitle = el("text", { class: "chart-title", x: PAD_L, y: bbTop + 10 });
+    bbTitle.textContent = "Bollinger %B";
+    svg.appendChild(bbTitle);
+
+    // bb_score is normalize_pct_b(pct_b, clip_range=DATA.bb_clip_range) --
+    // invert that to convert DATA's buy/sell score thresholds into raw
+    // %B values for this chart's own axis (same pattern dashboard 1 uses
+    // for Supply-in-Loss/MVRV).
+    const [bbClipLo, bbClipHi] = DATA.bb_clip_range;
+    const bbBuyAt = bbClipLo + (DATA.buy_threshold / 100) * (bbClipHi - bbClipLo);
+    const bbSellAt = bbClipLo + (DATA.sell_threshold / 100) * (bbClipHi - bbClipLo);
+    {
+      const panelTop = bbPlotTop, panelBottom = bbPlotTop + bbPlotH;
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yBb, bbSellAt, bbMax, panelTop, panelBottom, "var(--alert-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yBb, bbMin, bbBuyAt, panelTop, panelBottom, "var(--buy-band)");
+    }
+
+    [0, 50, 100].forEach((v) => {
+      const y = yBb(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v;
+      svg.appendChild(t);
+    });
+
+    function buildBbPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.pct_b === null || pt.pct_b === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yBb(pt.pct_b).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
+    svg.appendChild(el("path", { class: "rsi-line", d: buildBbPath() }));
+
+    [[bbSellAt, `sell zone ≥ ${bbSellAt.toFixed(0)}`, "above"], [bbBuyAt, `buy zone ≤ ${bbBuyAt.toFixed(0)}`, "below"]].forEach(([th, label, side]) => {
+      const y = yBb(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: side === "above" ? y - 4 : y + 13, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
+    axisKeys.forEach((key) => {
+      const first = series.find((d) => d.date.slice(0, 7) === key);
+      const label = new Date(key + "-01T00:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotBb = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotBb);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      const dot = (color) => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px"></span>`;
+      let bbLine = "";
+      if (d.pct_b != null) {
+        dotBb.style.opacity = 1;
+        dotBb.setAttribute("cx", px); dotBb.setAttribute("cy", yBb(d.pct_b));
+        bbLine = `<div>${dot("var(--ink)")}%B ${d.pct_b.toFixed(1)}</div>`;
+      } else {
+        dotBb.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (totalH + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${bbLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotBb].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- 50-day MA vs price (single linear panel) ----------
+  function renderMa50Chart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const H = 260;
+    const plotW = W - PAD_L - PAD_R;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const allValues = series.flatMap((d) => [d.price, d.ma50]).filter((v) => v != null);
+    const vMin = Math.min(...allValues) * 0.97;
+    const vMax = Math.max(...allValues) * 1.03;
+    const yVal = (v) => PAD_TOP + (1 - (v - vMin) / (vMax - vMin)) * (H - PAD_TOP);
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    const title = el("text", { class: "chart-title", x: PAD_L, y: 10 });
+    title.textContent = "BTC price vs 50-day MA";
+    svg.appendChild(title);
+    [Math.min(...allValues), Math.max(...allValues)].forEach((v) => {
+      const y = yVal(v);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(v).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+
+    function buildPath(valueFn) {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        const v = valueFn(pt);
+        if (v === null || v === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yVal(v).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    svg.appendChild(el("path", { class: "price-line", d: buildPath((d) => d.price) }));
+    svg.appendChild(el("path", { class: "ma50-line", d: buildPath((d) => d.ma50) }));
+
+    const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
+    axisKeys.forEach((key) => {
+      const first = series.find((d) => d.date.slice(0, 7) === key);
+      const label = new Date(key + "-01T00:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: H + 14, "text-anchor": "middle" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: H });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotMa = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--calm)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotMa);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: H });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yVal(d.price));
+
+      const dot = (color) => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px"></span>`;
+      let maLine = "";
+      if (d.ma50 != null) {
+        dotMa.style.opacity = 1;
+        dotMa.setAttribute("cx", px); dotMa.setAttribute("cy", yVal(d.ma50));
+        const pctDist = ((d.price - d.ma50) / d.ma50 * 100).toFixed(1);
+        maLine = `<div>${dot("var(--calm)")}50d MA ${fmtUSD(d.ma50)} (${pctDist > 0 ? "+" : ""}${pctDist}%)</div>`;
+      } else {
+        dotMa.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yVal(d.price) / (H + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${maLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotMa].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  // ---------- MACD vs price (price panel + MACD/signal line panel) ----------
+  function renderMacdChart(wrapId, tooltipId, series) {
+    const dates = series.map((d) => new Date(d.date + "T00:00:00Z").getTime());
+    const x0 = dates[0], x1 = dates[dates.length - 1];
+
+    const W = 1000, PAD_L = 46, PAD_R = 12, PAD_TOP = 22;
+    const PRICE_H = 150, MACD_H = 170, HIST_H = 170, GAP = 26;
+    const plotW = W - PAD_L - PAD_R;
+    const macdTop = PRICE_H + GAP;
+    const histTop = macdTop + MACD_H + GAP;
+    const totalH = histTop + HIST_H;
+
+    const xScale = (t) => PAD_L + ((t - x0) / (x1 - x0)) * plotW;
+
+    const prices = series.map((d) => d.price);
+    const priceMin = Math.min(...prices) * 0.97;
+    const priceMax = Math.max(...prices) * 1.03;
+    const yPrice = (p) => PAD_TOP + (1 - (p - priceMin) / (priceMax - priceMin)) * (PRICE_H - PAD_TOP);
+
+    const macdValues = series.flatMap((d) => [d.macd_line, d.macd_signal]).filter((v) => v != null);
+    const macdMin = Math.min(...macdValues, 0);
+    const macdMax = Math.max(...macdValues, 0);
+    const macdPad = (macdMax - macdMin) * 0.1 || 1;
+    const macdPlotTop = macdTop + PAD_TOP * 0.4;
+    const macdPlotH = MACD_H - PAD_TOP * 0.4 - 12;
+    const yMacd = (v) => macdPlotTop + (1 - (v - (macdMin - macdPad)) / ((macdMax + macdPad) - (macdMin - macdPad))) * macdPlotH;
+
+    const histValues = series.map((d) => d.macd_hist_pct).filter((v) => v != null);
+    const histMin = Math.min(...histValues, 0);
+    const histMax = Math.max(...histValues, 0);
+    const histPad = (histMax - histMin) * 0.1 || 1;
+    const histPlotTop = histTop + PAD_TOP * 0.4;
+    const histPlotH = HIST_H - PAD_TOP * 0.4 - 12;
+    const yHist = (v) => histPlotTop + (1 - (v - (histMin - histPad)) / ((histMax + histPad) - (histMin - histPad))) * histPlotH;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("viewBox", `0 0 ${W} ${totalH + 16}`);
+    document.getElementById(wrapId).prepend(svg);
+
+    function el(tag, attrs) {
+      const e = document.createElementNS(svgNS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    const priceTitle = el("text", { class: "chart-title", x: PAD_L, y: 10 });
+    priceTitle.textContent = "BTC price";
+    svg.appendChild(priceTitle);
+    [Math.min(...prices), Math.max(...prices)].forEach((p) => {
+      const y = yPrice(p);
+      svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = "$" + Math.round(p).toLocaleString("en-US");
+      svg.appendChild(t);
+    });
+    const pricePath = series.map((d, idx) => `${idx === 0 ? "M" : "L"}${xScale(dates[idx]).toFixed(1)},${yPrice(d.price).toFixed(1)}`).join(" ");
+    svg.appendChild(el("path", { class: "price-line", d: pricePath }));
+
+    const macdTitle = el("text", { class: "chart-title", x: PAD_L, y: macdTop + 10 });
+    macdTitle.textContent = "MACD (12/26/9)";
+    svg.appendChild(macdTitle);
+
+    function buildMacdPath(valueFn) {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        const v = valueFn(pt);
+        if (v === null || v === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yMacd(v).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    // Drawn BEFORE the zero-line label below so the label always renders
+    // on top and stays legible where a line crosses behind it.
+    svg.appendChild(el("path", { class: "macd-signal-line", d: buildMacdPath((d) => d.macd_signal) }));
+    svg.appendChild(el("path", { class: "macd-line", d: buildMacdPath((d) => d.macd_line) }));
+
+    const zeroY = yMacd(0);
+    svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: zeroY, y2: zeroY }));
+    const zeroLabel = el("text", { class: "axis-label", x: PAD_L - 6, y: zeroY + 3, "text-anchor": "end" });
+    zeroLabel.textContent = "0";
+    svg.appendChild(zeroLabel);
+
+    // --- MACD histogram panel (% of price) -- this is the value macd_score
+    // is actually derived from, not the raw macd_line/macd_signal above
+    // (which are in ever-growing dollar terms over an 8-year, $3k-to-$120k+
+    // price history, so a FIXED buy/sell band on that panel wouldn't mean
+    // the same thing in 2018 as it does today). Bands here invert
+    // DATA.macd_clip_range the same way the Bollinger %B chart does.
+    const histTitle = el("text", { class: "chart-title", x: PAD_L, y: histTop + 10 });
+    histTitle.textContent = "MACD Histogram (% of price)";
+    svg.appendChild(histTitle);
+
+    const [macdClipLo, macdClipHi] = DATA.macd_clip_range;
+    const macdBuyAt = macdClipLo + (DATA.buy_threshold / 100) * (macdClipHi - macdClipLo);
+    const macdSellAt = macdClipLo + (DATA.sell_threshold / 100) * (macdClipHi - macdClipLo);
+    {
+      const panelTop = histPlotTop, panelBottom = histPlotTop + histPlotH;
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yHist, macdSellAt, histMax + histPad, panelTop, panelBottom, "var(--alert-band)");
+      drawHorizontalBand(svg, el, PAD_L, W, PAD_R, yHist, histMin - histPad, macdBuyAt, panelTop, panelBottom, "var(--buy-band)");
+    }
+
+    const histZeroY = yHist(0);
+    svg.appendChild(el("line", { class: "grid-line", x1: PAD_L, x2: W - PAD_R, y1: histZeroY, y2: histZeroY }));
+    [histMin, 0, histMax].forEach((v) => {
+      const y = yHist(v);
+      const t = el("text", { class: "axis-label", x: PAD_L - 6, y: y + 3, "text-anchor": "end" });
+      t.textContent = v.toFixed(2) + "%";
+      svg.appendChild(t);
+    });
+
+    function buildHistPath() {
+      let d = "", started = false;
+      series.forEach((pt, idx) => {
+        if (pt.macd_hist_pct === null || pt.macd_hist_pct === undefined) { started = false; return; }
+        d += `${started ? "L" : "M"}${xScale(dates[idx]).toFixed(1)},${yHist(pt.macd_hist_pct).toFixed(1)} `;
+        started = true;
+      });
+      return d.trim();
+    }
+    // Drawn BEFORE the threshold labels below so the labels always render
+    // on top and stay legible where the line crosses behind them.
+    svg.appendChild(el("path", { class: "rsi-line", d: buildHistPath() }));
+
+    [[macdSellAt, `sell zone ≥ ${macdSellAt.toFixed(2)}%`, "above"], [macdBuyAt, `buy zone ≤ ${macdBuyAt.toFixed(2)}%`, "below"]].forEach(([th, label, side]) => {
+      const y = yHist(th);
+      svg.appendChild(el("line", { class: "threshold-line", x1: PAD_L, x2: W - PAD_R, y1: y, y2: y }));
+      const t = el("text", { class: "axis-label", x: W - PAD_R, y: side === "above" ? y - 4 : y + 13, "text-anchor": "end" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const axisKeys = [...new Set(series.map((d) => d.date.slice(0, 7)))];
+    axisKeys.forEach((key) => {
+      const first = series.find((d) => d.date.slice(0, 7) === key);
+      const label = new Date(key + "-01T00:00:00Z").toLocaleDateString("en-US", { month: "short", timeZone: "UTC" });
+      const t = el("text", { class: "axis-label", x: xScale(new Date(first.date + "T00:00:00Z").getTime()), y: totalH + 14, "text-anchor": "middle" });
+      t.textContent = label;
+      svg.appendChild(t);
+    });
+
+    const crossLine = el("line", { class: "crosshair-line", x1: 0, x2: 0, y1: PAD_TOP - 8, y2: totalH });
+    const dotPrice = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-2)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotMacd = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--calm)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotSignal = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink-muted)", stroke: "var(--surface)", "stroke-width": 2 });
+    const dotHist = el("circle", { class: "crosshair-dot", r: 4, fill: "var(--ink)", stroke: "var(--surface)", "stroke-width": 2 });
+    svg.appendChild(crossLine);
+    svg.appendChild(dotPrice);
+    svg.appendChild(dotMacd);
+    svg.appendChild(dotSignal);
+    svg.appendChild(dotHist);
+
+    const hit = el("rect", { class: "chart-hit", x: PAD_L, y: 0, width: plotW, height: totalH });
+    svg.appendChild(hit);
+
+    const tooltip = document.getElementById(tooltipId);
+    const wrap = document.getElementById(wrapId);
+
+    function nearestIndex(t) {
+      const frac = (t - x0) / (x1 - x0);
+      return Math.max(0, Math.min(series.length - 1, Math.round(frac * (series.length - 1))));
+    }
+
+    hit.addEventListener("mousemove", (evt) => {
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((evt.clientX - rect.left) / rect.width) * W;
+      const t = x0 + ((svgX - PAD_L) / plotW) * (x1 - x0);
+      const idx = nearestIndex(t);
+      const d = series[idx];
+      const px = xScale(dates[idx]);
+
+      crossLine.style.opacity = 1;
+      dotPrice.style.opacity = 1;
+      crossLine.setAttribute("x1", px); crossLine.setAttribute("x2", px);
+      dotPrice.setAttribute("cx", px); dotPrice.setAttribute("cy", yPrice(d.price));
+
+      const dot = (color) => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:5px"></span>`;
+      let macdLines = "";
+      if (d.macd_line != null && d.macd_signal != null) {
+        dotMacd.style.opacity = 1;
+        dotSignal.style.opacity = 1;
+        dotMacd.setAttribute("cx", px); dotMacd.setAttribute("cy", yMacd(d.macd_line));
+        dotSignal.setAttribute("cx", px); dotSignal.setAttribute("cy", yMacd(d.macd_signal));
+        macdLines = `<div>${dot("var(--calm)")}MACD ${d.macd_line.toFixed(1)}</div><div>${dot("var(--ink-muted)")}Signal ${d.macd_signal.toFixed(1)}</div>`;
+      } else {
+        dotMacd.style.opacity = 0;
+        dotSignal.style.opacity = 0;
+      }
+
+      let histLine = "";
+      if (d.macd_hist_pct != null) {
+        dotHist.style.opacity = 1;
+        dotHist.setAttribute("cx", px); dotHist.setAttribute("cy", yHist(d.macd_hist_pct));
+        histLine = `<div>${dot("var(--ink)")}Histogram ${d.macd_hist_pct.toFixed(2)}%</div>`;
+      } else {
+        dotHist.style.opacity = 0;
+      }
+
+      tooltip.style.opacity = 1;
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = (rect.left - wrapRect.left + (px / W) * rect.width) + "px";
+      tooltip.style.top = (rect.top - wrapRect.top + (yPrice(d.price) / (totalH + 16)) * rect.height) + "px";
+      tooltip.innerHTML = `<div>${d.date}</div><div>${fmtUSD(d.price)}</div>${macdLines}${histLine}`;
+    });
+    hit.addEventListener("mouseleave", () => {
+      [crossLine, dotPrice, dotMacd, dotSignal, dotHist].forEach((n) => (n.style.opacity = 0));
+      tooltip.style.opacity = 0;
+    });
+  }
+
+  renderRsiChart("chart-wrap-rsi", "tooltip-rsi", DATA.series);
+  renderFngChart("chart-wrap-fng", "tooltip-fng", DATA.series);
+  renderBbChart("chart-wrap-bb", "tooltip-bb", DATA.series);
+  renderMa50Chart("chart-wrap-ma50", "tooltip-ma50", DATA.series);
+  renderMacdChart("chart-wrap-macd", "tooltip-macd", DATA.series);
+})();
+</script>
